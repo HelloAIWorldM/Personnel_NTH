@@ -1,0 +1,6 @@
+{
+  "name": "Bảng Sắp Xếp Nhân Sự Raid",
+  "description": "Bảng phân chia đội hình và sắp xếp nhân sự Raid với thông tin STT, Ingame, Class và Logged by, đồng bộ Google Sheets.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
