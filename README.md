@@ -115,11 +115,39 @@ Thanh thống kê đầu bảng hiển thị tức thì số lượng từng ph�
 
 ---
 
+## ⚡ Hướng Dẫn Deploy Lên Vercel (Miễn phí 100%)
+
+Dự án đã được tạo sẵn file cấu hình `vercel.json` chuẩn cho ứng dụng Vite Single Page App (SPA).
+
+### Cách 1: Deploy qua GitHub (Khuyên dùng)
+1. Đẩy mã nguồn của dự án lên tài khoản GitHub của bạn.
+2. Truy cập [vercel.com](https://vercel.com) và đăng nhập bằng tài khoản GitHub.
+3. Nhấn **"Add New..."** > **"Project"**, chọn kho lưu trữ GitHub vừa tải lên.
+4. Vercel sẽ tự động nhận diện cấu hình:
+   - **Framework Preset**: `Vite`
+   - **Build Command**: `npm run build`
+   - **Output Directory**: `dist`
+5. Nhấn **"Deploy"**. Sau khoảng 30 giây, website của bạn sẽ hoạt động chính thức với đường link dạng `https://ten-du-an.vercel.app`.
+
+### Cách 2: Deploy bằng Vercel CLI (Từ máy tính)
+1. Cài đặt Vercel CLI:
+   ```bash
+   npm i -g vercel
+   ```
+2. Mở thư mục dự án và gõ lệnh:
+   ```bash
+   vercel
+   ```
+3. Làm theo các câu hỏi trên màn hình (chọn cài đặt mặc định), dự án sẽ được deploy ngay lập tức.
+
+---
+
 ## 📁 Cấu Trúc Dự Án (Project Structure)
 
 ```text
 ├── index.html                   # HTML entry point với viewport và Be Vietnam Pro font
 ├── metadata.json                # Thông tin cấu hình ứng dụng trên AI Studio
+├── vercel.json                  # Cấu hình deploy chuẩn Vite SPA trên Vercel
 ├── package.json                 # Khai báo dependencies và scripts thực thi
 ├── tsconfig.json                # Cấu hình TypeScript
 ├── vite.config.ts               # Cấu hình Vite & Tailwind CSS
@@ -139,9 +167,8 @@ Thanh thống kê đầu bảng hiển thị tức thì số lượng từng ph�
     │   ├── ColorCustomizerModal.tsx # Modal tùy biến màu sắc từng phái và chọn preset nhanh
     │   └── GoogleSheetsModal.tsx    # Modal đăng nhập Google, xuất sheet mới và nhập sheet có sẵn
     └── services/
-        ├── firebase.ts          # Khởi tạo kết nối Firebase
-        ├── auth.ts              # Xử lý đăng nhập / đăng xuất Google Popup
-        └── googleSheets.ts      # Gọi Google Sheets API (Export & Import)
+        ├── auth.ts              # Khởi tạo Firebase Auth & Xử lý đăng nhập / đăng xuất Google
+        └── sheets.ts            # Gọi Google Sheets API (Export & Import)
 ```
 
 ---
