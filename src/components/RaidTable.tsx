@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
 import { CustomClassColors, RaidClass, RaidMember, RaidParty } from '../types';
+import { DuplicateWarningBanner } from './DuplicateWarningBanner';
+import { getDuplicateIngameMap, getDuplicateLoggedByMap } from '../utils/duplicates';
 import {
   ChevronUp,
   ChevronDown,
@@ -19,6 +21,8 @@ import {
   X,
   Sun,
   Moon,
+  AlertTriangle,
+  AlertCircle,
 } from 'lucide-react';
 
 interface RaidTableProps {
@@ -75,6 +79,22 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
   // Mobile row actions modal state
   const [mobileActionMemberId, setMobileActionMemberId] = useState<string | null>(null);
+
+  // Duplicate Ingame and LoggedBy lookup maps
+  const duplicateIngameMap = useMemo(() => getDuplicateIngameMap(members), [members]);
+  const duplicateLoggedByMap = useMemo(() => getDuplicateLoggedByMap(members), [members]);
+
+  // Smooth scroll and highlight a member row
+  const handleScrollToMember = (stt: number) => {
+    const row = document.getElementById(`raid-row-${stt}`);
+    if (row) {
+      row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      row.classList.add('ring-2', 'ring-amber-500', 'bg-amber-100/40');
+      setTimeout(() => {
+        row.classList.remove('ring-2', 'ring-amber-500', 'bg-amber-100/40');
+      }, 2500);
+    }
+  };
 
   // Close class selection popover on click outside (desktop)
   useEffect(() => {
@@ -366,6 +386,12 @@ export const RaidTable: React.FC<RaidTableProps> = ({
         </div>
       )}
 
+      {/* Duplicate Ingame / Logged By Warning Banner */}
+      <DuplicateWarningBanner
+        members={members}
+        onScrollToMember={handleScrollToMember}
+      />
+
       {/* Responsive Horizontal Scroll Wrapper for Table */}
       <div className="w-full max-w-[620px] overflow-x-auto pb-1">
         {/* The Visual Raid Table (Replicating Image, Dark/Light adaptive) */}
@@ -446,6 +472,11 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                 const openUpward = idx >= Math.max(3, Math.floor(members.length / 2));
                 const isDragging = draggedMemberId === member.id;
                 const isDragOver = dragOverMemberId === member.id;
+
+                const isIngameDup = duplicateIngameMap.has(member.id);
+                const ingameDupInfo = duplicateIngameMap.get(member.id);
+                const isLoggedByDup = duplicateLoggedByMap.has(member.id);
+                const loggedByDupInfo = duplicateLoggedByMap.get(member.id);
 
                 const currentPartyId = member.party || 1;
                 const prevMember = idx > 0 ? members[idx - 1] : null;
@@ -654,25 +685,49 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
                       {/* Ingame Column */}
                       <td
-                        className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] border-r-[2px] ${
+                        className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] border-r-[2px] transition-colors ${
                           isTableDark
                             ? 'border-slate-700 text-slate-100'
                             : 'border-black text-slate-900'
+                        } ${
+                          isIngameDup
+                            ? isTableDark
+                              ? 'bg-red-950/40 text-red-200'
+                              : 'bg-red-50 text-red-900'
+                            : ''
                         }`}
                       >
-                        <input
-                          type="text"
-                          value={member.ingame}
-                          onChange={(e) =>
-                            handleUpdateMember(member.id, { ingame: e.target.value })
-                          }
-                          placeholder="Ingame..."
-                          className={`w-full text-center bg-transparent rounded px-0.5 sm:px-1 py-1 sm:py-0.5 font-semibold text-xs sm:text-[15px] focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                            isTableDark
-                              ? 'text-slate-100 placeholder:text-slate-500 focus:bg-slate-800'
-                              : 'text-slate-900 placeholder:text-slate-400 focus:bg-amber-50'
-                          }`}
-                        />
+                        <div className="flex items-center justify-center relative">
+                          <input
+                            type="text"
+                            value={member.ingame}
+                            onChange={(e) =>
+                              handleUpdateMember(member.id, { ingame: e.target.value })
+                            }
+                            placeholder="Ingame..."
+                            className={`w-full text-center bg-transparent rounded px-0.5 sm:px-1 py-1 sm:py-0.5 font-semibold text-xs sm:text-[15px] focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                              isIngameDup
+                                ? isTableDark
+                                  ? 'text-red-200 font-bold placeholder:text-red-400'
+                                  : 'text-red-900 font-bold placeholder:text-red-400'
+                                : isTableDark
+                                ? 'text-slate-100 placeholder:text-slate-500 focus:bg-slate-800'
+                                : 'text-slate-900 placeholder:text-slate-400 focus:bg-amber-50'
+                            }`}
+                          />
+
+                          {isIngameDup && (
+                            <span
+                              title={`⚠️ Trùng tên Ingame với: ${ingameDupInfo?.stts
+                                .filter((s) => s !== member.stt)
+                                .map((s) => `STT #${s}`)
+                                .join(', ')}`}
+                              className="absolute right-0.5 sm:right-1 text-red-500 hover:text-red-600 cursor-help"
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Class Badge Cell with exact background color */}
@@ -769,11 +824,28 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
                       {/* Logged by Column */}
                       <td
-                        className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] relative group/log ${
+                        className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] relative group/log transition-colors ${
                           isTableDark ? 'text-slate-100' : 'text-slate-900'
+                        } ${
+                          isLoggedByDup
+                            ? isTableDark
+                              ? 'bg-amber-950/40 text-amber-200'
+                              : 'bg-amber-50 text-amber-900'
+                            : ''
                         }`}
                       >
                         <div className="flex items-center justify-center relative">
+                          {isLoggedByDup && (
+                            <span
+                              title={`⚠️ Trùng người log: "${loggedByDupInfo?.originalName}" đang log cho ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
+                                .map((s) => `#${s}`)
+                                .join(', ')})`}
+                              className="absolute left-0.5 sm:left-1 text-amber-500 hover:text-amber-600 cursor-help"
+                            >
+                              <AlertCircle className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+
                           <input
                             type="text"
                             value={member.loggedBy}
@@ -784,7 +856,11 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             }
                             placeholder={member.ingame || 'Log by...'}
                             className={`w-full text-center bg-transparent rounded px-0.5 sm:px-1 py-1 sm:py-0.5 font-semibold text-xs sm:text-[15px] focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                              isTableDark
+                              isLoggedByDup
+                                ? isTableDark
+                                  ? 'text-amber-200 font-bold placeholder:text-amber-400'
+                                  : 'text-amber-900 font-bold placeholder:text-amber-400'
+                                : isTableDark
                                 ? 'text-slate-100 placeholder:text-slate-500 focus:bg-slate-800'
                                 : 'text-slate-900 placeholder:text-slate-400 focus:bg-amber-50'
                             }`}

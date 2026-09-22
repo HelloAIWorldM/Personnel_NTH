@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { RaidMember, RaidParty, CustomClassColors } from '../types';
 import { getEffectiveClassMeta } from '../constants/classes';
+import { DuplicateWarningBanner } from './DuplicateWarningBanner';
+import { getDuplicateIngameMap, getDuplicateLoggedByMap } from '../utils/duplicates';
 import {
   Users,
   Plus,
@@ -15,6 +17,7 @@ import {
   ArrowRightLeft,
   Sparkles,
   AlertTriangle,
+  AlertCircle,
   ChevronUp,
   ChevronDown,
 } from 'lucide-react';
@@ -39,6 +42,10 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
   const [dragOverMemberId, setDragOverMemberId] = useState<string | null>(null);
   const [editingPartyId, setEditingPartyId] = useState<number | null>(null);
   const [tempPartyName, setTempPartyName] = useState<string>('');
+
+  // Duplicate Ingame and LoggedBy lookup maps
+  const duplicateIngameMap = useMemo(() => getDuplicateIngameMap(members), [members]);
+  const duplicateLoggedByMap = useMemo(() => getDuplicateLoggedByMap(members), [members]);
 
   // Get members belonging to a party
   const getPartyMembers = (partyId: number) => {
@@ -357,6 +364,9 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
         </div>
       </div>
 
+      {/* Duplicate Warning Banner */}
+      <DuplicateWarningBanner members={members} />
+
       {/* Grid of Party Columns */}
       <div
         className={`grid grid-cols-1 ${
@@ -503,6 +513,11 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                     const isBeingDragged = draggedMemberId === member.id;
                     const isDragOverThis = dragOverMemberId === member.id;
 
+                    const isIngameDup = duplicateIngameMap.has(member.id);
+                    const ingameDupInfo = duplicateIngameMap.get(member.id);
+                    const isLoggedByDup = duplicateLoggedByMap.has(member.id);
+                    const loggedByDupInfo = duplicateLoggedByMap.get(member.id);
+
                     return (
                       <div
                         key={member.id}
@@ -522,6 +537,8 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                             ? 'opacity-40 border-indigo-400 shadow-md scale-95'
                             : isDragOverThis
                             ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40 shadow-md scale-[1.02]'
+                            : isIngameDup || isLoggedByDup
+                            ? 'bg-amber-50/40 dark:bg-amber-950/20 border-amber-300 dark:border-amber-800/80 hover:shadow-xs'
                             : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 hover:shadow-xs'
                         }`}
                       >
@@ -560,11 +577,38 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
 
                           {/* Ingame & Logged by */}
                           <div className="min-w-0 pr-1">
-                            <div className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
-                              {member.ingame || 'Chưa đặt tên'}
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate max-w-[120px] sm:max-w-[140px]">
+                                {member.ingame || 'Chưa đặt tên'}
+                              </span>
+                              {isIngameDup && (
+                                <span
+                                  title={`⚠️ Trùng tên Ingame với: ${ingameDupInfo?.stts
+                                    .filter((s) => s !== member.stt)
+                                    .map((s) => `STT #${s}`)
+                                    .join(', ')}`}
+                                  className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[9px] font-black bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 border border-red-200 dark:border-red-900/60"
+                                >
+                                  <AlertTriangle className="w-2.5 h-2.5" />
+                                  <span>Trùng Ingame</span>
+                                </span>
+                              )}
                             </div>
-                            <div className="text-[10px] text-slate-400 dark:text-slate-400 truncate">
-                              {member.loggedBy ? `by: ${member.loggedBy}` : 'Tự log'}
+                            <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
+                              <span className="text-[10px] text-slate-400 dark:text-slate-400 truncate max-w-[110px]">
+                                {member.loggedBy ? `by: ${member.loggedBy}` : 'Tự log'}
+                              </span>
+                              {isLoggedByDup && (
+                                <span
+                                  title={`⚠️ Trùng người log: "${loggedByDupInfo?.originalName}" đang log ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
+                                    .map((s) => `#${s}`)
+                                    .join(', ')})`}
+                                  className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[9px] font-black bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60"
+                                >
+                                  <AlertCircle className="w-2.5 h-2.5" />
+                                  <span>Log {loggedByDupInfo?.count} acc</span>
+                                </span>
+                              )}
                             </div>
                           </div>
                         </div>
