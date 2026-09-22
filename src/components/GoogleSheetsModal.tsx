@@ -88,7 +88,13 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
       setSuccessSheetUrl(res.spreadsheetUrl);
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Không thể xuất sang Google Sheets');
+      if (err.message?.includes('insufficient authentication scopes')) {
+        setErrorMsg(
+          'Tài khoản chưa được cấp quyền Google Sheets. Vui lòng bấm "Đăng xuất" ở trên, sau đó bấm Đăng nhập lại và nhớ TÍCH CHỌN ô cấp quyền: "Xem, chỉnh sửa, tạo và xóa các bảng tính trên Google Trang tính"!'
+        );
+      } else {
+        setErrorMsg(err.message || 'Không thể xuất sang Google Sheets');
+      }
     } finally {
       setLoading(false);
     }
@@ -124,7 +130,13 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
       onClose();
     } catch (err: any) {
       console.error(err);
-      setErrorMsg(err.message || 'Không thể đọc dữ liệu từ Google Sheet');
+      if (err.message?.includes('insufficient authentication scopes')) {
+        setErrorMsg(
+          'Tài khoản chưa được cấp quyền Google Sheets. Vui lòng bấm "Đăng xuất" ở trên, sau đó bấm Đăng nhập lại và nhớ TÍCH CHỌN ô cấp quyền: "Xem, chỉnh sửa, tạo và xóa các bảng tính trên Google Trang tính"!'
+        );
+      } else {
+        setErrorMsg(err.message || 'Không thể đọc dữ liệu từ Google Sheet');
+      }
     } finally {
       setLoading(false);
     }

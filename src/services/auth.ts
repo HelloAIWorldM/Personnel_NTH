@@ -18,7 +18,7 @@ const provider = new GoogleAuthProvider();
 provider.addScope('https://www.googleapis.com/auth/spreadsheets');
 provider.addScope('https://www.googleapis.com/auth/drive.file');
 provider.setCustomParameters({
-  prompt: 'select_account',
+  prompt: 'consent select_account',
 });
 
 let isSigningIn = false;
