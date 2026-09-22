@@ -137,27 +137,27 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
     >
       <div
         id="google-sheets-modal-card"
-        className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 relative"
+        className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 relative"
       >
         {/* Close Button */}
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full transition-colors"
+          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Modal Header */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center border border-emerald-200">
+          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200 dark:border-emerald-800">
             <FileSpreadsheet className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-bold text-slate-900 text-lg">
+            <h3 className="font-bold text-slate-900 dark:text-slate-100 text-lg">
               Đồng bộ với Google Sheets
             </h3>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               Xuất bảng sắp xếp nhân sự Raid trực tiếp lên tài khoản Google Drive của bạn
             </p>
           </div>
@@ -165,7 +165,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
 
         {/* Error notification */}
         {errorMsg && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start gap-2.5 text-xs text-red-700">
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-xl flex items-start gap-2.5 text-xs text-red-700 dark:text-red-300">
             <AlertCircle className="w-4 h-4 text-red-500 shrink-0 mt-0.5" />
             <span>{errorMsg}</span>
           </div>
@@ -173,12 +173,12 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
 
         {/* Success notification */}
         {successSheetUrl && (
-          <div className="mb-4 p-3.5 bg-emerald-50 border border-emerald-200 rounded-xl">
-            <div className="flex items-center gap-2 text-emerald-800 text-xs font-bold mb-1">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+          <div className="mb-4 p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl">
+            <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200 text-xs font-bold mb-1">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
               <span>Đã tạo Google Sheet thành công!</span>
             </div>
-            <p className="text-xs text-emerald-700 mb-2.5">
+            <p className="text-xs text-emerald-700 dark:text-emerald-300 mb-2.5">
               Bảng tính đã được format đầy đủ màu sắc từng môn phái và đường viền chuẩn.
             </p>
             <a
@@ -195,8 +195,8 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
 
         {/* Auth Section */}
         {!currentUser ? (
-          <div className="py-4 text-center border-y border-slate-100 my-4">
-            <p className="text-xs text-slate-600 mb-3">
+          <div className="py-4 text-center border-y border-slate-100 dark:border-slate-800 my-4">
+            <p className="text-xs text-slate-600 dark:text-slate-400 mb-3">
               Đăng nhập tài khoản Google để bắt đầu tạo hoặc đồng bộ bảng tính:
             </p>
 
@@ -207,7 +207,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
                 id="btn-google-signin"
                 onClick={handleSignIn}
                 disabled={loading}
-                className="flex items-center gap-3 px-4 py-2.5 bg-white hover:bg-slate-50 border border-slate-300 rounded-xl shadow-xs transition-all text-xs font-semibold text-slate-700 hover:border-slate-400 active:scale-98 disabled:opacity-50"
+                className="flex items-center gap-3 px-4 py-2.5 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-xl shadow-xs transition-all text-xs font-semibold text-slate-700 dark:text-slate-200 hover:border-slate-400 active:scale-98 disabled:opacity-50"
               >
                 <svg
                   version="1.1"
@@ -240,13 +240,13 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
         ) : (
           <div className="space-y-4">
             {/* User status card */}
-            <div className="flex items-center justify-between p-3 bg-slate-50 border border-slate-200 rounded-xl">
+            <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl">
               <div className="flex items-center gap-2.5">
                 {currentUser.photoURL ? (
                   <img
                     src={currentUser.photoURL}
                     alt={currentUser.displayName || 'User'}
-                    className="w-8 h-8 rounded-full border border-slate-300"
+                    className="w-8 h-8 rounded-full border border-slate-300 dark:border-slate-600"
                     referrerPolicy="no-referrer"
                   />
                 ) : (
@@ -255,10 +255,10 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
                   </div>
                 )}
                 <div>
-                  <div className="text-xs font-bold text-slate-800">
+                  <div className="text-xs font-bold text-slate-800 dark:text-slate-100">
                     {currentUser.displayName || 'Tài khoản Google'}
                   </div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
                     {currentUser.email}
                   </div>
                 </div>
@@ -267,7 +267,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
               <button
                 type="button"
                 onClick={handleLogout}
-                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:text-red-600 hover:bg-white rounded-lg transition-colors"
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-semibold text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:bg-white dark:hover:bg-slate-700 rounded-lg transition-colors"
                 title="Đăng xuất"
               >
                 <LogOut className="w-3.5 h-3.5" />
@@ -276,13 +276,13 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
             </div>
 
             {/* Action 1: Export New Sheet */}
-            <div className="p-3.5 border border-slate-200 rounded-xl hover:border-emerald-300 transition-colors bg-white">
+            <div className="p-3.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-300 dark:hover:border-emerald-500 transition-colors bg-white dark:bg-slate-800/40">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
-                  <div className="text-xs font-bold text-slate-900 mb-0.5">
+                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100 mb-0.5">
                     Tạo bảng tính mới trên Google Drive
                   </div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
                     Tạo file mới với tiêu đề "{raidTitle}" và {members.length} vị trí
                   </div>
                 </div>
@@ -305,11 +305,11 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
             </div>
 
             {/* Action 2: Import from existing Google Sheet */}
-            <div className="p-3.5 border border-slate-200 rounded-xl bg-white">
-              <div className="text-xs font-bold text-slate-900 mb-1">
+            <div className="p-3.5 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800/40">
+              <div className="text-xs font-bold text-slate-900 dark:text-slate-100 mb-1">
                 Nhập danh sách từ Google Sheet có sẵn
               </div>
-              <div className="text-[11px] text-slate-500 mb-2">
+              <div className="text-[11px] text-slate-500 dark:text-slate-400 mb-2">
                 Dán đường link (URL) hoặc ID của file Google Sheet:
               </div>
               <div className="flex flex-col sm:flex-row gap-2">
@@ -318,14 +318,14 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
                   value={sheetInputUrl}
                   onChange={(e) => setSheetInputUrl(e.target.value)}
                   placeholder="https://docs.google.com/spreadsheets/d/..."
-                  className="flex-1 px-3 py-2 text-xs border border-slate-300 rounded-xl focus:outline-none focus:ring-1 focus:ring-emerald-500 min-h-[42px]"
+                  className="flex-1 px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-h-[42px]"
                 />
                 <button
                   type="button"
                   id="btn-import-sheet"
                   onClick={handleImportFromSheet}
                   disabled={loading || !sheetInputUrl.trim()}
-                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 active:bg-slate-950 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-40 min-h-[42px]"
+                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-4 py-2 bg-slate-800 hover:bg-slate-900 active:bg-slate-950 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white text-xs font-bold rounded-xl transition-colors disabled:opacity-40 min-h-[42px]"
                 >
                   <Download className="w-3.5 h-3.5" />
                   <span>Nhập</span>
@@ -335,11 +335,11 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
           </div>
         )}
 
-        <div className="mt-5 pt-3 border-t border-slate-100 flex justify-end">
+        <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl min-h-[38px]"
+            className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl min-h-[38px]"
           >
             Đóng
           </button>

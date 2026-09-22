@@ -104,127 +104,149 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
     const memberIndex = members.findIndex((m) => m.id === memberId);
     if (memberIndex === -1) return;
 
-    const memberToMove = { ...members[memberIndex], party: targetPartyId };
-    const remaining = members.filter((m) => m.id !== memberId);
+    const currentMember = members[memberIndex];
+    if (currentMember.party === targetPartyId && targetIndexInParty === undefined) {
+      return;
+    }
 
-    if (typeof targetIndexInParty === 'number' && targetIndexInParty >= 0) {
-      const targetPartyMembers = remaining.filter((m) => (m.party || 1) === targetPartyId);
-      let globalInsertIndex = remaining.length;
+    const updatedMember = { ...currentMember, party: targetPartyId };
 
-      if (targetIndexInParty < targetPartyMembers.length) {
-        const referenceMember = targetPartyMembers[targetIndexInParty];
-        globalInsertIndex = remaining.findIndex((m) => m.id === referenceMember.id);
-      }
+    const remainingMembers = members.filter((m) => m.id !== memberId);
 
-      remaining.splice(globalInsertIndex, 0, memberToMove);
-    } else {
-      const lastIndexOfParty = remaining.reduce(
-        (lastIdx, m, idx) => ((m.party || 1) === targetPartyId ? idx : lastIdx),
-        -1
+    if (targetIndexInParty !== undefined) {
+      const targetPartyMembers = remainingMembers.filter(
+        (m) => (m.party || 1) === targetPartyId
       );
-      if (lastIndexOfParty !== -1) {
-        remaining.splice(lastIndexOfParty + 1, 0, memberToMove);
+      const referenceMember = targetPartyMembers[targetIndexInParty];
+
+      if (referenceMember) {
+        const insertGlobalIndex = remainingMembers.findIndex(
+          (m) => m.id === referenceMember.id
+        );
+        remainingMembers.splice(insertGlobalIndex, 0, updatedMember);
       } else {
-        remaining.push(memberToMove);
+        remainingMembers.push(updatedMember);
+      }
+    } else {
+      const lastMemberOfParty = [...remainingMembers]
+        .reverse()
+        .find((m) => (m.party || 1) === targetPartyId);
+
+      if (lastMemberOfParty) {
+        const lastIndex = remainingMembers.findIndex(
+          (m) => m.id === lastMemberOfParty.id
+        );
+        remainingMembers.splice(lastIndex + 1, 0, updatedMember);
+      } else {
+        remainingMembers.push(updatedMember);
       }
     }
 
-    const reindexed = remaining.map((m, idx) => ({ ...m, stt: idx + 1 }));
+    // Recalculate STT
+    const reindexed = remainingMembers.map((m, idx) => ({ ...m, stt: idx + 1 }));
     onUpdateMembers(reindexed);
   };
 
-  // Move member up/down inside the same party (Mobile friendly)
+  // Reorder member inside party (up / down) - mobile friendly
   const handleMoveMemberInsideParty = (memberId: string, direction: 'up' | 'down') => {
-    const currentMember = members.find((m) => m.id === memberId);
-    if (!currentMember) return;
-    const currentPartyId = currentMember.party || 1;
-    const partyMembers = getPartyMembers(currentPartyId);
+    const member = members.find((m) => m.id === memberId);
+    if (!member) return;
+
+    const partyId = member.party || 1;
+    const partyMembers = getPartyMembers(partyId);
     const indexInParty = partyMembers.findIndex((m) => m.id === memberId);
-    if (indexInParty === -1) return;
 
     const targetIndexInParty = direction === 'up' ? indexInParty - 1 : indexInParty + 1;
     if (targetIndexInParty < 0 || targetIndexInParty >= partyMembers.length) return;
 
-    handleMoveMemberToParty(memberId, currentPartyId, targetIndexInParty);
+    handleMoveMemberToParty(memberId, partyId, targetIndexInParty);
   };
 
-  // Auto split 2 parties (6 / 6)
+  // Auto split into 2 parties (6 vs 6)
   const handleAutoSplitTwoParties = () => {
-    let pList = [...parties];
-    if (pList.length < 2) {
-      pList = [
+    let currentParties = [...parties];
+    if (currentParties.length < 2) {
+      currentParties = [
         { id: 1, name: 'PT 1' },
         { id: 2, name: 'PT 2' },
       ];
-      onUpdateParties(pList);
+      onUpdateParties(currentParties);
     }
 
     const half = Math.ceil(members.length / 2);
     const updated = members.map((m, idx) => ({
       ...m,
-      party: idx < half ? pList[0].id : pList[1].id,
-      stt: idx + 1,
+      party: idx < half ? currentParties[0].id : currentParties[1].id,
     }));
     onUpdateMembers(updated);
   };
 
-  // Auto balance roles across parties (Tanks & Healers evenly split)
+  // Smart Role Balancing between parties
   const handleAutoBalanceRoles = () => {
-    if (parties.length < 2) return;
+    let currentParties = [...parties];
+    if (currentParties.length < 2) {
+      currentParties = [
+        { id: 1, name: 'PT 1' },
+        { id: 2, name: 'PT 2' },
+      ];
+      onUpdateParties(currentParties);
+    }
 
     const tanks: RaidMember[] = [];
     const healers: RaidMember[] = [];
-    const dpsList: RaidMember[] = [];
+    const dps: RaidMember[] = [];
 
     members.forEach((m) => {
       const meta = getEffectiveClassMeta(m.className, customColors);
       if (meta.role === 'Tank') tanks.push(m);
       else if (meta.role === 'Healer') healers.push(m);
-      else dpsList.push(m);
+      else dps.push(m);
     });
 
-    const partyBuckets: RaidMember[][] = parties.map(() => []);
+    const partyBuckets: Record<number, RaidMember[]> = {};
+    currentParties.forEach((p) => {
+      partyBuckets[p.id] = [];
+    });
 
-    // Round-robin distribute Tanks
+    // Distribute Tanks round-robin
     tanks.forEach((tank, idx) => {
-      const targetPartyIndex = idx % parties.length;
-      partyBuckets[targetPartyIndex].push({
-        ...tank,
-        party: parties[targetPartyIndex].id,
-      });
+      const targetParty = currentParties[idx % currentParties.length].id;
+      partyBuckets[targetParty].push({ ...tank, party: targetParty });
     });
 
-    // Round-robin distribute Healers
+    // Distribute Healers round-robin
     healers.forEach((healer, idx) => {
-      const targetPartyIndex = idx % parties.length;
-      partyBuckets[targetPartyIndex].push({
-        ...healer,
-        party: parties[targetPartyIndex].id,
-      });
+      const targetParty =
+        currentParties[(idx + tanks.length) % currentParties.length].id;
+      partyBuckets[targetParty].push({ ...healer, party: targetParty });
     });
 
-    // Distribute DPS to keep party sizes as equal as possible
-    dpsList.forEach((dps) => {
-      let minPartyIndex = 0;
-      let minCount = partyBuckets[0].length;
-      for (let i = 1; i < partyBuckets.length; i++) {
-        if (partyBuckets[i].length < minCount) {
-          minCount = partyBuckets[i].length;
-          minPartyIndex = i;
+    // Distribute DPS to balance size
+    dps.forEach((d) => {
+      let minPartyId = currentParties[0].id;
+      let minCount = partyBuckets[minPartyId].length;
+
+      currentParties.forEach((p) => {
+        if (partyBuckets[p.id].length < minCount) {
+          minPartyId = p.id;
+          minCount = partyBuckets[p.id].length;
         }
-      }
-      partyBuckets[minPartyIndex].push({
-        ...dps,
-        party: parties[minPartyIndex].id,
       });
+
+      partyBuckets[minPartyId].push({ ...d, party: minPartyId });
     });
 
-    const flat = partyBuckets.flat();
-    const reindexed = flat.map((m, idx) => ({ ...m, stt: idx + 1 }));
+    // Flatten and re-index
+    const balanced: RaidMember[] = [];
+    currentParties.forEach((p) => {
+      balanced.push(...partyBuckets[p.id]);
+    });
+
+    const reindexed = balanced.map((m, idx) => ({ ...m, stt: idx + 1 }));
     onUpdateMembers(reindexed);
   };
 
-  // Drag handlers
+  // Drag and Drop handlers
   const handleDragStart = (e: React.DragEvent, memberId: string) => {
     e.dataTransfer.setData('text/plain', memberId);
     e.dataTransfer.effectAllowed = 'move';
@@ -288,13 +310,13 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
   return (
     <div className="w-full">
       {/* Top Controls Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-slate-100 dark:border-slate-800">
         <div>
-          <h3 className="font-bold text-slate-900 text-sm sm:text-base flex items-center gap-2">
-            <Users className="w-4 h-4 text-indigo-600" />
+          <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base flex items-center gap-2">
+            <Users className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
             <span>Phân Bổ Nhóm Đội Hình ({parties.length} nhóm PT)</span>
           </h3>
-          <p className="text-[11px] text-slate-500 mt-0.5">
+          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
             Kéo thả hoặc dùng nút mũi tên / menu chọn để đổi nhóm và cân bằng vai trò
           </p>
         </div>
@@ -305,10 +327,10 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
             type="button"
             id="btn-split-two-parties"
             onClick={handleAutoSplitTwoParties}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl shadow-2xs transition-colors min-h-[40px]"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white hover:bg-slate-50 active:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-xl shadow-2xs transition-colors min-h-[40px]"
             title="Tự động chia đôi danh sách thành 2 nhóm 6/6"
           >
-            <ArrowRightLeft className="w-3.5 h-3.5 text-blue-600" />
+            <ArrowRightLeft className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
             <span>Chia đều 2 PT</span>
           </button>
 
@@ -316,7 +338,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
             type="button"
             id="btn-balance-roles"
             onClick={handleAutoBalanceRoles}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white hover:bg-slate-50 active:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl shadow-2xs transition-colors min-h-[40px]"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-white hover:bg-slate-50 active:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-xl shadow-2xs transition-colors min-h-[40px]"
             title="Tự động cân bằng Tank và Healer giữa các nhóm"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
@@ -362,14 +384,14 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
               onDragOver={(e) => handlePartyDragOver(e, party.id)}
               onDragLeave={() => setDragOverPartyId(null)}
               onDrop={(e) => handlePartyDrop(e, party.id)}
-              className={`flex flex-col bg-white rounded-2xl border-2 transition-all duration-200 overflow-hidden shadow-xs ${
+              className={`flex flex-col bg-white dark:bg-slate-900 rounded-2xl border-2 transition-all duration-200 overflow-hidden shadow-xs ${
                 isDragOver
-                  ? 'border-indigo-500 ring-4 ring-indigo-100 bg-indigo-50/20'
-                  : 'border-slate-300'
+                  ? 'border-indigo-500 ring-4 ring-indigo-100 dark:ring-indigo-950 bg-indigo-50/20 dark:bg-indigo-950/30'
+                  : 'border-slate-300 dark:border-slate-700'
               }`}
             >
               {/* Party Header */}
-              <div className="p-3 bg-slate-900 text-white flex items-center justify-between">
+              <div className="p-3 bg-slate-900 dark:bg-slate-950 text-white flex items-center justify-between">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   <span className="w-6 h-6 rounded-full bg-white/20 text-white text-xs font-black flex items-center justify-center shrink-0">
                     {pIndex + 1}
@@ -439,24 +461,24 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
               </div>
 
               {/* Role Balance Summary Bar */}
-              <div className="px-3 py-1.5 bg-slate-100 border-b border-slate-200 flex flex-wrap items-center justify-between gap-1 text-xs font-semibold text-slate-600">
+              <div className="px-3 py-1.5 bg-slate-100 dark:bg-slate-800/80 border-b border-slate-200 dark:border-slate-700 flex flex-wrap items-center justify-between gap-1 text-xs font-semibold text-slate-600 dark:text-slate-300">
                 <div className="flex items-center gap-2.5">
                   <span className="flex items-center gap-1" title="Số lượng Tank">
-                    <Shield className="w-3.5 h-3.5 text-amber-600" />
+                    <Shield className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                     <span>{tankCount} Tank</span>
                   </span>
                   <span className="flex items-center gap-1" title="Số lượng Healer">
-                    <Heart className="w-3.5 h-3.5 text-emerald-600" />
+                    <Heart className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                     <span>{healCount} Heal</span>
                   </span>
                   <span className="flex items-center gap-1" title="Số lượng DPS">
-                    <Swords className="w-3.5 h-3.5 text-blue-600" />
+                    <Swords className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
                     <span>{dpsCount} DPS</span>
                   </span>
                 </div>
 
                 {healCount === 0 && partyMembers.length > 0 && (
-                  <span className="flex items-center gap-0.5 text-[10px] text-amber-700 font-bold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200">
+                  <span className="flex items-center gap-0.5 text-[10px] text-amber-700 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-950/50 px-1.5 py-0.5 rounded border border-amber-200 dark:border-amber-800/80">
                     <AlertTriangle className="w-3 h-3 text-amber-500" />
                     <span>Thiếu Healer</span>
                   </span>
@@ -466,12 +488,12 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
               {/* Members List (Droppable Target) */}
               <div className="p-2 flex-1 min-h-[200px] sm:min-h-[260px] space-y-2">
                 {partyMembers.length === 0 ? (
-                  <div className="h-full min-h-[160px] sm:min-h-[220px] flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 rounded-xl text-center text-slate-400">
-                    <Users className="w-7 h-7 sm:w-8 sm:h-8 text-slate-300 mb-2" />
-                    <span className="text-xs font-semibold text-slate-500">
+                  <div className="h-full min-h-[160px] sm:min-h-[220px] flex flex-col items-center justify-center p-4 border-2 border-dashed border-slate-200 dark:border-slate-700/80 rounded-xl text-center text-slate-400 dark:text-slate-500">
+                    <Users className="w-7 h-7 sm:w-8 sm:h-8 text-slate-300 dark:text-slate-600 mb-2" />
+                    <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
                       Chưa có thành viên nào
                     </span>
-                    <span className="text-[11px] text-slate-400 mt-0.5">
+                    <span className="text-[11px] text-slate-400 dark:text-slate-500 mt-0.5">
                       Kéo thả hoặc chuyển người chơi từ nhóm khác vào đây
                     </span>
                   </div>
@@ -495,17 +517,17 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                         }}
                         onDragLeave={() => setDragOverMemberId(null)}
                         onDrop={(e) => handleMemberDrop(e, member.id, party.id)}
-                        className={`group relative flex items-center justify-between p-2 rounded-xl border bg-white transition-all ${
+                        className={`group relative flex items-center justify-between p-2 rounded-xl border transition-all ${
                           isBeingDragged
                             ? 'opacity-40 border-indigo-400 shadow-md scale-95'
                             : isDragOverThis
-                            ? 'border-indigo-500 bg-indigo-50/50 shadow-md scale-[1.02]'
-                            : 'border-slate-200 hover:border-slate-400 hover:shadow-xs'
+                            ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/40 shadow-md scale-[1.02]'
+                            : 'bg-white dark:bg-slate-800/80 border-slate-200 dark:border-slate-700 hover:border-slate-400 dark:hover:border-slate-600 hover:shadow-xs'
                         }`}
                       >
                         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                           {/* Desktop Drag Handle */}
-                          <div className="text-slate-300 group-hover:text-slate-600 transition-colors cursor-grab hidden sm:block">
+                          <div className="text-slate-300 dark:text-slate-600 group-hover:text-slate-600 dark:group-hover:text-slate-400 transition-colors cursor-grab hidden sm:block">
                             <GripVertical className="w-4 h-4" />
                           </div>
 
@@ -515,7 +537,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                               type="button"
                               onClick={() => handleMoveMemberInsideParty(member.id, 'up')}
                               disabled={idxInParty === 0}
-                              className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-20"
+                              className="p-1 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-20"
                               title="Lên trên"
                             >
                               <ChevronUp className="w-3.5 h-3.5" />
@@ -524,7 +546,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                               type="button"
                               onClick={() => handleMoveMemberInsideParty(member.id, 'down')}
                               disabled={idxInParty === partyMembers.length - 1}
-                              className="p-1 text-slate-400 hover:text-slate-800 disabled:opacity-20"
+                              className="p-1 text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 disabled:opacity-20"
                               title="Xuống dưới"
                             >
                               <ChevronDown className="w-3.5 h-3.5" />
@@ -532,16 +554,16 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                           </div>
 
                           {/* STT badge */}
-                          <span className="w-6 h-6 rounded-md bg-slate-100 text-slate-700 font-black text-xs flex items-center justify-center shrink-0">
+                          <span className="w-6 h-6 rounded-md bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-black text-xs flex items-center justify-center shrink-0">
                             {member.stt}
                           </span>
 
                           {/* Ingame & Logged by */}
                           <div className="min-w-0 pr-1">
-                            <div className="font-bold text-xs text-slate-900 truncate">
+                            <div className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate">
                               {member.ingame || 'Chưa đặt tên'}
                             </div>
-                            <div className="text-[10px] text-slate-400 truncate">
+                            <div className="text-[10px] text-slate-400 dark:text-slate-400 truncate">
                               {member.loggedBy ? `by: ${member.loggedBy}` : 'Tự log'}
                             </div>
                           </div>
@@ -570,10 +592,10 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                                 )
                               }
                               title="Chuyển sang nhóm khác"
-                              className="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300 rounded-lg px-2 py-1 cursor-pointer focus:outline-none min-h-[36px]"
+                              className="text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-650 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-lg px-2 py-1 cursor-pointer focus:outline-none min-h-[36px]"
                             >
                               {parties.map((p) => (
-                                <option key={p.id} value={p.id}>
+                                <option key={p.id} value={p.id} className="dark:bg-slate-800 dark:text-slate-100">
                                   {p.name}
                                 </option>
                               ))}
@@ -587,7 +609,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
               </div>
 
               {/* Quick Drop Zone Hint */}
-              <div className="p-2 border-t border-slate-100 text-center text-[10px] text-slate-400 bg-slate-50/50">
+              <div className="p-2 border-t border-slate-100 dark:border-slate-800 text-center text-[10px] text-slate-400 dark:text-slate-500 bg-slate-50/50 dark:bg-slate-900/50">
                 Thả hoặc chọn chuyển người chơi vào {party.name}
               </div>
             </div>

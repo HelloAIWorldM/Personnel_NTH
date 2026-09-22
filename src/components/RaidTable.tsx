@@ -17,7 +17,8 @@ import {
   Swords,
   MoreVertical,
   X,
-  ArrowUpDown,
+  Sun,
+  Moon,
 } from 'lucide-react';
 
 interface RaidTableProps {
@@ -32,6 +33,7 @@ interface RaidTableProps {
   onOpenColorCustomizer?: () => void;
   tableRef: React.RefObject<HTMLDivElement | null>;
   selectedClassFilter?: RaidClass | null;
+  darkMode?: boolean;
 }
 
 export const RaidTable: React.FC<RaidTableProps> = ({
@@ -49,6 +51,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
   onOpenColorCustomizer,
   tableRef,
   selectedClassFilter,
+  darkMode = false,
 }) => {
   const [editingTitle, setEditingTitle] = useState(false);
   const [tempPrefix, setTempPrefix] = useState(titlePrefix);
@@ -58,6 +61,13 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
   // Toggle showing party section dividers inside the table
   const [showPartyDividers, setShowPartyDividers] = useState(false);
+
+  // Custom table canvas theme: 'auto' (follow dark mode) | 'light' | 'dark'
+  const [canvasTheme, setCanvasTheme] = useState<'auto' | 'light' | 'dark'>('auto');
+
+  // Compute effective table darkness
+  const isTableDark =
+    canvasTheme === 'dark' || (canvasTheme === 'auto' && darkMode);
 
   // Drag and drop state for table rows
   const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null);
@@ -212,7 +222,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
               setTempBoss(bossName);
               setEditingTitle(true);
             }}
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 min-h-[38px] bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold rounded-lg transition-colors border border-slate-300"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 min-h-[38px] bg-slate-100 hover:bg-slate-200 active:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 font-semibold rounded-lg transition-colors border border-slate-300 dark:border-slate-700"
           >
             <Edit2 className="w-3.5 h-3.5" />
             <span>Tiêu đề</span>
@@ -223,10 +233,10 @@ export const RaidTable: React.FC<RaidTableProps> = ({
             id="btn-fill-all-loggedby"
             onClick={handleCopyAllIngameToLoggedBy}
             title="Tự động điền Logged by = Ingame cho các ô còn trống"
-            className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 min-h-[38px] bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-semibold rounded-lg transition-colors border border-slate-300"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 min-h-[38px] bg-slate-100 hover:bg-slate-200 active:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 font-semibold rounded-lg transition-colors border border-slate-300 dark:border-slate-700"
           >
             <Copy className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Điền nhanh Logged by</span>
+            <span className="hidden sm:inline">Điền Logged by</span>
             <span className="sm:hidden">Logged by</span>
           </button>
 
@@ -238,8 +248,8 @@ export const RaidTable: React.FC<RaidTableProps> = ({
             title="Bật/Tắt hiển thị phân chia theo nhóm PT trong bảng"
             className={`flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 min-h-[38px] font-semibold rounded-lg transition-colors border ${
               showPartyDividers
-                ? 'bg-indigo-600 text-white border-indigo-700'
-                : 'bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 border-slate-300'
+                ? 'bg-indigo-600 text-white border-indigo-700 dark:bg-indigo-600'
+                : 'bg-slate-100 hover:bg-slate-200 active:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 border-slate-300 dark:border-slate-700'
             }`}
           >
             <Layers className="w-3.5 h-3.5" />
@@ -252,15 +262,39 @@ export const RaidTable: React.FC<RaidTableProps> = ({
               id="btn-open-color-customizer-table"
               onClick={onOpenColorCustomizer}
               title="Đổi màu cho môn phái bất kỳ"
-              className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 min-h-[38px] bg-purple-50 hover:bg-purple-100 active:bg-purple-200 text-purple-700 font-semibold rounded-lg transition-colors border border-purple-200"
+              className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 min-h-[38px] bg-purple-50 hover:bg-purple-100 active:bg-purple-200 dark:bg-purple-950/40 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 font-semibold rounded-lg transition-colors border border-purple-200 dark:border-purple-800"
             >
-              <Palette className="w-3.5 h-3.5 text-purple-600" />
+              <Palette className="w-3.5 h-3.5 text-purple-600 dark:text-purple-400" />
               <span>Đổi màu</span>
             </button>
           )}
+
+          {/* Toggle Table Canvas Theme (Light/Dark board) */}
+          <button
+            type="button"
+            id="btn-toggle-canvas-theme"
+            onClick={() => {
+              if (isTableDark) setCanvasTheme('light');
+              else setCanvasTheme('dark');
+            }}
+            title="Chuyển nền bảng ảnh: Nền Sáng / Nền Tối"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 min-h-[38px] bg-slate-100 hover:bg-slate-200 active:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 dark:text-slate-200 font-semibold rounded-lg transition-colors border border-slate-300 dark:border-slate-700"
+          >
+            {isTableDark ? (
+              <>
+                <Sun className="w-3.5 h-3.5 text-amber-500" />
+                <span>Bảng sáng</span>
+              </>
+            ) : (
+              <>
+                <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                <span>Bảng tối</span>
+              </>
+            )}
+          </button>
         </div>
 
-        <span className="text-slate-500 font-medium hidden sm:inline text-[11px]">
+        <span className="text-slate-500 dark:text-slate-400 font-medium hidden sm:inline text-[11px]">
           Kéo thả hàng để đổi vị trí • Chạm ô để sửa
         </span>
       </div>
@@ -269,45 +303,45 @@ export const RaidTable: React.FC<RaidTableProps> = ({
       {editingTitle && (
         <div
           id="title-edit-panel"
-          className="w-full max-w-[620px] bg-amber-50/90 border border-amber-300 rounded-xl p-3 sm:p-3.5 mb-4 shadow-sm"
+          className="w-full max-w-[620px] bg-amber-50/90 dark:bg-slate-850 border border-amber-300 dark:border-amber-700/60 rounded-xl p-3 sm:p-3.5 mb-4 shadow-sm"
         >
-          <div className="font-bold text-amber-900 text-xs uppercase mb-2">
+          <div className="font-bold text-amber-900 dark:text-amber-300 text-xs uppercase mb-2">
             Chỉnh sửa tiêu đề Raid
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
                 Tên Raid (ví dụ: RAID 1)
               </label>
               <input
                 type="text"
                 value={tempPrefix}
                 onChange={(e) => setTempPrefix(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs font-bold border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full px-2.5 py-1.5 text-xs font-bold border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
                 placeholder="RAID 1"
               />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-red-600 mb-1">
+              <label className="block text-[11px] font-semibold text-red-600 dark:text-red-400 mb-1">
                 Lịch Raid (màu đỏ)
               </label>
               <input
                 type="text"
                 value={tempSchedule}
                 onChange={(e) => setTempSchedule(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs font-bold text-red-600 border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-red-500"
+                className="w-full px-2.5 py-1.5 text-xs font-bold text-red-600 dark:text-red-400 border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-red-500"
                 placeholder="MON 20:30"
               />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
                 Tên Boss / Ải Raid
               </label>
               <input
                 type="text"
                 value={tempBoss}
                 onChange={(e) => setTempBoss(e.target.value)}
-                className="w-full px-2.5 py-1.5 text-xs font-bold border border-slate-300 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-amber-500"
+                className="w-full px-2.5 py-1.5 text-xs font-bold border border-slate-300 dark:border-slate-700 rounded-lg bg-white dark:bg-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-amber-500"
                 placeholder="NIÊN DU"
               />
             </div>
@@ -316,7 +350,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
             <button
               type="button"
               onClick={() => setEditingTitle(false)}
-              className="px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-200/60 rounded-lg min-h-[36px]"
+              className="px-3 py-1.5 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-200/60 dark:hover:bg-slate-700/60 rounded-lg min-h-[36px]"
             >
               Hủy
             </button>
@@ -334,41 +368,71 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
       {/* Responsive Horizontal Scroll Wrapper for Table */}
       <div className="w-full max-w-[620px] overflow-x-auto pb-1">
-        {/* The Visual Raid Table (Replicating Image) */}
+        {/* The Visual Raid Table (Replicating Image, Dark/Light adaptive) */}
         <div
           ref={tableRef}
           id="raid-capture-canvas"
-          className="w-full min-w-[320px] max-w-[620px] bg-white border-[2px] border-black select-none shadow-md relative"
+          className={`w-full min-w-[320px] max-w-[620px] select-none shadow-md relative transition-colors ${
+            isTableDark
+              ? 'bg-slate-900 border-[2px] border-slate-600 text-slate-100'
+              : 'bg-white border-[2px] border-black text-slate-900'
+          }`}
           style={{ fontFamily: "'Be Vietnam Pro', system-ui, sans-serif" }}
         >
           {/* Banner Title */}
           <div
             id="raid-table-title"
-            className="w-full border-b-[2px] border-black py-2 sm:py-2.5 px-2 sm:px-3 text-center bg-white"
+            className={`w-full py-2 sm:py-2.5 px-2 sm:px-3 text-center border-b-[2px] ${
+              isTableDark
+                ? 'bg-slate-900 border-slate-600'
+                : 'bg-white border-black'
+            }`}
           >
-            <h2 className="text-base sm:text-xl md:text-2xl font-black tracking-tight text-slate-950 uppercase leading-snug">
-              {titlePrefix || 'RAID 1'} -{' '}
+            <h2 className="text-base sm:text-xl md:text-2xl font-black tracking-tight uppercase leading-snug">
+              <span>{titlePrefix || 'RAID 1'} - </span>
               <span className="text-[#e50000] font-black">
                 {scheduleTime || 'MON 20:30'}
               </span>{' '}
-              {bossName || 'NIÊN DU'}
+              <span>{bossName || 'NIÊN DU'}</span>
             </h2>
           </div>
 
           {/* Table Content */}
           <table className="w-full border-collapse text-xs sm:text-sm">
             <thead>
-              <tr className="border-b-[2px] border-black bg-white">
-                <th className="w-[14%] sm:w-[14%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-slate-900 border-r-[2px] border-black uppercase text-xs sm:text-sm md:text-base">
+              <tr
+                className={`border-b-[2px] ${
+                  isTableDark
+                    ? 'bg-slate-900 border-slate-600'
+                    : 'bg-white border-black'
+                }`}
+              >
+                <th
+                  className={`w-[14%] sm:w-[14%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black uppercase text-xs sm:text-sm md:text-base border-r-[2px] ${
+                    isTableDark ? 'border-slate-600 text-slate-200' : 'border-black text-slate-900'
+                  }`}
+                >
                   STT
                 </th>
-                <th className="w-[31%] sm:w-[32%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-slate-900 border-r-[2px] border-black text-xs sm:text-sm md:text-base">
+                <th
+                  className={`w-[31%] sm:w-[32%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-xs sm:text-sm md:text-base border-r-[2px] ${
+                    isTableDark ? 'border-slate-600 text-slate-200' : 'border-black text-slate-900'
+                  }`}
+                >
                   Ingame
                 </th>
-                <th className="w-[27%] sm:w-[27%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-slate-900 border-r-[2px] border-black text-xs sm:text-sm md:text-base">
+                <th
+                  className={`w-[27%] sm:w-[27%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-xs sm:text-sm md:text-base border-r-[2px] ${
+                    isTableDark ? 'border-slate-600 text-slate-200' : 'border-black text-slate-900'
+                  }`}
+                >
                   Class
                 </th>
-                <th className="w-[28%] sm:w-[27%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-slate-900 text-xs sm:text-sm md:text-base">
+                <th
+                  className={`w-[28%] sm:w-[27%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-xs sm:text-sm md:text-base ${
+                    isTableDark ? 'text-slate-200' : 'text-slate-900'
+                  }`}
+                >
                   Logged by
                 </th>
               </tr>
@@ -411,29 +475,47 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                   <React.Fragment key={member.id}>
                     {/* Party Section Divider Row */}
                     {shouldShowDivider && (
-                      <tr className="bg-slate-100 border-b-[2px] border-black">
+                      <tr
+                        className={`border-b-[2px] ${
+                          isTableDark
+                            ? 'bg-slate-800 border-slate-600 text-slate-200'
+                            : 'bg-slate-100 border-black text-slate-800'
+                        }`}
+                      >
                         <td
                           colSpan={4}
-                          className="py-1 px-2 sm:px-3 text-left font-black text-[11px] sm:text-xs uppercase tracking-wider text-slate-800"
+                          className="py-1 px-2 sm:px-3 text-left font-black text-[11px] sm:text-xs uppercase tracking-wider"
                         >
                           <div className="flex items-center justify-between">
-                            <span className="flex items-center gap-1 text-indigo-900 font-black">
+                            <span
+                              className={`flex items-center gap-1 font-black ${
+                                isTableDark ? 'text-indigo-300' : 'text-indigo-900'
+                              }`}
+                            >
                               <span>🛡️ {partyObj.name}</span>
-                              <span className="text-[10px] sm:text-[11px] font-bold text-slate-600">
+                              <span
+                                className={`text-[10px] sm:text-[11px] font-bold ${
+                                  isTableDark ? 'text-slate-400' : 'text-slate-600'
+                                }`}
+                              >
                                 ({membersInThisParty.length})
                               </span>
                             </span>
-                            <span className="text-[10px] sm:text-[11px] font-semibold text-slate-600 flex items-center gap-1.5 sm:gap-2">
+                            <span
+                              className={`text-[10px] sm:text-[11px] font-semibold flex items-center gap-1.5 sm:gap-2 ${
+                                isTableDark ? 'text-slate-300' : 'text-slate-600'
+                              }`}
+                            >
                               <span className="flex items-center gap-0.5">
-                                <Shield className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-600" />
+                                <Shield className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-amber-500" />
                                 {pTanks}
                               </span>
                               <span className="flex items-center gap-0.5">
-                                <Heart className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-600" />
+                                <Heart className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-emerald-500" />
                                 {pHealers}
                               </span>
                               <span className="flex items-center gap-0.5">
-                                <Swords className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-600" />
+                                <Swords className="w-2.5 h-2.5 sm:w-3 sm:h-3 text-blue-400" />
                                 {pDps}
                               </span>
                             </span>
@@ -454,25 +536,42 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                       }}
                       onDrop={(e) => handleRowDrop(e, member.id)}
                       style={{ zIndex: isClassPickerOpen ? 40 : 1 }}
-                      className={`border-b-[1.5px] border-black transition-colors group relative cursor-default ${
+                      className={`border-b-[1.5px] transition-colors group relative cursor-default ${
                         idx === members.length - 1 ? 'border-b-0' : ''
-                      } ${isFilteredOut ? 'opacity-30' : 'hover:bg-slate-50'} ${
-                        isDragging ? 'opacity-30 bg-indigo-50' : ''
-                      } ${isDragOver ? 'border-t-2 border-t-indigo-600 bg-indigo-50/50' : ''}`}
+                      } ${
+                        isTableDark
+                          ? 'border-slate-700 hover:bg-slate-800/60'
+                          : 'border-black hover:bg-slate-50'
+                      } ${isFilteredOut ? 'opacity-30' : ''} ${
+                        isDragging
+                          ? isTableDark
+                            ? 'opacity-30 bg-indigo-950/50'
+                            : 'opacity-30 bg-indigo-50'
+                          : ''
+                      } ${
+                        isDragOver
+                          ? 'border-t-2 border-t-indigo-500 bg-indigo-500/20'
+                          : ''
+                      }`}
                     >
                       {/* STT Column */}
                       <td
-                        className="py-1.5 sm:py-2 px-1 text-center font-black text-slate-900 border-r-[2px] border-black text-xs sm:text-base relative cursor-pointer sm:cursor-default"
-                        onClick={() => {
-                          // Tap STT opens mobile row action sheet on touch devices
-                          setMobileActionMemberId(member.id);
-                        }}
+                        className={`py-1.5 sm:py-2 px-1 text-center font-black text-xs sm:text-base relative cursor-pointer sm:cursor-default border-r-[2px] ${
+                          isTableDark
+                            ? 'border-slate-700 text-slate-200'
+                            : 'border-black text-slate-900'
+                        }`}
+                        onClick={() => setMobileActionMemberId(member.id)}
                         title="Chạm để mở menu hành động cho thành viên này"
                       >
                         <div className="flex items-center justify-center gap-0.5 sm:gap-1">
                           {/* Desktop Drag Handle */}
                           <span
-                            className="cursor-grab text-slate-300 group-hover:text-slate-500 hidden sm:inline"
+                            className={`cursor-grab hidden sm:inline ${
+                              isTableDark
+                                ? 'text-slate-600 group-hover:text-slate-400'
+                                : 'text-slate-300 group-hover:text-slate-500'
+                            }`}
                             title="Kéo thả hàng để đổi vị trí"
                           >
                             <GripVertical className="w-3.5 h-3.5" />
@@ -496,7 +595,11 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                                 handleQuickSwitchParty(member.id, nextPartyId);
                               }}
                               title={`Thuộc ${partyObj.name} - Click để đổi nhóm`}
-                              className="hidden sm:inline-block text-[9px] font-bold text-slate-500 hover:text-indigo-600 bg-slate-100 hover:bg-indigo-50 px-1 rounded ml-0.5 print:hidden"
+                              className={`hidden sm:inline-block text-[9px] font-bold px-1 rounded ml-0.5 print:hidden ${
+                                isTableDark
+                                  ? 'text-slate-400 hover:text-indigo-400 bg-slate-800'
+                                  : 'text-slate-500 hover:text-indigo-600 bg-slate-100'
+                              }`}
                             >
                               P{member.party || 1}
                             </button>
@@ -504,7 +607,13 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                         </div>
 
                         {/* Desktop Hover Row Actions */}
-                        <div className="absolute left-1 top-1/2 -translate-y-1/2 hidden sm:group-hover:flex items-center gap-0.5 bg-white/95 rounded border border-slate-300 shadow-sm p-0.5 z-10 print:hidden">
+                        <div
+                          className={`absolute left-1 top-1/2 -translate-y-1/2 hidden sm:group-hover:flex items-center gap-0.5 rounded border shadow-sm p-0.5 z-10 print:hidden ${
+                            isTableDark
+                              ? 'bg-slate-800/95 border-slate-700 text-slate-300'
+                              : 'bg-white/95 border-slate-300 text-slate-600'
+                          }`}
+                        >
                           <button
                             type="button"
                             onClick={(e) => {
@@ -513,7 +622,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             }}
                             disabled={idx === 0}
                             title="Di chuyển lên"
-                            className="p-0.5 text-slate-600 hover:text-black disabled:opacity-20"
+                            className="p-0.5 hover:text-indigo-400 disabled:opacity-20"
                           >
                             <ChevronUp className="w-3 h-3" />
                           </button>
@@ -525,7 +634,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             }}
                             disabled={idx === members.length - 1}
                             title="Di chuyển xuống"
-                            className="p-0.5 text-slate-600 hover:text-black disabled:opacity-20"
+                            className="p-0.5 hover:text-indigo-400 disabled:opacity-20"
                           >
                             <ChevronDown className="w-3 h-3" />
                           </button>
@@ -536,7 +645,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                               handleDeleteRow(member.id);
                             }}
                             title="Xoá thành viên này"
-                            className="p-0.5 text-red-500 hover:text-red-700"
+                            className="p-0.5 text-red-500 hover:text-red-400"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -544,7 +653,13 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                       </td>
 
                       {/* Ingame Column */}
-                      <td className="py-1 sm:py-2 px-1 text-center border-r-[2px] border-black text-slate-900 font-semibold text-xs sm:text-[15px]">
+                      <td
+                        className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] border-r-[2px] ${
+                          isTableDark
+                            ? 'border-slate-700 text-slate-100'
+                            : 'border-black text-slate-900'
+                        }`}
+                      >
                         <input
                           type="text"
                           value={member.ingame}
@@ -552,15 +667,19 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             handleUpdateMember(member.id, { ingame: e.target.value })
                           }
                           placeholder="Ingame..."
-                          className="w-full text-center bg-transparent focus:bg-amber-50 focus:outline-none focus:ring-1 focus:ring-amber-500 rounded px-0.5 sm:px-1 py-1 sm:py-0.5 font-semibold text-slate-900 text-xs sm:text-[15px]"
+                          className={`w-full text-center bg-transparent rounded px-0.5 sm:px-1 py-1 sm:py-0.5 font-semibold text-xs sm:text-[15px] focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                            isTableDark
+                              ? 'text-slate-100 placeholder:text-slate-500 focus:bg-slate-800'
+                              : 'text-slate-900 placeholder:text-slate-400 focus:bg-amber-50'
+                          }`}
                         />
                       </td>
 
                       {/* Class Badge Cell with exact background color */}
                       <td
-                        className={`py-0.5 sm:py-1 px-0.5 sm:px-1 text-center border-r-[2px] border-black relative cursor-pointer active:opacity-90 ${
-                          isClassPickerOpen ? 'z-40' : ''
-                        }`}
+                        className={`py-0.5 sm:py-1 px-0.5 sm:px-1 text-center relative cursor-pointer active:opacity-90 border-r-[2px] ${
+                          isTableDark ? 'border-slate-700' : 'border-black'
+                        } ${isClassPickerOpen ? 'z-40' : ''}`}
                         style={{
                           backgroundColor: classMeta.bgColor,
                           color: classMeta.textColor,
@@ -583,10 +702,20 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             data-html2canvas-ignore="true"
                             className={`hidden sm:block absolute left-1/2 -translate-x-1/2 ${
                               openUpward ? 'bottom-full mb-1.5' : 'top-full mt-1.5'
-                            } w-56 bg-white rounded-xl shadow-2xl border border-slate-300 p-2 z-50 text-left`}
+                            } w-56 rounded-xl shadow-2xl p-2 z-50 text-left border ${
+                              isTableDark
+                                ? 'bg-slate-900 border-slate-700 text-slate-100'
+                                : 'bg-white border-slate-300 text-slate-900'
+                            }`}
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <div className="flex items-center justify-between text-[11px] font-bold text-slate-500 px-1 pb-1.5 border-b border-slate-100 mb-1">
+                            <div
+                              className={`flex items-center justify-between text-[11px] font-bold px-1 pb-1.5 border-b mb-1 ${
+                                isTableDark
+                                  ? 'border-slate-800 text-slate-400'
+                                  : 'border-slate-100 text-slate-500'
+                              }`}
+                            >
                               <span>Chọn môn phái:</span>
                               {onOpenColorCustomizer && (
                                 <button
@@ -596,7 +725,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                                     setActiveClassSelectId(null);
                                     onOpenColorCustomizer();
                                   }}
-                                  className="text-purple-600 hover:text-purple-800 text-[10px] font-bold flex items-center gap-0.5"
+                                  className="text-purple-600 dark:text-purple-400 hover:underline text-[10px] font-bold flex items-center gap-0.5"
                                 >
                                   <Palette className="w-3 h-3" />
                                   <span>Đổi màu</span>
@@ -618,7 +747,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                                     }}
                                     className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-bold transition-transform hover:scale-[1.02] ${
                                       member.className === cls
-                                        ? 'ring-2 ring-slate-900 shadow-xs'
+                                        ? 'ring-2 ring-white dark:ring-white shadow-xs'
                                         : ''
                                     }`}
                                     style={{
@@ -639,7 +768,11 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                       </td>
 
                       {/* Logged by Column */}
-                      <td className="py-1 sm:py-2 px-1 text-center text-slate-900 font-semibold text-xs sm:text-[15px] relative group/log">
+                      <td
+                        className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] relative group/log ${
+                          isTableDark ? 'text-slate-100' : 'text-slate-900'
+                        }`}
+                      >
                         <div className="flex items-center justify-center relative">
                           <input
                             type="text"
@@ -650,7 +783,11 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                               })
                             }
                             placeholder={member.ingame || 'Log by...'}
-                            className="w-full text-center bg-transparent focus:bg-amber-50 focus:outline-none focus:ring-1 focus:ring-amber-500 rounded px-0.5 sm:px-1 py-1 sm:py-0.5 font-semibold text-slate-900 text-xs sm:text-[15px]"
+                            className={`w-full text-center bg-transparent rounded px-0.5 sm:px-1 py-1 sm:py-0.5 font-semibold text-xs sm:text-[15px] focus:outline-none focus:ring-1 focus:ring-amber-500 ${
+                              isTableDark
+                                ? 'text-slate-100 placeholder:text-slate-500 focus:bg-slate-800'
+                                : 'text-slate-900 placeholder:text-slate-400 focus:bg-amber-50'
+                            }`}
                           />
 
                           {/* Quick copy button from Ingame */}
@@ -659,7 +796,11 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                               type="button"
                               onClick={() => handleCopyIngameToLoggedBy(member.id)}
                               title="Lấy tên Ingame làm Logged by"
-                              className="absolute right-0 hidden sm:group-hover/log:flex p-1 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded text-[9px] font-bold border border-slate-300"
+                              className={`absolute right-0 hidden sm:group-hover/log:flex p-1 rounded text-[9px] font-bold border ${
+                                isTableDark
+                                  ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-600'
+                                  : 'bg-slate-100 hover:bg-slate-200 text-slate-600 border-slate-300'
+                              }`}
                             >
                               = Ingame
                             </button>
@@ -681,7 +822,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
           type="button"
           id="btn-add-raid-slot"
           onClick={handleAddRow}
-          className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs rounded-xl transition-all shadow-sm active:scale-95 min-h-[42px]"
+          className="flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-4 py-2.5 sm:py-2 bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white font-bold text-xs rounded-xl transition-all shadow-sm active:scale-95 min-h-[42px]"
         >
           <Plus className="w-4 h-4" />
           <span>Thêm vị trí ({members.length + 1})</span>
@@ -697,7 +838,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
               });
             }
           }}
-          className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors border border-slate-200 min-h-[42px]"
+          className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors border border-slate-200 dark:border-slate-700 min-h-[42px]"
         >
           Mẫu như ảnh gốc
         </button>
@@ -712,22 +853,22 @@ export const RaidTable: React.FC<RaidTableProps> = ({
           onClick={() => setActiveClassSelectId(null)}
         >
           <div
-            className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-4 shadow-2xl space-y-3 max-h-[80vh] flex flex-col"
+            className="bg-white dark:bg-slate-900 dark:border dark:border-slate-800 rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-4 shadow-2xl space-y-3 max-h-[80vh] flex flex-col"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <h3 className="text-sm font-bold text-slate-900">
+                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
                   Chọn môn phái cho {activeClassMember.ingame || `STT ${activeClassMember.stt}`}
                 </h3>
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-slate-500 dark:text-slate-400">
                   Hiện tại: <strong>{activeClassMember.className}</strong>
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setActiveClassSelectId(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full"
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -747,7 +888,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                       setActiveClassSelectId(null);
                     }}
                     className={`flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
-                      isCurrent ? 'ring-2 ring-slate-900 shadow-sm' : ''
+                      isCurrent ? 'ring-2 ring-slate-900 dark:ring-white shadow-sm' : ''
                     }`}
                     style={{
                       backgroundColor: meta.bgColor,
@@ -768,9 +909,9 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                   setActiveClassSelectId(null);
                   onOpenColorCustomizer();
                 }}
-                className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 rounded-xl border border-purple-200"
+                className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-xl border border-purple-200 dark:border-purple-800"
               >
-                <Palette className="w-4 h-4 text-purple-600" />
+                <Palette className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                 <span>Tùy chỉnh đổi màu môn phái</span>
               </button>
             )}
@@ -786,20 +927,20 @@ export const RaidTable: React.FC<RaidTableProps> = ({
           onClick={() => setMobileActionMemberId(null)}
         >
           <div
-            className="bg-white rounded-2xl w-full max-w-sm p-4 shadow-2xl space-y-3"
+            className="bg-white dark:bg-slate-900 dark:border dark:border-slate-800 rounded-2xl w-full max-w-sm p-4 shadow-2xl space-y-3"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
               <div>
-                <span className="text-xs font-bold text-slate-500">Hành động cho hàng:</span>
-                <h4 className="text-sm font-black text-slate-900">
+                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Hành động cho hàng:</span>
+                <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">
                   STT {activeMobileMember.stt} • {activeMobileMember.ingame || 'Chưa đặt tên'} ({activeMobileMember.className})
                 </h4>
               </div>
               <button
                 type="button"
                 onClick={() => setMobileActionMemberId(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-full"
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -815,7 +956,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                     setMobileActionMemberId(null);
                   }}
                   disabled={activeMobileIndex === 0}
-                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl disabled:opacity-40 min-h-[44px]"
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl disabled:opacity-40 min-h-[44px]"
                 >
                   <ChevronUp className="w-4 h-4" />
                   <span>Di chuyển lên</span>
@@ -828,7 +969,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                     setMobileActionMemberId(null);
                   }}
                   disabled={activeMobileIndex === members.length - 1}
-                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 text-slate-700 font-bold text-xs rounded-xl disabled:opacity-40 min-h-[44px]"
+                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl disabled:opacity-40 min-h-[44px]"
                 >
                   <ChevronDown className="w-4 h-4" />
                   <span>Di chuyển xuống</span>
@@ -837,8 +978,8 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
               {/* Quick Party Switcher */}
               {parties.length > 1 && (
-                <div className="pt-2 border-t border-slate-100">
-                  <div className="text-[11px] font-semibold text-slate-500 mb-1.5">
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
                     Chuyển sang nhóm:
                   </div>
                   <div className="flex gap-2">
@@ -853,7 +994,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                         className={`flex-1 py-2 text-xs font-bold rounded-xl border min-h-[42px] transition-all ${
                           (activeMobileMember.party || 1) === p.id
                             ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
-                            : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                            : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
                         }`}
                       >
                         {p.name}
@@ -871,9 +1012,9 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                   setMobileActionMemberId(null);
                   setActiveClassSelectId(targetId);
                 }}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-800 bg-slate-100 hover:bg-slate-200 rounded-xl min-h-[44px]"
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl min-h-[44px]"
               >
-                <Palette className="w-4 h-4 text-purple-600" />
+                <Palette className="w-4 h-4 text-purple-600 dark:text-purple-400" />
                 <span>Đổi môn phái ({activeMobileMember.className})</span>
               </button>
 
@@ -885,7 +1026,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                     handleCopyIngameToLoggedBy(activeMobileMember.id);
                     setMobileActionMemberId(null);
                   }}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl min-h-[44px]"
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl min-h-[44px]"
                 >
                   <Copy className="w-4 h-4" />
                   <span>Điền Logged by = Ingame</span>
@@ -896,7 +1037,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
               <button
                 type="button"
                 onClick={() => handleDeleteRow(activeMobileMember.id)}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-red-600 hover:bg-red-50 rounded-xl min-h-[44px] transition-colors border border-red-200"
+                className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl min-h-[44px] transition-colors border border-red-200 dark:border-red-900/60"
               >
                 <Trash2 className="w-4 h-4" />
                 <span>Xoá vị trí STT {activeMobileMember.stt}</span>

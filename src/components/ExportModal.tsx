@@ -239,19 +239,19 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     >
       <div
         id="export-modal-card"
-        className="bg-white rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200 relative max-h-[92vh] overflow-y-auto"
+        className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 rounded-2xl max-w-lg w-full p-4 sm:p-6 shadow-2xl border border-slate-200 dark:border-slate-800 relative max-h-[92vh] overflow-y-auto"
       >
         {/* Header */}
-        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100">
+        <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100 dark:border-slate-800">
           <div className="flex items-center gap-2 sm:gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-slate-900 text-white flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-slate-900 dark:bg-indigo-600 text-white flex items-center justify-center">
               <Share2 className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-bold text-slate-900 text-sm sm:text-base">
+              <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
                 Xuất Bảng Raid & Chia Sẻ
               </h3>
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
                 Lưu ảnh, sao chép hoặc tải bảng tính Excel có khung và màu chuẩn
               </p>
             </div>
@@ -259,7 +259,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+            className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
@@ -268,7 +268,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         {/* Action Options List */}
         <div className="mt-4 space-y-3">
           {/* Action 1: Copy Image to Clipboard */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-3.5">
+          <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3 sm:p-3.5">
             <button
               type="button"
               id="btn-copy-image-clipboard"
@@ -277,17 +277,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-left group"
             >
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-slate-900 dark:bg-indigo-600 text-white flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
                   <Copy className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                     <span>Chụp & Sao chép ảnh (Copy Image)</span>
-                    <span className="text-[10px] font-bold bg-indigo-100 text-indigo-700 px-1.5 py-0.2 rounded">
+                    <span className="text-[10px] font-bold bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 px-1.5 py-0.2 rounded">
                       Khuyên dùng
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
                     Chụp bảng Raid để dán (Ctrl+V) ngay vào Discord, Zalo, Messenger
                   </div>
                 </div>
@@ -295,12 +295,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
               <div className="sm:shrink-0 flex justify-end">
                 {copiedImageSuccess ? (
-                  <span className="flex items-center gap-1 text-emerald-600 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-200">
+                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
                     <Check className="w-4 h-4" />
                     <span>Đã copy ảnh!</span>
                   </span>
                 ) : (
-                  <span className="w-full sm:w-auto text-center text-xs text-slate-700 font-bold bg-white px-3 py-1.5 rounded-lg border border-slate-300 shadow-2xs group-hover:bg-slate-50 min-h-[38px] flex items-center justify-center">
+                  <span className="w-full sm:w-auto text-center text-xs text-slate-700 dark:text-slate-200 font-bold bg-white dark:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-300 dark:border-slate-600 shadow-2xs group-hover:bg-slate-50 dark:group-hover:bg-slate-650 min-h-[38px] flex items-center justify-center">
                     {copyingImage ? 'Đang chụp ảnh...' : 'Copy ảnh'}
                   </span>
                 )}
@@ -309,17 +309,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
             {/* Fallback Image Preview if iframe prevents direct clipboard write */}
             {showClipboardFallback && previewImageUrl && (
-              <div className="mt-3 p-3 bg-amber-50/80 border border-amber-200 rounded-xl space-y-2">
+              <div className="mt-3 p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl space-y-2">
                 <div className="flex items-start gap-2">
-                  <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                  <div className="text-[11px] text-amber-900 leading-relaxed">
+                  <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                  <div className="text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed">
                     <span className="font-bold">Ảnh bảng Raid đã được tạo!</span> Do giới hạn bảo mật iframe trình duyệt, hãy{' '}
                     <strong>Click chuột phải (hoặc chạm giữ trên điện thoại)</strong> vào ảnh bên dưới rồi chọn{' '}
                     <strong>&quot;Sao chép hình ảnh&quot; (Copy image)</strong>:
                   </div>
                 </div>
 
-                <div className="relative group max-h-48 overflow-hidden rounded-lg border border-slate-300 bg-white flex items-center justify-center">
+                <div className="relative group max-h-48 overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center">
                   <img
                     src={previewImageUrl}
                     alt="Bảng Raid preview"
@@ -329,13 +329,13 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 </div>
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pt-1">
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
                     Mẹo: Chạm giữ hoặc chuột phải vào ảnh &gt; Copy image
                   </span>
                   <button
                     type="button"
                     onClick={handleOpenImageInNewTab}
-                    className="flex items-center justify-center gap-1 text-[11px] font-bold text-blue-600 hover:text-blue-700 bg-white px-2.5 py-1.5 rounded-lg border border-blue-200 min-h-[36px]"
+                    className="flex items-center justify-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 min-h-[36px]"
                   >
                     <ExternalLink className="w-3.5 h-3.5" />
                     <span>Mở ảnh tab mới để copy</span>
@@ -346,20 +346,20 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           </div>
 
           {/* Action 2: Download Formatted Excel / CSV with Highlight colors and frames */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 sm:p-3.5">
+          <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3 sm:p-3.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
                   <FileSpreadsheet className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                     <span>Tải bảng tính Excel (Có màu & Khung)</span>
                     <span className="text-[10px] font-bold bg-emerald-600 text-white px-1.5 py-0.2 rounded">
                       Chuẩn ảnh
                     </span>
                   </div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
                     Mở bằng Excel hiển thị đầy đủ màu sắc môn phái và khung viền đen bản gốc
                   </div>
                 </div>
@@ -386,7 +386,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </div>
 
             {/* Sub-option: Plain CSV */}
-            <div className="mt-3 pt-2.5 border-t border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-slate-500">
+            <div className="mt-3 pt-2.5 border-t border-slate-200/80 dark:border-slate-700/80 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-[11px] text-slate-500 dark:text-slate-400">
               <span className="flex items-center gap-1">
                 <TableIcon className="w-3.5 h-3.5 text-slate-400" />
                 <span>Hoặc lưu định dạng CSV văn bản:</span>
@@ -395,7 +395,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 type="button"
                 id="btn-download-plain-csv"
                 onClick={handleExportPlainCsv}
-                className="font-bold text-slate-700 hover:text-slate-900 hover:underline text-left sm:text-right"
+                className="font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:underline text-left sm:text-right"
               >
                 {downloadCsvSuccess ? '✓ Đã tải CSV' : 'Tải file .CSV'}
               </button>
@@ -407,39 +407,39 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             type="button"
             id="btn-copy-formatted-text"
             onClick={handleCopyText}
-            className="w-full flex items-center justify-between p-3 sm:p-3.5 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl text-left transition-colors group min-h-[48px]"
+            className="w-full flex items-center justify-between p-3 sm:p-3.5 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-colors group min-h-[48px]"
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
                 <FileText className="w-4 h-4" />
               </div>
               <div>
-                <div className="text-xs font-bold text-slate-900">
+                <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
                   Sao chép dạng văn bản (Text)
                 </div>
-                <div className="text-[11px] text-slate-500">
+                <div className="text-[11px] text-slate-500 dark:text-slate-400">
                   Định dạng danh sách số thứ tự cho chat ingame hoặc Discord
                 </div>
               </div>
             </div>
             {copiedTextSuccess ? (
-              <span className="flex items-center gap-1 text-emerald-600 text-xs font-bold shrink-0">
+              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-bold shrink-0">
                 <Check className="w-4 h-4" />
                 <span>Đã copy!</span>
               </span>
             ) : (
-              <span className="text-xs text-slate-500 font-bold bg-white px-2.5 py-1 rounded-md border border-slate-200 shrink-0">
+              <span className="text-xs text-slate-500 dark:text-slate-300 font-bold bg-white dark:bg-slate-700 px-2.5 py-1 rounded-md border border-slate-200 dark:border-slate-600 shrink-0">
                 Copy text
               </span>
             )}
           </button>
         </div>
 
-        <div className="mt-5 pt-3 border-t border-slate-100 flex justify-end">
+        <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
           <button
             type="button"
             onClick={onClose}
-            className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-xl min-h-[38px]"
+            className="w-full sm:w-auto px-4 py-2 text-xs font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl min-h-[38px]"
           >
             Đóng
           </button>
