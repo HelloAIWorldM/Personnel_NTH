@@ -117,13 +117,22 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   };
 
+  const escapeHtml = (str: string): string => {
+    return (str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  };
+
   // Open fallback image in new tab so user can easily save or copy without iframe sandbox restrictions
   const handleOpenImageInNewTab = () => {
     if (!previewImageUrl) return;
     const newTab = window.open();
     if (newTab) {
       newTab.document.write(
-        `<!DOCTYPE html><html><head><title>Bảng Raid - ${raidTitle}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;background:#1e293b;min-height:100vh;}img{max-width:95%;height:auto;box-shadow:0 10px 30px rgba(0,0,0,0.5);border:2px solid black;}</style></head><body><img src="${previewImageUrl}" alt="Raid Table" /></body></html>`
+        `<!DOCTYPE html><html><head><title>Bảng Raid - ${escapeHtml(raidTitle)}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;background:#1e293b;min-height:100vh;}img{max-width:95%;height:auto;box-shadow:0 10px 30px rgba(0,0,0,0.5);border:2px solid black;}</style></head><body><img src="${previewImageUrl}" alt="Raid Table" /></body></html>`
       );
       newTab.document.close();
     }
@@ -138,10 +147,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       rowsHtml += `
         <tr>
           <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; padding: 6px 10px;">${m.stt}</td>
-          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; padding: 6px 14px;">${m.ingame || ''}</td>
-          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; background-color: ${meta.bgColor}; color: ${meta.textColor}; padding: 6px 14px;">${m.className}</td>
-          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; padding: 6px 14px;">${m.loggedBy || m.ingame || ''}</td>
-          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 12pt; padding: 6px 10px;">${ptStr}</td>
+          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; padding: 6px 14px;">${escapeHtml(m.ingame || '')}</td>
+          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; background-color: ${meta.bgColor}; color: ${meta.textColor}; padding: 6px 14px;">${escapeHtml(m.className)}</td>
+          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; padding: 6px 14px;">${escapeHtml(m.loggedBy || m.ingame || '')}</td>
+          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 12pt; padding: 6px 10px;">${escapeHtml(ptStr)}</td>
         </tr>
       `;
     });
@@ -175,7 +184,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         <table>
           <tr>
             <td colspan="5" class="title-row">
-              ${raidTitle.replace('-', ' - ')}
+              ${escapeHtml(raidTitle.replace('-', ' - '))}
             </td>
           </tr>
           <tr>
@@ -212,7 +221,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const handleExportPlainCsv = () => {
     let csv = `STT,Ingame,Class,Logged by,Party\n`;
     members.forEach((m) => {
-      const escape = (val: string) => `"${(val || '').replace(/"/g, '""')}"`;
+      const escape = (val: string) => {
+        let str = val || '';
+        // Mitigate CSV Formula Injection (CWE-1236)
+        if (/^[=+\-@\t\r]/.test(str)) {
+          str = "'" + str;
+        }
+        return `"${str.replace(/"/g, '""')}"`;
+      };
       const ptStr = m.party ? `PT ${m.party}` : '';
       csv += `${m.stt},${escape(m.ingame)},${escape(m.className)},${escape(m.loggedBy || m.ingame)},${escape(ptStr)}\n`;
     });

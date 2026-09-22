@@ -319,9 +319,14 @@ export async function readSpreadsheetRaid(
   accessToken: string,
   spreadsheetId: string
 ): Promise<{ title?: string; members: RaidMember[] }> {
+  const cleanId = spreadsheetId.trim().replace(/[^a-zA-Z0-9-_]/g, '');
+  if (!cleanId) {
+    throw new Error('Mã Google Sheet (Spreadsheet ID) không hợp lệ.');
+  }
+
   // First fetch spreadsheet metadata to get sheet name
   const metaRes = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=properties.title,sheets.properties`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}?fields=properties.title,sheets.properties`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
     }
@@ -337,7 +342,7 @@ export async function readSpreadsheetRaid(
 
   // Read values
   const valuesRes = await fetch(
-    `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetTitle)}!A1:D50`,
+    `https://sheets.googleapis.com/v4/spreadsheets/${cleanId}/values/${encodeURIComponent(sheetTitle)}!A1:D50`,
     {
       headers: { Authorization: `Bearer ${accessToken}` },
     }
