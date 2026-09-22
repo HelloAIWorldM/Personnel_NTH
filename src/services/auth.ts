@@ -21,25 +21,39 @@ provider.setCustomParameters({
   prompt: 'consent select_account',
 });
 
+const TOKEN_STORAGE_KEY = 'google_sheets_access_token_v1';
+
 let isSigningIn = false;
-let cachedAccessToken: string | null = null;
+let cachedAccessToken: string | null = (() => {
+  try {
+    return sessionStorage.getItem(TOKEN_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+})();
 
 export const initAuth = (
-  onAuthSuccess?: (user: User, token: string) => void,
+  onAuthSuccess?: (user: User, token: string | null) => void,
   onAuthFailure?: () => void
 ) => {
   return onAuthStateChanged(auth, async (user: User | null) => {
     if (user) {
-      if (cachedAccessToken) {
-        if (onAuthSuccess) onAuthSuccess(user, cachedAccessToken);
-      } else if (!isSigningIn) {
-        // If user is logged in to Firebase but we lost in-memory token (e.g. page refresh),
-        // we keep the user signed in, and they can re-trigger token acquisition when syncing
-        if (onAuthFailure) onAuthFailure();
+      if (!cachedAccessToken) {
+        try {
+          cachedAccessToken = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+        } catch {}
+      }
+      if (onAuthSuccess) {
+        onAuthSuccess(user, cachedAccessToken);
       }
     } else {
       cachedAccessToken = null;
-      if (onAuthFailure) onAuthFailure();
+      try {
+        sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+      } catch {}
+      if (onAuthFailure) {
+        onAuthFailure();
+      }
     }
   });
 };
@@ -54,6 +68,10 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
     }
 
     cachedAccessToken = credential.accessToken;
+    try {
+      sessionStorage.setItem(TOKEN_STORAGE_KEY, cachedAccessToken);
+    } catch {}
+
     return { user: result.user, accessToken: cachedAccessToken };
   } catch (error: any) {
     console.error('Sign in error:', error);
@@ -64,16 +82,31 @@ export const googleSignIn = async (): Promise<{ user: User; accessToken: string 
 };
 
 export const getAccessToken = async (): Promise<string | null> => {
+  if (!cachedAccessToken) {
+    try {
+      cachedAccessToken = sessionStorage.getItem(TOKEN_STORAGE_KEY);
+    } catch {}
+  }
   return cachedAccessToken;
 };
 
 export const setAccessToken = (token: string | null) => {
   cachedAccessToken = token;
+  try {
+    if (token) {
+      sessionStorage.setItem(TOKEN_STORAGE_KEY, token);
+    } else {
+      sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+    }
+  } catch {}
 };
 
 export const logout = async () => {
   await signOut(auth);
   cachedAccessToken = null;
+  try {
+    sessionStorage.removeItem(TOKEN_STORAGE_KEY);
+  } catch {}
 };
 
 export { auth };

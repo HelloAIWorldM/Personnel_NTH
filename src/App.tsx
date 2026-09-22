@@ -83,7 +83,7 @@ export default function App() {
         setCurrentUser(user);
       },
       () => {
-        // Not authenticated
+        setCurrentUser(null);
       }
     );
     return () => unsubscribe();
