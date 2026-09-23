@@ -528,6 +528,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
         <div
           ref={tableRef}
           id="raid-capture-canvas"
+          data-table-theme={isTableDark ? 'dark' : 'light'}
           className={`w-full min-w-[320px] max-w-[620px] select-none shadow-md relative transition-colors ${
             isTableDark
               ? 'bg-slate-900 border-[2px] border-slate-600 text-slate-100'
@@ -728,6 +729,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                         <div className="flex items-center justify-center gap-1 sm:gap-1.5">
                           {/* Desktop Drag Handle */}
                           <span
+                            data-html2canvas-ignore="true"
                             className={`cursor-grab hidden sm:inline ${
                               isTableDark
                                 ? 'text-slate-600 group-hover:text-slate-400'
@@ -744,6 +746,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           {parties.length > 1 && (
                             <button
                               type="button"
+                              data-html2canvas-ignore="true"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const currentP = member.party || 1;
@@ -767,17 +770,18 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           )}
 
                           {/* Mobile quick actions trigger indicator */}
-                          <span className="sm:hidden text-slate-400">
+                          <span data-html2canvas-ignore="true" className="sm:hidden text-slate-400">
                             <MoreVertical className="w-3 h-3" />
                           </span>
                         </div>
 
-                        {/* Desktop Hover Row Actions */}
+                        {/* Desktop Hover Row Actions - Floating sleek toolbar above cell, never obscuring STT */}
                         <div
-                          className={`absolute left-1 top-1/2 -translate-y-1/2 hidden sm:group-hover:flex items-center gap-0.5 rounded border shadow-sm p-0.5 z-10 print:hidden ${
+                          data-html2canvas-ignore="true"
+                          className={`absolute -top-9 sm:-top-9.5 left-1/2 -translate-x-1/2 hidden sm:group-hover:flex items-center gap-1 px-1.5 py-1 rounded-xl border shadow-lg z-30 print:hidden transition-all duration-150 animate-in fade-in zoom-in-95 before:absolute before:inset-x-0 before:top-full before:h-3 before:content-[''] ${
                             isTableDark
-                              ? 'bg-slate-800/95 border-slate-700 text-slate-300'
-                              : 'bg-white/95 border-slate-300 text-slate-600'
+                              ? 'bg-slate-800/98 border-slate-600 text-slate-200 shadow-black/60'
+                              : 'bg-white/98 border-slate-300 text-slate-800 shadow-slate-900/15'
                           }`}
                         >
                           <button
@@ -787,10 +791,10 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                               handleMoveRow(idx, 'up');
                             }}
                             disabled={idx === 0}
-                            title="Di chuyển lên"
-                            className="p-0.5 hover:text-indigo-400 disabled:opacity-20"
+                            title="Di chuyển lên trên (STT nhỏ hơn)"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white dark:bg-slate-700/80 dark:hover:bg-indigo-500 text-indigo-600 dark:text-indigo-300 font-bold transition-all active:scale-95 disabled:opacity-25 disabled:hover:bg-slate-100 disabled:hover:text-indigo-600 dark:disabled:hover:bg-slate-700/80 cursor-pointer disabled:cursor-not-allowed shadow-2xs"
                           >
-                            <ChevronUp className="w-3 h-3" />
+                            <ChevronUp className="w-4 h-4 stroke-[2.5]" />
                           </button>
                           <button
                             type="button"
@@ -799,27 +803,40 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                               handleMoveRow(idx, 'down');
                             }}
                             disabled={idx === members.length - 1}
-                            title="Di chuyển xuống"
-                            className="p-0.5 hover:text-indigo-400 disabled:opacity-20"
+                            title="Di chuyển xuống dưới (STT lớn hơn)"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white dark:bg-slate-700/80 dark:hover:bg-indigo-500 text-indigo-600 dark:text-indigo-300 font-bold transition-all active:scale-95 disabled:opacity-25 disabled:hover:bg-slate-100 disabled:hover:text-indigo-600 dark:disabled:hover:bg-slate-700/80 cursor-pointer disabled:cursor-not-allowed shadow-2xs"
                           >
-                            <ChevronDown className="w-3 h-3" />
+                            <ChevronDown className="w-4 h-4 stroke-[2.5]" />
                           </button>
+
+                          <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
+
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteRow(member.id);
                             }}
-                            title="Xoá thành viên này"
-                            className="p-0.5 text-red-500 hover:text-red-400"
+                            title="Xoá thành viên này khỏi bảng"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-50 hover:bg-rose-600 hover:text-white dark:bg-rose-950/50 dark:hover:bg-rose-600 text-rose-600 dark:text-rose-400 font-bold transition-all active:scale-95 cursor-pointer shadow-2xs"
                           >
-                            <Trash2 className="w-3 h-3" />
+                            <Trash2 className="w-4 h-4 stroke-[2.2]" />
                           </button>
+
+                          {/* Pointer triangle pointing down towards the STT cell */}
+                          <div
+                            className={`absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 rotate-45 border-r border-b ${
+                              isTableDark
+                                ? 'bg-slate-800 border-slate-600'
+                                : 'bg-white border-slate-300'
+                            }`}
+                          />
                         </div>
                       </td>
 
                       {/* Ingame Column */}
                       <td
+                        style={{ textAlign: 'center' }}
                         className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] border-r-[2px] transition-colors ${
                           isTableDark
                             ? 'border-slate-700 text-slate-100'
@@ -832,10 +849,14 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             : ''
                         }`}
                       >
-                        <div className="flex items-center justify-center relative">
+                        <div style={{ textAlign: 'center', width: '100%' }} className="flex items-center justify-center relative w-full text-center">
                           <input
                             type="text"
                             value={member.ingame}
+                            defaultValue={member.ingame}
+                            data-text-value={member.ingame || ''}
+                            style={{ textAlign: 'center' }}
+                            dir="ltr"
                             onChange={(e) =>
                               handleUpdateMember(member.id, { ingame: e.target.value })
                             }
@@ -853,6 +874,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
                           {isIngameDup && (
                             <span
+                              data-html2canvas-ignore="true"
                               title={`⚠️ Trùng tên Ingame với: ${ingameDupInfo?.stts
                                 .filter((s) => s !== member.stt)
                                 .map((s) => `STT #${s}`)
@@ -959,6 +981,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
                       {/* Logged by Column */}
                       <td
+                        style={{ textAlign: 'center' }}
                         className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] relative group/log transition-colors ${
                           isTableDark ? 'text-slate-100' : 'text-slate-900'
                         } ${
@@ -969,9 +992,10 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             : ''
                         }`}
                       >
-                        <div className="flex items-center justify-center relative">
+                        <div style={{ textAlign: 'center', width: '100%' }} className="flex items-center justify-center relative w-full text-center">
                           {isLoggedByDup && (
                             <span
+                              data-html2canvas-ignore="true"
                               title={`⚠️ Trùng người log: "${loggedByDupInfo?.originalName}" đang log cho ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
                                 .map((s) => `#${s}`)
                                 .join(', ')})`}
@@ -984,6 +1008,10 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           <input
                             type="text"
                             value={member.loggedBy}
+                            defaultValue={member.loggedBy}
+                            data-text-value={member.loggedBy || member.ingame || ''}
+                            style={{ textAlign: 'center' }}
+                            dir="ltr"
                             onChange={(e) =>
                               handleUpdateMember(member.id, {
                                 loggedBy: e.target.value,
@@ -1005,6 +1033,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           {!member.loggedBy && member.ingame && (
                             <button
                               type="button"
+                              data-html2canvas-ignore="true"
                               onClick={() => handleCopyIngameToLoggedBy(member.id)}
                               title="Lấy tên Ingame làm Logged by"
                               className={`absolute right-0 hidden sm:group-hover/log:flex p-1 rounded text-[9px] font-bold border ${

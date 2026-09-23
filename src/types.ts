@@ -9,7 +9,8 @@ export type RaidClass =
   | 'Huyền Cơ'
   | 'Tố Vấn'
   | 'Thương Lan'
-  | 'Thiên Vấn';
+  | 'Thiên Vấn'
+  | 'Hồng Âm';
 
 export type RaidRole = 'Tank' | 'Healer' | 'DPS';
 

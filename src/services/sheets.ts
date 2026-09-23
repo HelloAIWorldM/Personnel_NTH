@@ -421,5 +421,6 @@ function matchClass(input: string): RaidClass {
   if (norm.includes('tố vấn') || norm === 'tv') return 'Tố Vấn';
   if (norm.includes('triều quang') || norm === 'tq') return 'Triều Quang';
   if (norm.includes('huyền cơ') || norm === 'hc') return 'Huyền Cơ';
+  if (norm.includes('hồng âm') || norm.includes('hong am') || norm === 'ha' || norm === 'hâ') return 'Hồng Âm';
   return 'Toái Mộng';
 }

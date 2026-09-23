@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import html2canvas from 'html2canvas';
+import html2canvas from 'html2canvas-pro';
 import { CustomClassColors, RaidMember } from '../types';
 import { getEffectiveClassMeta } from '../constants/classes';
 import {
@@ -9,10 +9,10 @@ import {
   FileText,
   X,
   Share2,
-  ExternalLink,
   Table as TableIcon,
   AlertCircle,
   FileSpreadsheet,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface ExportModalProps {
@@ -34,6 +34,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 }) => {
   const [copyingImage, setCopyingImage] = useState(false);
   const [copiedImageSuccess, setCopiedImageSuccess] = useState(false);
+  const [downloadingImage, setDownloadingImage] = useState(false);
+  const [downloadImageSuccess, setDownloadImageSuccess] = useState(false);
   const [copiedTextSuccess, setCopiedTextSuccess] = useState(false);
   const [downloadExcelSuccess, setDownloadExcelSuccess] = useState(false);
   const [downloadCsvSuccess, setDownloadCsvSuccess] = useState(false);
@@ -68,45 +70,171 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   };
 
-  // Modern robust copy image to clipboard with Promise-based ClipboardItem + iframe fallback
+  // Helper to generate canvas using html2canvas-pro (full support for oklch colors & Tailwind v4)
+  const generateCanvas = async () => {
+    if (!tableRef.current) {
+      throw new Error('Bảng Raid chưa sẵn sàng để chụp');
+    }
+
+    const originalTable = tableRef.current;
+    // Determine darkness based strictly on the table itself, NOT on document.documentElement dark mode
+    const isDark =
+      originalTable.getAttribute('data-table-theme') === 'dark' ||
+      originalTable.classList.contains('bg-slate-900');
+
+    const textColor = isDark ? '#ffffff' : '#000000';
+    const bgColor = isDark ? '#0f172a' : '#ffffff';
+
+    return await html2canvas(originalTable, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: bgColor,
+      logging: false,
+      onclone: (clonedDoc: Document) => {
+        const table =
+          clonedDoc.getElementById('raid-capture-canvas') ||
+          clonedDoc.querySelector('#raid-capture-canvas') ||
+          clonedDoc.body;
+
+        // 1. Remove all elements with data-html2canvas-ignore to avoid layout shift/interference
+        const ignored = table.querySelectorAll('[data-html2canvas-ignore="true"]');
+        ignored.forEach((el) => el.remove());
+
+        // 2. Query original inputs from the live DOM before cloning to guarantee accurate values
+        const originalInputs = originalTable.querySelectorAll('input');
+
+        // 3. Replace all interactive inputs with static centered text blocks
+        // (html2canvas has a known bug misaligning text-align inside <input> elements)
+        const inputs = table.querySelectorAll('input');
+        inputs.forEach((input, index) => {
+          const htmlInput = input as HTMLInputElement;
+          const parent = htmlInput.parentElement;
+          if (!parent) return;
+
+          // Priority 1: data-text-value attribute (preserved across cloneNode)
+          // Priority 2: original live DOM input.value
+          // Priority 3: cloned input.value or getAttribute('value')
+          // Priority 4: placeholder
+          const originalInput = originalInputs[index] as HTMLInputElement | undefined;
+          let textValue =
+            htmlInput.getAttribute('data-text-value') ||
+            originalInput?.value ||
+            htmlInput.value ||
+            htmlInput.getAttribute('value') ||
+            '';
+
+          textValue = textValue.trim();
+
+          // Fallback to placeholder if it was a non-generic placeholder (e.g. member.ingame as fallback for loggedBy)
+          if (
+            !textValue &&
+            htmlInput.placeholder &&
+            htmlInput.placeholder !== 'Ingame...' &&
+            htmlInput.placeholder !== 'Log by...'
+          ) {
+            textValue = htmlInput.placeholder.trim();
+          }
+
+          const textDiv = clonedDoc.createElement('div');
+          // Use non-breaking space if empty so the div doesn't collapse height
+          textDiv.textContent = textValue || '\u00A0';
+
+          // Pure block styling with bulletproof center alignment and sharp high-contrast text color
+          textDiv.setAttribute(
+            'style',
+            `text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto !important; padding: 2px 0 !important; font-weight: 700 !important; font-size: 15px !important; line-height: 1.35 !important; color: ${textColor} !important; font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif !important; box-sizing: border-box !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;`
+          );
+
+          parent.style.textAlign = 'center';
+          parent.style.width = '100%';
+          parent.style.display = 'block';
+
+          parent.replaceChild(textDiv, htmlInput);
+        });
+
+        // 4. Ensure all table cells TD and TH enforce text-align: center
+        const cells = table.querySelectorAll('th, td');
+        cells.forEach((cell) => {
+          const htmlCell = cell as HTMLElement;
+          htmlCell.style.textAlign = 'center';
+        });
+      },
+    });
+  };
+
+  // Direct high-res PNG image download
+  const handleDownloadImagePng = async (existingUrl?: string) => {
+    setDownloadingImage(true);
+    try {
+      let dataUrl = existingUrl || previewImageUrl;
+      if (!dataUrl) {
+        const canvas = await generateCanvas();
+        dataUrl = canvas.toDataURL('image/png');
+        setPreviewImageUrl(dataUrl);
+      }
+
+      const link = document.createElement('a');
+      const safeTitle = raidTitle.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+      link.href = dataUrl;
+      link.download = `${safeTitle}_bang_raid.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      setDownloadImageSuccess(true);
+      setTimeout(() => setDownloadImageSuccess(false), 2500);
+    } catch (err) {
+      console.error('Lỗi khi tải ảnh PNG:', err);
+    } finally {
+      setDownloadingImage(false);
+    }
+  };
+
+  // Robust copy image to clipboard with real Blob and fallback for iframe restrictions
   const handleCopyImageToClipboard = async () => {
     if (!tableRef.current) return;
     setCopyingImage(true);
     setShowClipboardFallback(false);
 
     try {
-      const canvas = await html2canvas(tableRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-      });
-
+      const canvas = await generateCanvas();
       const dataUrl = canvas.toDataURL('image/png');
       setPreviewImageUrl(dataUrl);
 
-      // Try promise-based ClipboardItem if supported
+      // Convert canvas to Blob
+      const blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((b) => resolve(b), 'image/png');
+      });
+
+      if (!blob) {
+        throw new Error('Canvas blob is null');
+      }
+
+      let writeSuccess = false;
+
+      // Try promise/blob ClipboardItem
       if (navigator.clipboard && typeof ClipboardItem !== 'undefined') {
         try {
-          const blobPromise = new Promise<Blob>((resolve, reject) => {
-            canvas.toBlob((blob) => {
-              if (blob) resolve(blob);
-              else reject(new Error('Canvas blob is null'));
-            }, 'image/png');
-          });
-
-          await navigator.clipboard.write([
-            new ClipboardItem({ 'image/png': blobPromise }),
-          ]);
-
-          setCopiedImageSuccess(true);
-          setTimeout(() => setCopiedImageSuccess(false), 2500);
-          return;
-        } catch (clipErr) {
-          console.warn('Direct clipboard.write failed (likely iframe permission restriction):', clipErr);
-          setShowClipboardFallback(true);
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          writeSuccess = true;
+        } catch (err1) {
+          try {
+            const item = new ClipboardItem({ 'image/png': Promise.resolve(blob) });
+            await navigator.clipboard.write([item]);
+            writeSuccess = true;
+          } catch (err2) {
+            console.warn('Direct clipboard.write failed (likely iframe permission restriction):', err2);
+          }
         }
+      }
+
+      if (writeSuccess) {
+        setCopiedImageSuccess(true);
+        setShowClipboardFallback(false);
+        setTimeout(() => setCopiedImageSuccess(false), 3000);
       } else {
+        // Fallback preview shown when iframe restricts direct clipboard write
         setShowClipboardFallback(true);
       }
     } catch (err) {
@@ -124,18 +252,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       .replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;')
       .replace(/'/g, '&#39;');
-  };
-
-  // Open fallback image in new tab so user can easily save or copy without iframe sandbox restrictions
-  const handleOpenImageInNewTab = () => {
-    if (!previewImageUrl) return;
-    const newTab = window.open();
-    if (newTab) {
-      newTab.document.write(
-        `<!DOCTYPE html><html><head><title>Bảng Raid - ${escapeHtml(raidTitle)}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;background:#1e293b;min-height:100vh;}img{max-width:95%;height:auto;box-shadow:0 10px 30px rgba(0,0,0,0.5);border:2px solid black;}</style></head><body><img src="${previewImageUrl}" alt="Raid Table" /></body></html>`
-      );
-      newTab.document.close();
-    }
   };
 
   // Download styled Excel HTML table with intact colors and borders matching the original photo
@@ -325,40 +441,80 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
             {/* Fallback Image Preview if iframe prevents direct clipboard write */}
             {showClipboardFallback && previewImageUrl && (
-              <div className="mt-3 p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl space-y-2">
+              <div className="mt-3 p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl space-y-2.5">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                   <div className="text-[11px] text-amber-900 dark:text-amber-200 leading-relaxed">
-                    <span className="font-bold">Ảnh bảng Raid đã được tạo!</span> Do giới hạn bảo mật iframe trình duyệt, hãy{' '}
-                    <strong>Click chuột phải (hoặc chạm giữ trên điện thoại)</strong> vào ảnh bên dưới rồi chọn{' '}
-                    <strong>&quot;Sao chép hình ảnh&quot; (Copy image)</strong>:
+                    <span className="font-bold">Ảnh bảng Raid đã được tạo thành công!</span> Do trình duyệt/iframe hạn chế quyền ghi bộ nhớ tạm tự động, bạn có thể:
                   </div>
                 </div>
 
-                <div className="relative group max-h-48 overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center">
+                <div className="relative group max-h-52 overflow-hidden rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 flex items-center justify-center">
                   <img
                     src={previewImageUrl}
                     alt="Bảng Raid preview"
                     className="w-full h-auto object-contain cursor-pointer"
-                    title="Click chuột phải -> Chọn Sao chép hình ảnh"
+                    title="Click chuột phải -> Chọn Sao chép hình ảnh (Copy image)"
                   />
                 </div>
 
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 pt-1">
-                  <span className="text-[10px] text-slate-500 dark:text-slate-400">
-                    Mẹo: Chạm giữ hoặc chuột phải vào ảnh &gt; Copy image
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
+                  <span className="text-[10px] text-slate-600 dark:text-slate-300">
+                    💡 <strong>Cách 1:</strong> Chuột phải vào ảnh &gt; <em>Sao chép hình ảnh</em> (Copy image)
                   </span>
                   <button
                     type="button"
-                    onClick={handleOpenImageInNewTab}
-                    className="flex items-center justify-center gap-1 text-[11px] font-bold text-blue-600 dark:text-blue-400 hover:text-blue-700 bg-white dark:bg-slate-800 px-2.5 py-1.5 rounded-lg border border-blue-200 dark:border-blue-800 min-h-[36px]"
+                    onClick={() => handleDownloadImagePng(previewImageUrl)}
+                    className="flex items-center justify-center gap-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded-lg shadow-2xs min-h-[36px]"
                   >
-                    <ExternalLink className="w-3.5 h-3.5" />
-                    <span>Mở ảnh tab mới để copy</span>
+                    <Download className="w-3.5 h-3.5" />
+                    <span>Cách 2: Tải file ảnh PNG</span>
                   </button>
                 </div>
               </div>
             )}
+          </div>
+
+          {/* Action 2: Direct High-Quality PNG Download */}
+          <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3 sm:p-3.5">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 flex items-center justify-center shrink-0">
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                    <span>Tải ảnh PNG (Chất lượng cao)</span>
+                    <span className="text-[10px] font-bold bg-blue-600 text-white px-1.5 py-0.2 rounded">
+                      Sắc nét
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Lưu file hình ảnh .png về máy tính hoặc điện thoại với độ phân giải cao
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                id="btn-download-image-png"
+                onClick={() => handleDownloadImagePng()}
+                disabled={downloadingImage}
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-lg shadow-2xs transition-colors shrink-0 min-h-[40px]"
+              >
+                {downloadImageSuccess ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    <span>Đã tải ảnh!</span>
+                  </>
+                ) : (
+                  <>
+                    <Download className="w-4 h-4" />
+                    <span>{downloadingImage ? 'Đang tạo ảnh...' : 'Tải ảnh PNG'}</span>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
 
           {/* Action 2: Download Formatted Excel / CSV with Highlight colors and frames */}

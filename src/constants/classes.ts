@@ -105,6 +105,15 @@ export const RAID_CLASSES: Record<RaidClass, ClassMetadata> = {
     rgb: { r: 0.15, g: 0.64, b: 0.42 },
     description: 'Tố Vấn tư thái bạo kích, vũ lụa xuất kích',
   },
+  'Hồng Âm': {
+    name: 'Hồng Âm',
+    shortName: 'HÂ',
+    role: 'DPS',
+    bgColor: '#D43864', // Hồng Sen Đôn Hoàng
+    textColor: '#FFFFFF',
+    rgb: { r: 0.83, g: 0.22, b: 0.39 },
+    description: 'Phi thiên Đôn Hoàng, tỳ bà cầm khúc linh động',
+  },
 };
 
 export const CLASS_LIST: RaidClass[] = [
@@ -117,6 +126,7 @@ export const CLASS_LIST: RaidClass[] = [
   'Cửu Linh',
   'Triều Quang',
   'Huyền Cơ',
+  'Hồng Âm',
   'Tố Vấn',
   'Thiên Vấn',
 ];
