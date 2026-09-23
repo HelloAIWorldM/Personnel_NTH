@@ -45,4 +45,24 @@ export interface RaidConfig {
   members: RaidMember[];
 }
 
+export interface RaidBoard {
+  id: string;
+  titlePrefix: string;
+  scheduleTime: string;
+  bossName: string;
+  members: RaidMember[];
+  parties: RaidParty[];
+  createdAt: number;
+}
+
+export interface PersonnelMember {
+  id: string;
+  ingame: string;
+  className: RaidClass;
+  loggedBy: string;
+  note?: string;
+  checked?: boolean; // Attendance / present checkmark
+  createdAt?: number;
+}
+
 export type CustomClassColors = Partial<Record<RaidClass, string>>;

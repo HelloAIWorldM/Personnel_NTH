@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
 import { CustomClassColors, RaidClass, RaidMember, RaidParty } from '../types';
 import { DuplicateWarningBanner } from './DuplicateWarningBanner';
@@ -18,6 +19,7 @@ import {
   Heart,
   Swords,
   MoreVertical,
+  ArrowRightLeft,
   X,
   Sun,
   Moon,
@@ -79,6 +81,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
   // Mobile row actions modal state
   const [mobileActionMemberId, setMobileActionMemberId] = useState<string | null>(null);
+  const [showResetRaidConfirm, setShowResetRaidConfirm] = useState(false);
 
   // Duplicate Ingame and LoggedBy lookup maps
   const duplicateIngameMap = useMemo(() => getDuplicateIngameMap(members), [members]);
@@ -161,6 +164,13 @@ export const RaidTable: React.FC<RaidTableProps> = ({
     }
   };
 
+  const handleClearRow = (id: string) => {
+    handleUpdateMember(id, { ingame: '', loggedBy: '' });
+    if (mobileActionMemberId === id) {
+      setMobileActionMemberId(null);
+    }
+  };
+
   const handleAddRow = () => {
     const nextStt = members.length + 1;
     const lastParty = members.length > 0 ? members[members.length - 1].party || 1 : 1;
@@ -178,13 +188,14 @@ export const RaidTable: React.FC<RaidTableProps> = ({
   // Row Drag and drop handlers
   const handleRowDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData('text/plain', id);
+    e.dataTransfer.setData('source-type', 'row-reorder');
     e.dataTransfer.effectAllowed = 'move';
     setDraggedMemberId(id);
   };
 
   const handleRowDragOver = (e: React.DragEvent, id: string) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = 'copy';
     if (dragOverMemberId !== id) {
       setDragOverMemberId(id);
     }
@@ -192,10 +203,35 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
   const handleRowDrop = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
+    setDraggedMemberId(null);
+    setDragOverMemberId(null);
+
+    // 1. Check if this is a drop from Kho Nhân Sự (Personnel Storage)
+    try {
+      const jsonStr = e.dataTransfer.getData('application/json');
+      if (jsonStr) {
+        const parsed = JSON.parse(jsonStr);
+        if (parsed.type === 'personnel' && parsed.member) {
+          const p = parsed.member;
+          const updated = members.map((m) =>
+            m.id === targetId
+              ? {
+                  ...m,
+                  ingame: p.ingame,
+                  className: p.className,
+                  loggedBy: p.loggedBy || p.ingame,
+                }
+              : m
+          );
+          onUpdateMembers(updated);
+          return;
+        }
+      }
+    } catch {}
+
+    // 2. Fallback to row reordering
     const sourceId = e.dataTransfer.getData('text/plain') || draggedMemberId;
     if (!sourceId || sourceId === targetId) {
-      setDraggedMemberId(null);
-      setDragOverMemberId(null);
       return;
     }
 
@@ -215,13 +251,82 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
     const reindexed = list.map((item, idx) => ({ ...item, stt: idx + 1 }));
     onUpdateMembers(reindexed);
+  };
 
-    setDraggedMemberId(null);
+  const handleBottomDrop = (e: React.DragEvent) => {
+    e.preventDefault();
     setDragOverMemberId(null);
+    try {
+      const jsonStr = e.dataTransfer.getData('application/json');
+      if (jsonStr) {
+        const parsed = JSON.parse(jsonStr);
+        if (parsed.type === 'personnel' && parsed.member) {
+          const p = parsed.member;
+          const nextStt = members.length + 1;
+          const lastParty = members.length > 0 ? members[members.length - 1].party || 1 : 1;
+          const newMember: RaidMember = {
+            id: 'm_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+            stt: nextStt,
+            ingame: p.ingame,
+            className: p.className,
+            loggedBy: p.loggedBy || p.ingame,
+            party: lastParty,
+          };
+          onUpdateMembers([...members, newMember]);
+          return;
+        }
+      }
+    } catch {}
   };
 
   const handleQuickSwitchParty = (memberId: string, partyId: number) => {
-    handleUpdateMember(memberId, { party: partyId });
+    if (showPartyDividers) {
+      const member = members.find((m) => m.id === memberId);
+      if (!member) return;
+      if ((member.party || 1) === partyId) return;
+
+      const updated = { ...member, party: partyId };
+      const remaining = members.filter((m) => m.id !== memberId);
+
+      // Place at the end of the target party group
+      const lastTargetIndex = remaining.reduce(
+        (lastIdx, m, idx) => ((m.party || 1) === partyId ? idx : lastIdx),
+        -1
+      );
+
+      if (lastTargetIndex !== -1) {
+        remaining.splice(lastTargetIndex + 1, 0, updated);
+      } else {
+        remaining.push(updated);
+      }
+
+      const reindexed = remaining.map((m, idx) => ({ ...m, stt: idx + 1 }));
+      onUpdateMembers(reindexed);
+    } else {
+      handleUpdateMember(memberId, { party: partyId });
+    }
+  };
+
+  // Split members evenly: first half to PT 1, second half to PT 2
+  const handleSplitPartiesEvenly = () => {
+    const half = Math.ceil(members.length / 2);
+    const updated = members.map((m, idx) => ({
+      ...m,
+      party: idx < half ? 1 : 2,
+    }));
+    onUpdateMembers(updated);
+  };
+
+  // Group members so that all PT 1 are top, PT 2 are bottom, re-indexed 1..N
+  const handleGroupMembersByParty = () => {
+    const p1 = members.filter((m) => (m.party || 1) === 1);
+    const p2 = members.filter((m) => (m.party || 1) === 2);
+    const others = members.filter((m) => (m.party || 1) > 2);
+    const sorted = [...p1, ...p2, ...others].map((m, idx) => ({
+      ...m,
+      stt: idx + 1,
+    }));
+    onUpdateMembers(sorted);
   };
 
   const activeMobileMember = members.find((m) => m.id === mobileActionMemberId);
@@ -276,6 +381,31 @@ export const RaidTable: React.FC<RaidTableProps> = ({
             <span>{showPartyDividers ? 'Ẩn chia PT' : 'Hiện chia PT'}</span>
           </button>
 
+          {/* Quick Party Split / Group Buttons */}
+          <button
+            type="button"
+            id="btn-split-parties-evenly"
+            onClick={handleSplitPartiesEvenly}
+            title="Chia đều danh sách: 6 người đầu vào PT 1, 6 người sau vào PT 2"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 min-h-[38px] bg-blue-50 hover:bg-blue-100 active:bg-blue-200 dark:bg-blue-950/40 dark:hover:bg-blue-900/50 text-blue-700 dark:text-blue-300 font-semibold rounded-lg transition-colors border border-blue-200 dark:border-blue-800"
+          >
+            <ArrowRightLeft className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+            <span className="hidden sm:inline">Chia 6-6 (P1/P2)</span>
+            <span className="sm:hidden">Chia 6-6</span>
+          </button>
+
+          <button
+            type="button"
+            id="btn-group-by-party"
+            onClick={handleGroupMembersByParty}
+            title="Sắp xếp gom nhóm: tất cả thành viên PT 1 lên trên, PT 2 xuống dưới"
+            className="flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 sm:px-3 sm:py-1.5 min-h-[38px] bg-emerald-50 hover:bg-emerald-100 active:bg-emerald-200 dark:bg-emerald-950/40 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 font-semibold rounded-lg transition-colors border border-emerald-200 dark:border-emerald-800"
+          >
+            <Layers className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <span className="hidden sm:inline">Gom nhóm PT</span>
+            <span className="sm:hidden">Gom PT</span>
+          </button>
+
           {onOpenColorCustomizer && (
             <button
               type="button"
@@ -325,12 +455,12 @@ export const RaidTable: React.FC<RaidTableProps> = ({
           id="title-edit-panel"
           className="w-full max-w-[620px] bg-amber-50/90 dark:bg-slate-850 border border-amber-300 dark:border-amber-700/60 rounded-xl p-3 sm:p-3.5 mb-4 shadow-sm"
         >
-          <div className="font-bold text-amber-900 dark:text-amber-300 text-xs uppercase mb-2">
+          <div className="font-bold text-black text-xs uppercase mb-2">
             Chỉnh sửa tiêu đề Raid
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+              <label className="block text-[11px] font-semibold text-black mb-1">
                 Tên Raid (ví dụ: RAID 1)
               </label>
               <input
@@ -354,7 +484,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
               />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold text-slate-600 dark:text-slate-300 mb-1">
+              <label className="block text-[11px] font-semibold text-black mb-1">
                 Tên Boss / Ải Raid
               </label>
               <input
@@ -566,7 +696,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                         setDragOverMemberId(null);
                       }}
                       onDrop={(e) => handleRowDrop(e, member.id)}
-                      style={{ zIndex: isClassPickerOpen ? 40 : 1 }}
+                      style={{ zIndex: isClassPickerOpen ? 40 : undefined }}
                       className={`border-b-[1.5px] transition-colors group relative cursor-default ${
                         idx === members.length - 1 ? 'border-b-0' : ''
                       } ${
@@ -595,7 +725,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                         onClick={() => setMobileActionMemberId(member.id)}
                         title="Chạm để mở menu hành động cho thành viên này"
                       >
-                        <div className="flex items-center justify-center gap-0.5 sm:gap-1">
+                        <div className="flex items-center justify-center gap-1 sm:gap-1.5">
                           {/* Desktop Drag Handle */}
                           <span
                             className={`cursor-grab hidden sm:inline ${
@@ -608,33 +738,38 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             <GripVertical className="w-3.5 h-3.5" />
                           </span>
 
-                          <span>{member.stt}</span>
+                          <span className="font-black min-w-[14px] text-center">{member.stt}</span>
+
+                          {/* Interactive P1 / P2 Quick Toggle Button - Always visible, 1-click party switch */}
+                          {parties.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const currentP = member.party || 1;
+                                const nextPartyId = currentP === 1 ? 2 : 1;
+                                handleQuickSwitchParty(member.id, nextPartyId);
+                              }}
+                              title={`Thành viên này thuộc ${partyObj.name} • Nhấp để chuyển nhanh sang ${
+                                (member.party || 1) === 1 ? 'PT 2' : 'PT 1'
+                              }`}
+                              className={`inline-flex items-center justify-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] sm:text-xs font-black tracking-tight transition-all active:scale-90 hover:brightness-110 shadow-2xs border select-none ${
+                                (member.party || 1) === 1
+                                  ? 'bg-blue-600 hover:bg-blue-500 text-white border-blue-700'
+                                  : (member.party || 1) === 2
+                                  ? 'bg-emerald-600 hover:bg-emerald-500 text-white border-emerald-700'
+                                  : 'bg-purple-600 hover:bg-purple-500 text-white border-purple-700'
+                              }`}
+                            >
+                              <span>P{member.party || 1}</span>
+                              <ArrowRightLeft className="w-2.5 h-2.5 opacity-80" />
+                            </button>
+                          )}
 
                           {/* Mobile quick actions trigger indicator */}
                           <span className="sm:hidden text-slate-400">
                             <MoreVertical className="w-3 h-3" />
                           </span>
-
-                          {/* Desktop PT badge when not in divider mode */}
-                          {!showPartyDividers && parties.length > 1 && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const nextPartyId =
-                                  ((member.party || 1) % parties.length) + 1;
-                                handleQuickSwitchParty(member.id, nextPartyId);
-                              }}
-                              title={`Thuộc ${partyObj.name} - Click để đổi nhóm`}
-                              className={`hidden sm:inline-block text-[9px] font-bold px-1 rounded ml-0.5 print:hidden ${
-                                isTableDark
-                                  ? 'text-slate-400 hover:text-indigo-400 bg-slate-800'
-                                  : 'text-slate-500 hover:text-indigo-600 bg-slate-100'
-                              }`}
-                            >
-                              P{member.party || 1}
-                            </button>
-                          )}
                         </div>
 
                         {/* Desktop Hover Row Actions */}
@@ -890,6 +1025,24 @@ export const RaidTable: React.FC<RaidTableProps> = ({
             </tbody>
           </table>
         </div>
+
+        {/* Drop Zone to add new slot at bottom */}
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'copy';
+          }}
+          onDrop={handleBottomDrop}
+          className={`w-full py-2 px-3 mt-2 border-2 border-dashed rounded-xl text-center text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none print:hidden ${
+            isTableDark
+              ? 'border-slate-700 hover:border-indigo-500 bg-slate-900/60 text-slate-400 hover:text-indigo-400'
+              : 'border-slate-300 hover:border-indigo-500 bg-slate-50/70 text-slate-500 hover:text-indigo-600'
+          }`}
+          title="Kéo thả thẻ nhân sự vào đây để tạo vị trí mới"
+        >
+          <Plus className="w-3.5 h-3.5" />
+          <span>Kéo thả nhân sự vào đây để thêm vị trí mới (STT #{members.length + 1})</span>
+        </div>
       </div>
 
       {/* Table Footer Controls */}
@@ -906,222 +1059,271 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
         <button
           type="button"
-          onClick={() => {
-            if (confirm('Bạn có muốn khôi phục về danh sách mẫu 12 người như trong ảnh không?')) {
-              import('../constants/classes').then((mod) => {
-                onUpdateMembers(mod.INITIAL_MEMBERS_FROM_IMAGE);
-                onUpdateTitle('RAID 1', 'MON 20:30', 'NIÊN DU');
-              });
-            }
-          }}
+          onClick={() => setShowResetRaidConfirm(true)}
           className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors border border-slate-200 dark:border-slate-700 min-h-[42px]"
         >
           Mẫu như ảnh gốc
         </button>
       </div>
 
-      {/* Mobile-Friendly Class Picker Bottom Sheet / Modal (Screen < 640px) */}
-      {activeClassSelectId && activeClassMember && (
-        <div
-          id="class-picker-modal"
-          data-html2canvas-ignore="true"
-          className="sm:hidden fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-3 z-50 animate-in fade-in"
-          onClick={() => setActiveClassSelectId(null)}
-        >
+      {/* Reset Raid Confirmation Modal */}
+      {showResetRaidConfirm &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
-            className="bg-white dark:bg-slate-900 dark:border dark:border-slate-800 rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-4 shadow-2xl space-y-3 max-h-[80vh] flex flex-col"
-            onClick={(e) => e.stopPropagation()}
+            data-html2canvas-ignore="true"
+            className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in"
           >
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
-                  Chọn môn phái cho {activeClassMember.ingame || `STT ${activeClassMember.stt}`}
-                </h3>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Hiện tại: <strong>{activeClassMember.className}</strong>
-                </p>
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4">
+              <h4 className="font-black text-sm text-slate-900 dark:text-white">
+                Khôi phục danh sách mẫu như ảnh?
+              </h4>
+              <p className="text-xs text-slate-600 dark:text-slate-300">
+                Thao tác này sẽ đặt lại Bảng Raid hiện tại về 12 vị trí với thông tin đầy đủ như trong ảnh mẫu gốc.
+              </p>
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowResetRaidConfirm(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors border border-slate-200 dark:border-slate-700"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    import('../constants/classes').then((mod) => {
+                      onUpdateMembers(mod.INITIAL_MEMBERS_FROM_IMAGE);
+                      onUpdateTitle('RAID 1', 'MON 20:30', 'NIÊN DU');
+                    });
+                    setShowResetRaidConfirm(false);
+                  }}
+                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl shadow-xs transition-colors"
+                >
+                  Đồng ý khôi phục
+                </button>
               </div>
-              <button
-                type="button"
-                onClick={() => setActiveClassSelectId(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full"
-              >
-                <X className="w-5 h-5" />
-              </button>
             </div>
+          </div>,
+          document.body
+        )}
 
-            <div className="grid grid-cols-2 gap-2 overflow-y-auto pr-0.5 flex-1">
-              {CLASS_LIST.map((cls) => {
-                const meta = getEffectiveClassMeta(cls, customColors);
-                const isCurrent = activeClassMember.className === cls;
+      {/* Mobile-Friendly Class Picker Bottom Sheet / Modal (Screen < 640px) */}
+      {activeClassSelectId &&
+        activeClassMember &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            id="class-picker-modal"
+            data-html2canvas-ignore="true"
+            className="sm:hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3 z-[100] animate-in fade-in"
+            onClick={() => setActiveClassSelectId(null)}
+          >
+            <div
+              className="bg-white dark:bg-slate-900 dark:border dark:border-slate-800 rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-4 shadow-2xl space-y-3 max-h-[80vh] flex flex-col"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    Chọn môn phái cho {activeClassMember.ingame || `STT ${activeClassMember.stt}`}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Hiện tại: <strong>{activeClassMember.className}</strong>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveClassSelectId(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-                return (
-                  <button
-                    key={cls}
-                    type="button"
-                    onClick={() => {
-                      handleUpdateMember(activeClassMember.id, { className: cls });
-                      setActiveClassSelectId(null);
-                    }}
-                    className={`flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
-                      isCurrent ? 'ring-2 ring-slate-900 dark:ring-white shadow-sm' : ''
-                    }`}
-                    style={{
-                      backgroundColor: meta.bgColor,
-                      color: meta.textColor,
-                    }}
-                  >
-                    <span>{cls}</span>
-                    <span className="text-[10px] opacity-80">{meta.role}</span>
-                  </button>
-                );
-              })}
+              <div className="grid grid-cols-2 gap-2 overflow-y-auto pr-0.5 flex-1">
+                {CLASS_LIST.map((cls) => {
+                  const meta = getEffectiveClassMeta(cls, customColors);
+                  const isCurrent = activeClassMember.className === cls;
+
+                  return (
+                    <button
+                      key={cls}
+                      type="button"
+                      onClick={() => {
+                        handleUpdateMember(activeClassMember.id, { className: cls });
+                        setActiveClassSelectId(null);
+                      }}
+                      className={`flex items-center justify-between p-2.5 rounded-xl text-xs font-bold transition-all min-h-[44px] ${
+                        isCurrent ? 'ring-2 ring-slate-900 dark:ring-white shadow-sm' : ''
+                      }`}
+                      style={{
+                        backgroundColor: meta.bgColor,
+                        color: meta.textColor,
+                      }}
+                    >
+                      <span>{cls}</span>
+                      <span className="text-[10px] opacity-80">{meta.role}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {onOpenColorCustomizer && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setActiveClassSelectId(null);
+                    onOpenColorCustomizer();
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-xl border border-purple-200 dark:border-purple-800"
+                >
+                  <Palette className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <span>Tùy chỉnh đổi màu môn phái</span>
+                </button>
+              )}
             </div>
-
-            {onOpenColorCustomizer && (
-              <button
-                type="button"
-                onClick={() => {
-                  setActiveClassSelectId(null);
-                  onOpenColorCustomizer();
-                }}
-                className="w-full flex items-center justify-center gap-1.5 py-2 text-xs font-bold text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 rounded-xl border border-purple-200 dark:border-purple-800"
-              >
-                <Palette className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <span>Tùy chỉnh đổi màu môn phái</span>
-              </button>
-            )}
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
 
       {/* Mobile-Friendly Row Action Sheet (Triggered when tapping STT on Mobile) */}
-      {mobileActionMemberId && activeMobileMember && (
-        <div
-          data-html2canvas-ignore="true"
-          className="sm:hidden fixed inset-0 bg-black/60 backdrop-blur-xs flex items-end justify-center p-3 z-50 animate-in fade-in"
-          onClick={() => setMobileActionMemberId(null)}
-        >
+      {mobileActionMemberId &&
+        activeMobileMember &&
+        typeof document !== 'undefined' &&
+        createPortal(
           <div
-            className="bg-white dark:bg-slate-900 dark:border dark:border-slate-800 rounded-2xl w-full max-w-sm p-4 shadow-2xl space-y-3"
-            onClick={(e) => e.stopPropagation()}
+            data-html2canvas-ignore="true"
+            className="sm:hidden fixed inset-0 bg-black/70 backdrop-blur-sm flex items-end justify-center p-3 z-[100] animate-in fade-in"
+            onClick={() => setMobileActionMemberId(null)}
           >
-            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
-              <div>
-                <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Hành động cho hàng:</span>
-                <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">
-                  STT {activeMobileMember.stt} • {activeMobileMember.ingame || 'Chưa đặt tên'} ({activeMobileMember.className})
-                </h4>
-              </div>
-              <button
-                type="button"
-                onClick={() => setMobileActionMemberId(null)}
-                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Quick Actions List */}
-            <div className="space-y-1.5">
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleMoveRow(activeMobileIndex, 'up');
-                    setMobileActionMemberId(null);
-                  }}
-                  disabled={activeMobileIndex === 0}
-                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl disabled:opacity-40 min-h-[44px]"
-                >
-                  <ChevronUp className="w-4 h-4" />
-                  <span>Di chuyển lên</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    handleMoveRow(activeMobileIndex, 'down');
-                    setMobileActionMemberId(null);
-                  }}
-                  disabled={activeMobileIndex === members.length - 1}
-                  className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl disabled:opacity-40 min-h-[44px]"
-                >
-                  <ChevronDown className="w-4 h-4" />
-                  <span>Di chuyển xuống</span>
-                </button>
-              </div>
-
-              {/* Quick Party Switcher */}
-              {parties.length > 1 && (
-                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
-                  <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
-                    Chuyển sang nhóm:
-                  </div>
-                  <div className="flex gap-2">
-                    {parties.map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => {
-                          handleQuickSwitchParty(activeMobileMember.id, p.id);
-                          setMobileActionMemberId(null);
-                        }}
-                        className={`flex-1 py-2 text-xs font-bold rounded-xl border min-h-[42px] transition-all ${
-                          (activeMobileMember.party || 1) === p.id
-                            ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
-                            : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
-                        }`}
-                      >
-                        {p.name}
-                      </button>
-                    ))}
-                  </div>
+            <div
+              className="bg-white dark:bg-slate-900 dark:border dark:border-slate-800 rounded-2xl w-full max-w-sm p-4 shadow-2xl space-y-3"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+                <div>
+                  <span className="text-xs font-bold text-slate-500 dark:text-slate-400">Hành động cho hàng:</span>
+                  <h4 className="text-sm font-black text-slate-900 dark:text-slate-100">
+                    STT {activeMobileMember.stt} • {activeMobileMember.ingame || 'Chưa đặt tên'} ({activeMobileMember.className})
+                  </h4>
                 </div>
-              )}
+                <button
+                  type="button"
+                  onClick={() => setMobileActionMemberId(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 rounded-full"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
 
-              {/* Quick Change Class */}
-              <button
-                type="button"
-                onClick={() => {
-                  const targetId = activeMobileMember.id;
-                  setMobileActionMemberId(null);
-                  setActiveClassSelectId(targetId);
-                }}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl min-h-[44px]"
-              >
-                <Palette className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                <span>Đổi môn phái ({activeMobileMember.className})</span>
-              </button>
+              {/* Quick Actions List */}
+              <div className="space-y-1.5">
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleMoveRow(activeMobileIndex, 'up');
+                      setMobileActionMemberId(null);
+                    }}
+                    disabled={activeMobileIndex === 0}
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl disabled:opacity-40 min-h-[44px]"
+                  >
+                    <ChevronUp className="w-4 h-4" />
+                    <span>Di chuyển lên</span>
+                  </button>
 
-              {/* Quick Fill Ingame to Logged By */}
-              {activeMobileMember.ingame && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleMoveRow(activeMobileIndex, 'down');
+                      setMobileActionMemberId(null);
+                    }}
+                    disabled={activeMobileIndex === members.length - 1}
+                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-slate-100 hover:bg-slate-200 active:bg-slate-300 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold text-xs rounded-xl disabled:opacity-40 min-h-[44px]"
+                  >
+                    <ChevronDown className="w-4 h-4" />
+                    <span>Di chuyển xuống</span>
+                  </button>
+                </div>
+
+                {/* Quick Party Switcher */}
+                {parties.length > 1 && (
+                  <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                    <div className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mb-1.5">
+                      Chuyển sang nhóm:
+                    </div>
+                    <div className="flex gap-2">
+                      {parties.map((p) => {
+                        const isCurrent = (activeMobileMember.party || 1) === p.id;
+                        return (
+                          <button
+                            key={p.id}
+                            type="button"
+                            onClick={() => {
+                              handleQuickSwitchParty(activeMobileMember.id, p.id);
+                              setMobileActionMemberId(null);
+                            }}
+                            className={`flex-1 py-2.5 text-xs font-black rounded-xl border min-h-[42px] transition-all flex items-center justify-center gap-1.5 ${
+                              isCurrent
+                                ? p.id === 1
+                                  ? 'bg-blue-600 text-white border-blue-700 shadow-xs'
+                                  : 'bg-emerald-600 text-white border-emerald-700 shadow-xs'
+                                : 'bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-700'
+                            }`}
+                          >
+                            <span>{p.name}</span>
+                            {isCurrent && <Check className="w-3.5 h-3.5" />}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Quick Change Class */}
                 <button
                   type="button"
                   onClick={() => {
-                    handleCopyIngameToLoggedBy(activeMobileMember.id);
+                    const targetId = activeMobileMember.id;
                     setMobileActionMemberId(null);
+                    setActiveClassSelectId(targetId);
                   }}
-                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl min-h-[44px]"
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-800 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl min-h-[44px]"
                 >
-                  <Copy className="w-4 h-4" />
-                  <span>Điền Logged by = Ingame</span>
+                  <Palette className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                  <span>Đổi môn phái ({activeMobileMember.className})</span>
                 </button>
-              )}
 
-              {/* Delete Member */}
-              <button
-                type="button"
-                onClick={() => handleDeleteRow(activeMobileMember.id)}
-                className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl min-h-[44px] transition-colors border border-red-200 dark:border-red-900/60"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Xoá vị trí STT {activeMobileMember.stt}</span>
-              </button>
+                {/* Quick Fill Ingame to Logged By */}
+                {activeMobileMember.ingame && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleCopyIngameToLoggedBy(activeMobileMember.id);
+                      setMobileActionMemberId(null);
+                    }}
+                    className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-50 hover:bg-slate-100 dark:bg-slate-800 dark:hover:bg-slate-750 border border-slate-200 dark:border-slate-700 rounded-xl min-h-[44px]"
+                  >
+                    <Copy className="w-4 h-4" />
+                    <span>Điền Logged by = Ingame</span>
+                  </button>
+                )}
+
+                {/* Delete Member */}
+                <button
+                  type="button"
+                  onClick={() => handleDeleteRow(activeMobileMember.id)}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-xl min-h-[44px] transition-colors border border-red-200 dark:border-red-900/60"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Xoá vị trí STT {activeMobileMember.stt}</span>
+                </button>
+              </div>
             </div>
-          </div>
-        </div>
-      )}
+          </div>,
+          document.body
+        )}
     </div>
   );
 };

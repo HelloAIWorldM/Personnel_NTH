@@ -89,7 +89,7 @@ export const ColorCustomizerModal: React.FC<ColorCustomizerModalProps> = ({
   return (
     <div
       id="color-customizer-backdrop"
-      className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-4 z-50 animate-in fade-in"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 z-[100] animate-in fade-in"
     >
       <div
         id="color-customizer-card"

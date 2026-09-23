@@ -145,7 +145,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
   return (
     <div
       id="google-sheets-modal-backdrop"
-      className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in"
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-[100] animate-in fade-in"
     >
       <div
         id="google-sheets-modal-card"
