@@ -852,6 +852,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                         <div style={{ textAlign: 'center', width: '100%' }} className="flex items-center justify-center relative w-full text-center">
                           <input
                             type="text"
+                            data-column-type="ingame"
                             value={member.ingame}
                             defaultValue={member.ingame}
                             data-text-value={member.ingame || ''}
@@ -1007,6 +1008,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
                           <input
                             type="text"
+                            data-column-type="logged-by"
                             value={member.loggedBy}
                             defaultValue={member.loggedBy}
                             data-text-value={member.loggedBy || member.ingame || ''}

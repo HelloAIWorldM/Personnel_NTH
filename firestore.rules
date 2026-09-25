@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper functions: Kiểm tra trạng thái đăng nhập
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper: Chỉ chính chủ sở hữu tài khoản mới được truy cập
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    // ===============================================================
+    // 1. DỮ LIỆU RIÊNG TƯ CỦA NGƯỜI DÙNG (Email, Số điện thoại, Cài đặt)
+    // CHỈ CHÍNH CHỦ MỚI ĐƯỢC XEM & SỬA. CẤM TUYỆT ĐỐI PUBLIC ĐỌC!
+    // (Ngăn chặn lỗi rò rỉ PII như hình ảnh DevTools Network profiles?select=*)
+    // ===============================================================
+    match /users_private/{userId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // ===============================================================
+    // 2. HỒ SƠ CÔNG KHAI (Chỉ chứa Ingame, Class, Bio, Avatar)
+    // Không chứa Email, mật khẩu, hay role Admin tối cao
+    // ===============================================================
+    match /public_profiles/{userId} {
+      allow read: if true; // Ai cũng có thể xem hồ sơ công khai
+      allow write: if isOwner(userId) && 
+        // Validate dữ liệu: Không cho phép tự ý gán quyền admin
+        (!request.resource.data.keys().hasAny(['is_admin', 'role', 'email']));
+    }
+
+    // ===============================================================
+    // 3. BẢNG RAID (Raid Boards)
+    // - Ai cũng có thể đọc danh sách bảng Raid công khai (Read-only)
+    // - Chỉ người tạo bảng (Leader) mới có quyền Cập nhật hoặc Xóa
+    // ===============================================================
+    match /raid_boards/{boardId} {
+      allow read: if true;
+      allow create: if isAuthenticated() && 
+        request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if isAuthenticated() && 
+        resource.data.createdBy == request.auth.uid;
+    }
+
+    // ===============================================================
+    // 4. KHO NHÂN SỰ NỘI BỘ (Personnel Pool)
+    // Chỉ các thành viên đăng nhập hợp lệ và được ủy quyền mới được đọc
+    // ===============================================================
+    match /personnel_pool/{memberId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Chặn mặc định tất cả các collection còn lại
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

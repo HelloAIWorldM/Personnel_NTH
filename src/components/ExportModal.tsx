@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import html2canvas from 'html2canvas-pro';
 import { CustomClassColors, RaidMember } from '../types';
 import { getEffectiveClassMeta } from '../constants/classes';
+import { PrivacyMode, maskSensitiveText, filterMembersForExport } from '../utils/security';
 import {
   Download,
   Copy,
@@ -13,6 +14,9 @@ import {
   AlertCircle,
   FileSpreadsheet,
   Image as ImageIcon,
+  Shield,
+  Lock,
+  Eye,
 } from 'lucide-react';
 
 interface ExportModalProps {
@@ -40,21 +44,31 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [downloadExcelSuccess, setDownloadExcelSuccess] = useState(false);
   const [downloadCsvSuccess, setDownloadCsvSuccess] = useState(false);
 
+  // Privacy & Data Masking Mode ('NONE' = Raw, 'MASK' = Che ký tự, 'HIDE' = Ẩn hẳn)
+  const [privacyMode, setPrivacyMode] = useState<PrivacyMode>('NONE');
+
   // Fallback preview when iframe prevents direct clipboard write
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [showClipboardFallback, setShowClipboardFallback] = useState(false);
+
+  const handlePrivacyModeChange = (mode: PrivacyMode) => {
+    setPrivacyMode(mode);
+    setPreviewImageUrl(null); // Reset preview so fresh canvas generates with new privacy settings
+    setShowClipboardFallback(false);
+  };
 
   if (!isOpen) return null;
 
   // Format text for Discord / Game chat
   const generateFormattedText = () => {
+    const safeMembers = filterMembersForExport(members, privacyMode);
     let text = `⚔️ ${raidTitle.toUpperCase()} ⚔️\n`;
     text += `STT | Ingame | Phái | Logged by | PT\n`;
     text += `------------------------------------\n`;
-    members.forEach((m) => {
+    safeMembers.forEach((m) => {
       const sttStr = m.stt < 10 ? `0${m.stt}` : `${m.stt}`;
       const ptStr = m.party ? `PT ${m.party}` : '';
-      text += `${sttStr}. ${m.ingame || '---'} | ${m.className} | ${m.loggedBy || m.ingame || '---'} | ${ptStr}\n`;
+      text += `${sttStr}. ${m.ingame || '---'} | ${m.className} | ${m.loggedBy || '---'} | ${ptStr}\n`;
     });
     return text;
   };
@@ -133,6 +147,17 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             htmlInput.placeholder !== 'Log by...'
           ) {
             textValue = htmlInput.placeholder.trim();
+          }
+
+          // Apply privacy masking if this is the logged-by column
+          const colType =
+            htmlInput.getAttribute('data-column-type') ||
+            originalInput?.getAttribute('data-column-type');
+          if (
+            privacyMode !== 'NONE' &&
+            (colType === 'logged-by' || htmlInput.placeholder?.includes('Log by'))
+          ) {
+            textValue = maskSensitiveText(textValue, privacyMode);
           }
 
           const textDiv = clonedDoc.createElement('div');
@@ -256,8 +281,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   // Download styled Excel HTML table with intact colors and borders matching the original photo
   const handleExportStyledExcel = () => {
+    const safeMembers = filterMembersForExport(members, privacyMode);
     let rowsHtml = '';
-    members.forEach((m) => {
+    safeMembers.forEach((m) => {
       const meta = getEffectiveClassMeta(m.className, customColors);
       const ptStr = m.party ? `PT ${m.party}` : '';
       rowsHtml += `
@@ -265,7 +291,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; padding: 6px 10px;">${m.stt}</td>
           <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; padding: 6px 14px;">${escapeHtml(m.ingame || '')}</td>
           <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; background-color: ${meta.bgColor}; color: ${meta.textColor}; padding: 6px 14px;">${escapeHtml(m.className)}</td>
-          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; padding: 6px 14px;">${escapeHtml(m.loggedBy || m.ingame || '')}</td>
+          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; padding: 6px 14px;">${escapeHtml(m.loggedBy || '')}</td>
           <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 12pt; padding: 6px 10px;">${escapeHtml(ptStr)}</td>
         </tr>
       `;
@@ -335,8 +361,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   // Plain CSV export option for raw data parsing
   const handleExportPlainCsv = () => {
+    const safeMembers = filterMembersForExport(members, privacyMode);
     let csv = `STT,Ingame,Class,Logged by,Party\n`;
-    members.forEach((m) => {
+    safeMembers.forEach((m) => {
       const escape = (val: string) => {
         let str = val || '';
         // Mitigate CSV Formula Injection (CWE-1236)
@@ -346,7 +373,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         return `"${str.replace(/"/g, '""')}"`;
       };
       const ptStr = m.party ? `PT ${m.party}` : '';
-      csv += `${m.stt},${escape(m.ingame)},${escape(m.className)},${escape(m.loggedBy || m.ingame)},${escape(ptStr)}\n`;
+      csv += `${m.stt},${escape(m.ingame)},${escape(m.className)},${escape(m.loggedBy)},${escape(ptStr)}\n`;
     });
 
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -395,6 +422,60 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           >
             <X className="w-5 h-5" />
           </button>
+        </div>
+
+        {/* Privacy & Anti-Leak Mode Selector */}
+        <div className="mt-4 p-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 rounded-xl space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="flex items-center gap-1.5 text-xs font-bold text-indigo-950 dark:text-indigo-200">
+              <Shield className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+              <span>Chế độ bảo mật thông tin (Privacy Mode)</span>
+            </span>
+            <span className="text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-100 dark:bg-indigo-900/60 px-2 py-0.5 rounded-full">
+              Chống rò rỉ PII
+            </span>
+          </div>
+          <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-tight">
+            Ẩn hoặc làm mờ thông tin người cầm acc (Logged by) khi chia sẻ ảnh/file lên mạng xã hội hoặc nhóm chat:
+          </p>
+          <div className="grid grid-cols-3 gap-1.5 pt-1">
+            <button
+              type="button"
+              onClick={() => handlePrivacyModeChange('NONE')}
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                privacyMode === 'NONE'
+                  ? 'bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-300 shadow-2xs border border-indigo-300 dark:border-indigo-700'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-800/50'
+              }`}
+            >
+              <Eye className="w-3.5 h-3.5" />
+              <span>Đầy đủ</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePrivacyModeChange('MASK')}
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                privacyMode === 'MASK'
+                  ? 'bg-white dark:bg-slate-800 text-amber-600 dark:text-amber-400 shadow-2xs border border-amber-300 dark:border-amber-700'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-800/50'
+              }`}
+            >
+              <Shield className="w-3.5 h-3.5" />
+              <span>Che (Tr***ng)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePrivacyModeChange('HIDE')}
+              className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-xs font-bold transition-all ${
+                privacyMode === 'HIDE'
+                  ? 'bg-white dark:bg-slate-800 text-rose-600 dark:text-rose-400 shadow-2xs border border-rose-300 dark:border-rose-700'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-slate-800/50'
+              }`}
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Ẩn hẳn (---)</span>
+            </button>
+          </div>
         </div>
 
         {/* Action Options List */}
