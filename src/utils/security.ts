@@ -25,7 +25,7 @@ export function maskSensitiveText(value: string | undefined | null, mode: Privac
   }
 
   // Chế độ 'MASK':
-  // 1. Nếu là email (vd: admin@onlyheo.vn -> ad***@onlyheo.vn)
+  // 1. Nếu là email (vd: admin@example.com -> ad***@example.com)
   if (trimmed.includes('@')) {
     const [user, domain] = trimmed.split('@');
     if (user.length <= 2) {

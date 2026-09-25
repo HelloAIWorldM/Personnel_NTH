@@ -583,7 +583,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                               </span>
                               {isIngameDup && (
                                 <span
-                                  title={`⚠️ Trùng tên Ingame với: ${ingameDupInfo?.stts
+                                  title={`Cảnh báo: Trùng tên Ingame với ${ingameDupInfo?.stts
                                     .filter((s) => s !== member.stt)
                                     .map((s) => `STT #${s}`)
                                     .join(', ')}`}
@@ -600,7 +600,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                               </span>
                               {isLoggedByDup && (
                                 <span
-                                  title={`⚠️ Trùng người log: "${loggedByDupInfo?.originalName}" đang log ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
+                                  title={`Cảnh báo: Trùng người log "${loggedByDupInfo?.originalName}" đang log ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
                                     .map((s) => `#${s}`)
                                     .join(', ')})`}
                                   className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[9px] font-black bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60"

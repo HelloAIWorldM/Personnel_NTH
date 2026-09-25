@@ -45,6 +45,8 @@ import {
   PanelRightOpen,
   Check,
   Calendar,
+  Shield,
+  X,
 } from 'lucide-react';
 
 const STORAGE_KEY_BOARDS = 'raid_roster_boards_v2';
@@ -747,7 +749,7 @@ export default function App() {
               }`}
             >
               <TableIcon className="w-4 h-4 shrink-0" />
-              <span>📋 Bảng Xếp Raid</span>
+              <span>Bảng Xếp Raid</span>
             </button>
 
             <button
@@ -761,7 +763,7 @@ export default function App() {
               }`}
             >
               <Users className="w-4 h-4 shrink-0" />
-              <span>👥 Kho Nhân Sự</span>
+              <span>Kho Nhân Sự</span>
               <span
                 className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                   activeTab === 'personnel'
@@ -783,8 +785,8 @@ export default function App() {
                   : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700'
               }`}
             >
-              <Users className="w-4 h-4 shrink-0" />
-              <span>🛡️ Phân Nhóm PT</span>
+              <Shield className="w-4 h-4 shrink-0" />
+              <span>Phân Nhóm PT</span>
               <span
                 className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                   activeTab === 'parties'
@@ -1052,9 +1054,10 @@ export default function App() {
             <button
               type="button"
               onClick={() => setToastMessage(null)}
-              className="text-slate-400 hover:text-white ml-2"
+              className="text-slate-400 hover:text-white ml-2 p-1 rounded-md hover:bg-slate-800 transition-colors"
+              aria-label="Đóng"
             >
-              ✕
+              <X className="w-3.5 h-3.5" />
             </button>
           </div>,
           document.body

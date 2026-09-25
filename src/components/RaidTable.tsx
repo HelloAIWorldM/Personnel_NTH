@@ -648,7 +648,8 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                                 isTableDark ? 'text-indigo-300' : 'text-indigo-900'
                               }`}
                             >
-                              <span>🛡️ {partyObj.name}</span>
+                              <Shield className="w-3.5 h-3.5 text-indigo-500" />
+                              <span>{partyObj.name}</span>
                               <span
                                 className={`text-[10px] sm:text-[11px] font-bold ${
                                   isTableDark ? 'text-slate-400' : 'text-slate-600'
@@ -868,7 +869,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           {isIngameDup && (
                             <span
                               data-html2canvas-ignore="true"
-                              title={`⚠️ Trùng tên Ingame với: ${ingameDupInfo?.stts
+                              title={`Cảnh báo: Trùng tên Ingame với ${ingameDupInfo?.stts
                                 .filter((s) => s !== member.stt)
                                 .map((s) => `STT #${s}`)
                                 .join(', ')}`}
@@ -991,7 +992,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           {isLoggedByDup && (
                             <span
                               data-html2canvas-ignore="true"
-                              title={`⚠️ Trùng người log: "${loggedByDupInfo?.originalName}" đang log cho ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
+                              title={`Cảnh báo: Trùng người log "${loggedByDupInfo?.originalName}" đang log cho ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
                                 .map((s) => `#${s}`)
                                 .join(', ')})`}
                               className="absolute left-0.5 sm:left-1 text-amber-500 hover:text-amber-600 cursor-help"

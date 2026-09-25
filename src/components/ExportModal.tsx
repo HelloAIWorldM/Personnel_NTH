@@ -62,7 +62,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   // Format text for Discord / Game chat
   const generateFormattedText = () => {
     const safeMembers = filterMembersForExport(members, privacyMode);
-    let text = `⚔️ ${raidTitle.toUpperCase()} ⚔️\n`;
+    let text = `${raidTitle.toUpperCase()}\n`;
     text += `STT | Ingame | Phái | Logged by | PT\n`;
     text += `------------------------------------\n`;
     safeMembers.forEach((m) => {
@@ -611,7 +611,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
                   <span className="text-[10px] text-slate-600 dark:text-slate-300">
-                    💡 <strong>Cách 1:</strong> Chuột phải vào ảnh &gt; <em>Sao chép hình ảnh</em> (Copy image)
+                    <strong>Cách 1:</strong> Chuột phải vào ảnh &gt; <em>Sao chép hình ảnh</em> (Copy image)
                   </span>
                   <button
                     type="button"
@@ -720,7 +720,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 onClick={handleExportPlainCsv}
                 className="font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:underline text-left sm:text-right"
               >
-                {downloadCsvSuccess ? '✓ Đã tải CSV' : 'Tải file .CSV'}
+                {downloadCsvSuccess ? (
+                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Đã tải CSV</span>
+                  </span>
+                ) : (
+                  'Tải file .CSV'
+                )}
               </button>
             </div>
           </div>

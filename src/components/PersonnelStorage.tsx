@@ -15,7 +15,6 @@ import {
   GripVertical,
   Filter,
   ArrowRight,
-  UserCheck,
   RefreshCw,
   Plus,
   Sparkles,
@@ -163,13 +162,6 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
 
   const handleDelete = (id: string) => {
     onUpdatePersonnelPool(personnelPool.filter((p) => p.id !== id));
-  };
-
-  const handleToggleCheck = (id: string) => {
-    const updated = personnelPool.map((p) =>
-      p.id === id ? { ...p, checked: !p.checked } : p
-    );
-    onUpdatePersonnelPool(updated);
   };
 
   // HTML5 Drag Start
@@ -457,9 +449,8 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
             const isEditing = editingId === person.id;
             const isDragging = draggedPersonnelId === person.id;
 
-            // Strikethrough condition:
-            // Either assigned to the active raid board OR manually checked
-            const isCrossedOut = isAssigned || person.checked;
+            // Strikethrough condition: Assigned to the active raid board
+            const isCrossedOut = isAssigned;
 
             if (isEditing) {
               return (
@@ -532,7 +523,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     : 'bg-white border-slate-300 hover:border-indigo-400 shadow-2xs hover:shadow-xs cursor-grab active:cursor-grabbing text-black'
                 }`}
               >
-                {/* Left side: Grip handle, Checkbox, Name, LoggedBy */}
+                {/* Left side: Grip handle, Name, LoggedBy */}
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   {/* Drag Grip Handle */}
                   <span
@@ -550,24 +541,6 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     <GripVertical className="w-4 h-4" />
                   </span>
 
-                  {/* Presence Checkbox (Điểm danh / Có mặt) */}
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCheck(person.id)}
-                    title={
-                      person.checked
-                        ? 'Đã đánh dấu có mặt (Click để bỏ gạch tên)'
-                        : 'Đánh dấu có mặt / Điểm danh (Click để gạch tên)'
-                    }
-                    className={`w-4 h-4 rounded shrink-0 flex items-center justify-center border transition-colors ${
-                      person.checked
-                        ? 'bg-emerald-600 border-emerald-600 text-white'
-                        : 'border-slate-400 hover:border-slate-600 bg-white'
-                    }`}
-                  >
-                    {person.checked && <Check className="w-3 h-3 stroke-[3]" />}
-                  </button>
-
                   {/* Name and Logged by */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
@@ -582,22 +555,15 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                         {person.ingame}
                       </span>
 
-                      {/* Status Tag: Đã xếp or Đã có mặt */}
+                      {/* Status Tag: Đã xếp */}
                       {isAssigned && assignedInfo && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-slate-200 text-black border border-slate-300 shrink-0">
-                          <Check className="w-2.5 h-2.5 text-emerald-700 stroke-[3]" />
-                          <span className="text-black font-bold">STT #{assignedInfo.stt}</span>
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-800 border border-slate-300 shrink-0">
+                          <span>STT #{assignedInfo.stt}</span>
                           {assignedInfo.party && (
-                            <span className="text-slate-800 font-bold">
+                            <span className="text-slate-600 font-bold">
                               • P{assignedInfo.party}
                             </span>
                           )}
-                        </span>
-                      )}
-
-                      {!isAssigned && person.checked && (
-                        <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[9px] font-bold bg-emerald-100 text-emerald-950 border border-emerald-300 shrink-0">
-                          ✓ Có mặt
                         </span>
                       )}
                     </div>
@@ -675,7 +641,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
       {/* Storage Footer */}
       <div className="p-2.5 px-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-[11px] text-black dark:text-white flex items-center justify-between">
         <span className="text-black dark:text-white font-medium">
-          Đã gạch tên: <strong className="text-black dark:text-white font-black">{assignedCount}</strong> nhân sự
+          Đã xếp vào Raid: <strong className="text-black dark:text-white font-black">{assignedCount}</strong> / {totalCount} nhân sự
         </span>
         {personnelPool.length > 0 && (
           <button

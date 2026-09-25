@@ -41,7 +41,7 @@ const { data: profiles } = await supabase
   {
     "id": "14b02503-3641-4e27-be6e-144ff8c8c183",
     "username": "admin",
-    "email": "admin@onlyheo.vn",       // 🚨 LEAKED: Private admin email
+    "email": "admin@example.com",       // 🚨 LEAKED: Private admin email
     "is_admin": true,                  // 🚨 LEAKED: Privilege escalation target
     "phone": "0901234567",             // 🚨 LEAKED: PII
     "password_hash": "$2b$12$..."      // 🚨 CRITICAL: Hash cracked offline
@@ -192,7 +192,7 @@ export function maskSensitiveText(value: string, mode: 'MASK' | 'HIDE' = 'MASK')
     return user.length <= 2 ? `**@${domain}` : `${user.slice(0, 2)}***@${domain}`;
   }
 
-  // Name / Account masking: TruongPhat -> Tr***at
+  // Name / Account masking: NguyenVanA -> Ng***nA
   if (value.length <= 2) return '***';
   if (value.length <= 4) return `${value[0]}***${value[value.length - 1]}`;
   return `${value.slice(0, 2)}***${value.slice(-2)}`;
