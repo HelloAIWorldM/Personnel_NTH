@@ -262,7 +262,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                       setNewLoggedBy(e.target.value);
                     }
                   }}
-                  placeholder="Ví dụ: Minos K"
+                  placeholder="Ví dụ: Hiệp Sĩ 01"
                   className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
@@ -677,13 +677,15 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
         <span className="text-black dark:text-white font-medium">
           Đã gạch tên: <strong className="text-black dark:text-white font-black">{assignedCount}</strong> nhân sự
         </span>
-        <button
-          type="button"
-          onClick={() => setShowResetConfirm(true)}
-          className="text-indigo-600 dark:text-indigo-400 hover:underline font-bold text-[10px]"
-        >
-          Nạp lại mẫu gốc
-        </button>
+        {personnelPool.length > 0 && (
+          <button
+            type="button"
+            onClick={() => setShowResetConfirm(true)}
+            className="text-rose-600 dark:text-rose-400 hover:underline font-bold text-[10px]"
+          >
+            Xoá toàn bộ kho
+          </button>
+        )}
       </div>
 
       {/* Reset Confirmation Modal */}
@@ -693,10 +695,10 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4">
               <h4 className="font-black text-sm text-slate-900 dark:text-white">
-                Khôi phục danh sách mẫu?
+                Xoá toàn bộ nhân sự trong kho?
               </h4>
               <p className="text-xs text-slate-600 dark:text-slate-300">
-                Thao tác này sẽ đặt lại Kho Nhân Sự về danh sách 16 nhân sự mẫu ban đầu từ ảnh.
+                Thao tác này sẽ xoá tất cả danh sách nhân sự lưu trữ trong kho để bạn bắt đầu lại từ đầu.
               </p>
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
@@ -709,14 +711,12 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    import('../constants/classes').then((mod) => {
-                      onUpdatePersonnelPool(mod.INITIAL_PERSONNEL_POOL);
-                    });
+                    onUpdatePersonnelPool([]);
                     setShowResetConfirm(false);
                   }}
-                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl shadow-xs transition-colors"
+                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl shadow-xs transition-colors"
                 >
-                  Đồng ý nạp lại
+                  Đồng ý xoá
                 </button>
               </div>
             </div>

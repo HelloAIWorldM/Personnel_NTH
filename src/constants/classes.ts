@@ -131,66 +131,54 @@ export const CLASS_LIST: RaidClass[] = [
   'Thiên Vấn',
 ];
 
-// Exact sample data from the user uploaded photo:
-export const INITIAL_MEMBERS_FROM_IMAGE: RaidMember[] = [
-  { id: 'm1', stt: 1, ingame: 'Minos K', className: 'Toái Mộng', loggedBy: 'Nim K', party: 1 },
-  { id: 'm2', stt: 2, ingame: 'Bún Piu Piuuu', className: 'Huyết Hà', loggedBy: 'Bún', party: 1 },
-  { id: 'm3', stt: 3, ingame: 'Ferrijit', className: 'Thiết Y', loggedBy: 'Ferrijit', party: 1 },
-  { id: 'm4', stt: 4, ingame: 'Back Code Thin', className: 'Thần Tương', loggedBy: 'Back Code Thin', party: 1 },
-  { id: 'm5', stt: 5, ingame: 'Syk Yuuk', className: 'Cửu Linh', loggedBy: 'Syk Yuuk', party: 1 },
-  { id: 'm6', stt: 6, ingame: 'Dạ Du', className: 'Thiết Y', loggedBy: 'Dạ Du', party: 1 },
-  { id: 'm7', stt: 7, ingame: 'Vivy', className: 'Long Ngâm', loggedBy: 'Vivy', party: 2 },
-  { id: 'm8', stt: 8, ingame: 'Tố Linhhh', className: 'Tố Vấn', loggedBy: 'Souu', party: 2 },
-  { id: 'm9', stt: 9, ingame: 'Libra', className: 'Thần Tương', loggedBy: 'Libra', party: 2 },
-  { id: 'm10', stt: 10, ingame: 'Cửu U Vương', className: 'Cửu Linh', loggedBy: 'Cửu U Vương', party: 2 },
-  { id: 'm11', stt: 11, ingame: 'Thỏbạolực', className: 'Tố Vấn', loggedBy: 'Thỏbạolực', party: 2 },
-  { id: 'm12', stt: 12, ingame: 'HaneMeii', className: 'Tố Vấn', loggedBy: 'HaneMeii', party: 2 },
-];
-
-export const INITIAL_PERSONNEL_POOL: PersonnelMember[] = [
-  { id: 'p_1', ingame: 'Minos K', className: 'Toái Mộng', loggedBy: 'Nim K' },
-  { id: 'p_2', ingame: 'Bún Piu Piuuu', className: 'Huyết Hà', loggedBy: 'Bún' },
-  { id: 'p_3', ingame: 'Ferrijit', className: 'Thiết Y', loggedBy: 'Ferrijit' },
-  { id: 'p_4', ingame: 'Back Code Thin', className: 'Thần Tương', loggedBy: 'Back Code Thin' },
-  { id: 'p_5', ingame: 'Syk Yuuk', className: 'Cửu Linh', loggedBy: 'Syk Yuuk' },
-  { id: 'p_6', ingame: 'Dạ Du', className: 'Thiết Y', loggedBy: 'Dạ Du' },
-  { id: 'p_7', ingame: 'Vivy', className: 'Long Ngâm', loggedBy: 'Vivy' },
-  { id: 'p_8', ingame: 'Tố Linhhh', className: 'Tố Vấn', loggedBy: 'Souu' },
-  { id: 'p_9', ingame: 'Libra', className: 'Thần Tương', loggedBy: 'Libra' },
-  { id: 'p_10', ingame: 'Cửu U Vương', className: 'Cửu Linh', loggedBy: 'Cửu U Vương' },
-  { id: 'p_11', ingame: 'Thỏbạolực', className: 'Tố Vấn', loggedBy: 'Thỏbạolực' },
-  { id: 'p_12', ingame: 'HaneMeii', className: 'Tố Vấn', loggedBy: 'HaneMeii' },
-  { id: 'p_13', ingame: 'Kuroba', className: 'Thương Lan', loggedBy: 'Kuroba' },
-  { id: 'p_14', ingame: 'Băng Nhi', className: 'Thiên Vấn', loggedBy: 'Băng Nhi' },
-  { id: 'p_15', ingame: 'Gia Cát', className: 'Huyền Cơ', loggedBy: 'Gia Cát' },
-  { id: 'p_16', ingame: 'Quang Minh', className: 'Triều Quang', loggedBy: 'Quang Minh' },
-];
-
-export function createSampleBoardFromImage(boardNumber: number = 1): RaidBoard {
-  const timestamp = Date.now();
+// Default empty 12-slot roster with blank Ingame and Logged by
+export const INITIAL_MEMBERS_FROM_IMAGE: RaidMember[] = Array.from({ length: 12 }, (_, i) => {
+  const defaultClasses: RaidClass[] = [
+    'Toái Mộng',
+    'Huyết Hà',
+    'Thiết Y',
+    'Thần Tương',
+    'Cửu Linh',
+    'Thiết Y',
+    'Long Ngâm',
+    'Tố Vấn',
+    'Thần Tương',
+    'Cửu Linh',
+    'Tố Vấn',
+    'Tố Vấn',
+  ];
   return {
-    id: `board_${timestamp}_${Math.random().toString(36).substring(2, 7)}`,
-    titlePrefix: `RAID ${boardNumber}`,
-    scheduleTime: boardNumber === 1 ? 'MON 20:30' : `THU 20:30`,
-    bossName: 'NIÊN DU',
-    parties: [
-      { id: 1, name: 'PT 1' },
-      { id: 2, name: 'PT 2' },
-    ],
-    members: INITIAL_MEMBERS_FROM_IMAGE.map((m, idx) => ({
-      ...m,
-      id: `m_${timestamp}_${idx + 1}`,
-    })),
-    createdAt: timestamp,
+    id: `m_${i + 1}`,
+    stt: i + 1,
+    ingame: '',
+    className: defaultClasses[i % defaultClasses.length] || 'Toái Mộng',
+    loggedBy: '',
+    party: i < 6 ? 1 : 2,
   };
-}
+});
+
+export const INITIAL_PERSONNEL_POOL: PersonnelMember[] = [];
 
 export function createEmptyBoard(boardNumber: number = 1): RaidBoard {
   const timestamp = Date.now();
+  const defaultClasses: RaidClass[] = [
+    'Toái Mộng',
+    'Huyết Hà',
+    'Thiết Y',
+    'Thần Tương',
+    'Cửu Linh',
+    'Thiết Y',
+    'Long Ngâm',
+    'Tố Vấn',
+    'Thần Tương',
+    'Cửu Linh',
+    'Tố Vấn',
+    'Tố Vấn',
+  ];
   return {
     id: `board_${timestamp}_${Math.random().toString(36).substring(2, 7)}`,
     titlePrefix: `RAID ${boardNumber}`,
-    scheduleTime: 'MON 20:30',
+    scheduleTime: boardNumber === 1 ? 'MON 20:30' : 'THU 20:30',
     bossName: 'NIÊN DU',
     parties: [
       { id: 1, name: 'PT 1' },
@@ -200,12 +188,16 @@ export function createEmptyBoard(boardNumber: number = 1): RaidBoard {
       id: `m_${timestamp}_${i + 1}`,
       stt: i + 1,
       ingame: '',
-      className: 'Toái Mộng' as RaidClass,
+      className: defaultClasses[i % defaultClasses.length] || 'Toái Mộng',
       loggedBy: '',
       party: i < 6 ? 1 : 2,
     })),
     createdAt: timestamp,
   };
+}
+
+export function createSampleBoardFromImage(boardNumber: number = 1): RaidBoard {
+  return createEmptyBoard(boardNumber);
 }
 
 export function hexToRgb(hex: string): { r: number; g: number; b: number } {

@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { RaidBoard, RaidMember, RaidClass } from '../types';
-import { INITIAL_MEMBERS_FROM_IMAGE } from '../constants/classes';
 import {
   X,
   Plus,
-  Sparkles,
   Copy,
   Calendar,
   Layers,
@@ -34,7 +32,7 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
     nextBoardNumber % 2 === 0 ? 'THU 20:30' : 'MON 20:30'
   );
   const [bossName, setBossName] = useState('NIÊN DU');
-  const [templateType, setTemplateType] = useState<'empty' | 'clone' | 'sample'>('empty');
+  const [templateType, setTemplateType] = useState<'empty' | 'clone'>('empty');
 
   // Reset form whenever modal opens with new nextBoardNumber
   useEffect(() => {
@@ -57,18 +55,18 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
     let members: RaidMember[] = [];
 
     if (templateType === 'empty') {
-      // 12 empty slots ready to be assigned
+      // 12 empty slots ready to be assigned with blank ingame and loggedBy
       const defaultClasses: RaidClass[] = [
-        'Thiết Y',
-        'Huyết Hà',
         'Toái Mộng',
+        'Huyết Hà',
+        'Thiết Y',
         'Thần Tương',
+        'Cửu Linh',
+        'Thiết Y',
         'Long Ngâm',
         'Tố Vấn',
-        'Thiết Y',
-        'Cửu Linh',
         'Thần Tương',
-        'Long Ngâm',
+        'Cửu Linh',
         'Tố Vấn',
         'Tố Vấn',
       ];
@@ -80,16 +78,9 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
         loggedBy: '',
         party: i < 6 ? 1 : 2,
       }));
-    } else if (templateType === 'clone') {
+    } else {
       // Clone current board roster
       members = currentBoardMembers.map((m, idx) => ({
-        ...m,
-        id: `m_${timestamp}_${idx + 1}`,
-        stt: idx + 1,
-      }));
-    } else {
-      // Sample roster from original image
-      members = INITIAL_MEMBERS_FROM_IMAGE.map((m, idx) => ({
         ...m,
         id: `m_${timestamp}_${idx + 1}`,
         stt: idx + 1,
@@ -253,33 +244,6 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
                         Giữ nguyên toàn bộ danh sách ingame, môn phái và người log để dễ dàng tinh chỉnh.
-                      </p>
-                    </div>
-                  </label>
-
-                  {/* Option 3: Sample Board */}
-                  <label
-                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
-                      templateType === 'sample'
-                        ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500/20'
-                        : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
-                    }`}
-                  >
-                    <input
-                      type="radio"
-                      name="templateType"
-                      value="sample"
-                      checked={templateType === 'sample'}
-                      onChange={() => setTemplateType('sample')}
-                      className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
-                    />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1.5 font-black text-xs text-slate-900 dark:text-white">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                        <span>Bảng mẫu chuẩn 12 người (như ảnh gốc)</span>
-                      </div>
-                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Khởi tạo với 12 nhân sự mẫu như ảnh chụp ban đầu.
                       </p>
                     </div>
                   </label>

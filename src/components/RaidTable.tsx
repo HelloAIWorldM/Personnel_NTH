@@ -557,37 +557,31 @@ export const RaidTable: React.FC<RaidTableProps> = ({
           {/* Table Content */}
           <table className="w-full border-collapse text-xs sm:text-sm">
             <thead>
-              <tr
-                className={`border-b-[2px] ${
-                  isTableDark
-                    ? 'bg-slate-900 border-slate-600'
-                    : 'bg-white border-black'
-                }`}
-              >
+              <tr className={isTableDark ? 'bg-slate-900' : 'bg-white'}>
                 <th
-                  className={`w-[14%] sm:w-[14%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black uppercase text-xs sm:text-sm md:text-base border-r-[2px] ${
+                  className={`w-[14%] sm:w-[14%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black uppercase text-xs sm:text-sm md:text-base border-r-[2px] border-b-[2px] ${
                     isTableDark ? 'border-slate-600 text-slate-200' : 'border-black text-slate-900'
                   }`}
                 >
                   STT
                 </th>
                 <th
-                  className={`w-[31%] sm:w-[32%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-xs sm:text-sm md:text-base border-r-[2px] ${
+                  className={`w-[31%] sm:w-[32%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-xs sm:text-sm md:text-base border-b-[2px] ${
                     isTableDark ? 'border-slate-600 text-slate-200' : 'border-black text-slate-900'
                   }`}
                 >
                   Ingame
                 </th>
                 <th
-                  className={`w-[27%] sm:w-[27%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-xs sm:text-sm md:text-base border-r-[2px] ${
+                  className={`w-[27%] sm:w-[27%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-xs sm:text-sm md:text-base border-l-[2px] border-r-[2px] border-b-[2px] ${
                     isTableDark ? 'border-slate-600 text-slate-200' : 'border-black text-slate-900'
                   }`}
                 >
                   Class
                 </th>
                 <th
-                  className={`w-[28%] sm:w-[27%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-xs sm:text-sm md:text-base ${
-                    isTableDark ? 'text-slate-200' : 'text-slate-900'
+                  className={`w-[28%] sm:w-[27%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-xs sm:text-sm md:text-base border-b-[2px] ${
+                    isTableDark ? 'border-slate-600 text-slate-200' : 'border-black text-slate-900'
                   }`}
                 >
                   Logged by
@@ -698,12 +692,10 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                       }}
                       onDrop={(e) => handleRowDrop(e, member.id)}
                       style={{ zIndex: isClassPickerOpen ? 40 : undefined }}
-                      className={`border-b-[1.5px] transition-colors group relative cursor-default ${
-                        idx === members.length - 1 ? 'border-b-0' : ''
-                      } ${
+                      className={`transition-colors group relative cursor-default ${
                         isTableDark
-                          ? 'border-slate-700 hover:bg-slate-800/60'
-                          : 'border-black hover:bg-slate-50'
+                          ? 'hover:bg-slate-800/60'
+                          : 'hover:bg-slate-50'
                       } ${isFilteredOut ? 'opacity-30' : ''} ${
                         isDragging
                           ? isTableDark
@@ -718,7 +710,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                     >
                       {/* STT Column */}
                       <td
-                        className={`py-1.5 sm:py-2 px-1 text-center font-black text-xs sm:text-base relative cursor-pointer sm:cursor-default border-r-[2px] ${
+                        className={`py-1.5 sm:py-2 px-1 text-center font-black text-xs sm:text-base relative cursor-pointer sm:cursor-default border-r-[2px] border-b-[2px] ${
                           isTableDark
                             ? 'border-slate-700 text-slate-200'
                             : 'border-black text-slate-900'
@@ -837,7 +829,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                       {/* Ingame Column */}
                       <td
                         style={{ textAlign: 'center' }}
-                        className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] border-r-[2px] transition-colors ${
+                        className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] border-b-[2px] transition-colors ${
                           isTableDark
                             ? 'border-slate-700 text-slate-100'
                             : 'border-black text-slate-900'
@@ -890,12 +882,14 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
                       {/* Class Badge Cell with exact background color */}
                       <td
-                        className={`py-0.5 sm:py-1 px-0.5 sm:px-1 text-center relative cursor-pointer active:opacity-90 border-r-[2px] ${
+                        className={`py-0.5 sm:py-1 px-0.5 sm:px-1 text-center relative cursor-pointer active:opacity-90 border-l-[2px] border-r-[2px] border-b-[2px] ${
                           isTableDark ? 'border-slate-700' : 'border-black'
                         } ${isClassPickerOpen ? 'z-40' : ''}`}
                         style={{
                           backgroundColor: classMeta.bgColor,
                           color: classMeta.textColor,
+                          boxSizing: 'border-box',
+                          backgroundClip: 'padding-box',
                         }}
                         onClick={() =>
                           setActiveClassSelectId(
@@ -983,8 +977,8 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                       {/* Logged by Column */}
                       <td
                         style={{ textAlign: 'center' }}
-                        className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] relative group/log transition-colors ${
-                          isTableDark ? 'text-slate-100' : 'text-slate-900'
+                        className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] border-b-[2px] relative group/log transition-colors ${
+                          isTableDark ? 'border-slate-700 text-slate-100' : 'border-black text-slate-900'
                         } ${
                           isLoggedByDup
                             ? isTableDark
@@ -1093,11 +1087,11 @@ export const RaidTable: React.FC<RaidTableProps> = ({
           onClick={() => setShowResetRaidConfirm(true)}
           className="px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors border border-slate-200 dark:border-slate-700 min-h-[42px]"
         >
-          Mẫu như ảnh gốc
+          Làm trống bảng
         </button>
       </div>
 
-      {/* Reset Raid Confirmation Modal */}
+      {/* Reset / Clear Raid Table Confirmation Modal */}
       {showResetRaidConfirm &&
         typeof document !== 'undefined' &&
         createPortal(
@@ -1107,10 +1101,10 @@ export const RaidTable: React.FC<RaidTableProps> = ({
           >
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4">
               <h4 className="font-black text-sm text-slate-900 dark:text-white">
-                Khôi phục danh sách mẫu như ảnh?
+                Làm trống tên Ingame & Logged by?
               </h4>
               <p className="text-xs text-slate-600 dark:text-slate-300">
-                Thao tác này sẽ đặt lại Bảng Raid hiện tại về 12 vị trí với thông tin đầy đủ như trong ảnh mẫu gốc.
+                Thao tác này sẽ xoá sạch toàn bộ tên Ingame và Logged by của các vị trí trong bảng hiện tại để bạn nhập mới từ đầu.
               </p>
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
@@ -1123,15 +1117,17 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                 <button
                   type="button"
                   onClick={() => {
-                    import('../constants/classes').then((mod) => {
-                      onUpdateMembers(mod.INITIAL_MEMBERS_FROM_IMAGE);
-                      onUpdateTitle('RAID 1', 'MON 20:30', 'NIÊN DU');
-                    });
+                    const clearedMembers = members.map((m) => ({
+                      ...m,
+                      ingame: '',
+                      loggedBy: '',
+                    }));
+                    onUpdateMembers(clearedMembers);
                     setShowResetRaidConfirm(false);
                   }}
-                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-xl shadow-xs transition-colors"
+                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl shadow-xs transition-colors"
                 >
-                  Đồng ý khôi phục
+                  Đồng ý làm trống
                 </button>
               </div>
             </div>

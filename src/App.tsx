@@ -3,9 +3,6 @@ import { createPortal } from 'react-dom';
 import { User } from 'firebase/auth';
 import { initAuth } from './services/auth';
 import {
-  INITIAL_MEMBERS_FROM_IMAGE,
-  INITIAL_PERSONNEL_POOL,
-  createSampleBoardFromImage,
   createEmptyBoard,
   CLASS_LIST,
   DEFAULT_RAID_PARTIES,
@@ -61,6 +58,49 @@ const LEGACY_STORAGE_KEY_MEMBERS = 'raid_roster_members_v1';
 const LEGACY_STORAGE_KEY_CONFIG = 'raid_roster_config_v1';
 const LEGACY_STORAGE_KEY_PARTIES = 'raid_roster_parties_v1';
 
+// Blacklist of sample/mock names to purge from any browser cache
+const LEAKED_SAMPLE_NAMES = new Set([
+  'minos k',
+  'nim k',
+  'bún piu piuuu',
+  'bún',
+  'ferrijit',
+  'back code thin',
+  'syk yuuk',
+  'dạ du',
+  'vivy',
+  'tố linhhh',
+  'souu',
+  'libra',
+  'cửu u vương',
+  'thỏbạolực',
+  'hanemeii',
+  'kuroba',
+  'băng nhi',
+  'gia cát',
+  'quang minh',
+]);
+
+const isLeakedSampleName = (name?: string): boolean => {
+  if (!name) return false;
+  return LEAKED_SAMPLE_NAMES.has(name.trim().toLowerCase());
+};
+
+const sanitizeMember = (m: RaidMember): RaidMember => {
+  return {
+    ...m,
+    ingame: isLeakedSampleName(m.ingame) ? '' : (m.ingame || ''),
+    loggedBy: isLeakedSampleName(m.loggedBy) ? '' : (m.loggedBy || ''),
+  };
+};
+
+const sanitizeBoard = (board: RaidBoard): RaidBoard => {
+  return {
+    ...board,
+    members: (board.members || []).map(sanitizeMember),
+  };
+};
+
 export default function App() {
   // Dark Mode State
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
@@ -75,14 +115,14 @@ export default function App() {
     }
   });
 
-  // Multiple Raid Boards State
+  // Multiple Raid Boards State - Default clean empty boards
   const [boards, setBoards] = useState<RaidBoard[]>(() => {
     try {
       const savedBoards = localStorage.getItem(STORAGE_KEY_BOARDS);
       if (savedBoards) {
         const parsed = JSON.parse(savedBoards);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.map(sanitizeBoard);
         }
       }
       // Migrate from legacy single-board storage if available
@@ -101,7 +141,7 @@ export default function App() {
             titlePrefix: parsedConfig.titlePrefix || 'RAID 1',
             scheduleTime: parsedConfig.scheduleTime || 'MON 20:30',
             bossName: parsedConfig.bossName || 'NIÊN DU',
-            members: parsedMembers,
+            members: parsedMembers.map(sanitizeMember),
             parties: parsedParties,
             createdAt: Date.now(),
           },
@@ -110,8 +150,8 @@ export default function App() {
     } catch (e) {
       console.error('Failed to load initial boards:', e);
     }
-    // Default initial board matching the exact uploaded image
-    return [createSampleBoardFromImage(1)];
+    // Default initial board with blank Ingame and Logged by
+    return [createEmptyBoard(1)];
   });
 
   const [activeBoardId, setActiveBoardId] = useState<string>(() => {
@@ -122,20 +162,22 @@ export default function App() {
     return boards[0]?.id || 'board_1';
   });
 
-  // Personnel Storage Pool (Ingame, Class, Logged by)
+  // Personnel Storage Pool (Ingame, Class, Logged by) - Default empty
   const [personnelPool, setPersonnelPool] = useState<PersonnelMember[]>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_PERSONNEL);
       if (saved) {
         const parsed = JSON.parse(saved);
         if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed;
+          return parsed.filter(
+            (p: PersonnelMember) => !isLeakedSampleName(p.ingame) && !isLeakedSampleName(p.loggedBy)
+          );
         }
       }
     } catch (e) {
       console.error('Failed to load personnel pool:', e);
     }
-    return INITIAL_PERSONNEL_POOL;
+    return [];
   });
 
   const [customColors, setCustomColors] = useState<CustomClassColors>(() => {
@@ -171,7 +213,7 @@ export default function App() {
 
   // Active Board Resolver
   const activeBoard = useMemo(() => {
-    return boards.find((b) => b.id === activeBoardId) || boards[0] || createSampleBoardFromImage(1);
+    return boards.find((b) => b.id === activeBoardId) || boards[0] || createEmptyBoard(1);
   }, [boards, activeBoardId]);
 
   // Sync Dark Mode with document.documentElement
@@ -257,12 +299,9 @@ export default function App() {
     updateActiveBoard({ parties: newParties });
   };
 
-  // Add a new Board identical to the original sample photo
+  // Add a clean empty Board
   const handleAddNewSampleBoard = () => {
-    const nextNumber = boards.length + 1;
-    const newBoard = createSampleBoardFromImage(nextNumber);
-    setBoards((prev) => [...prev, newBoard]);
-    setActiveBoardId(newBoard.id);
+    handleAddNewEmptyBoard();
   };
 
   // Add a clean empty Board

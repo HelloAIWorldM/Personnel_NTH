@@ -177,11 +177,81 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           parent.replaceChild(textDiv, htmlInput);
         });
 
-        // 4. Ensure all table cells TD and TH enforce text-align: center
-        const cells = table.querySelectorAll('th, td');
-        cells.forEach((cell) => {
-          const htmlCell = cell as HTMLElement;
-          htmlCell.style.textAlign = 'center';
+        // 4. Ensure all table cells TD and TH enforce text-align: center and uniform 2px borders
+        const borderColor = isDark ? '#334155' : '#000000';
+
+        const tableContainer = table as HTMLElement;
+        tableContainer.style.border = `2px solid ${borderColor}`;
+        tableContainer.style.boxSizing = 'border-box';
+
+        const titleDiv = table.querySelector('#raid-table-title') as HTMLElement | null;
+        if (titleDiv) {
+          titleDiv.style.border = 'none';
+          titleDiv.style.borderBottom = `2px solid ${borderColor}`;
+        }
+
+        const tableEl = table.querySelector('table') as HTMLTableElement | null;
+        if (tableEl) {
+          tableEl.style.borderCollapse = 'collapse';
+          tableEl.style.width = '100%';
+        }
+
+        // Header cells (single source of truth for header column dividers)
+        const thCells = table.querySelectorAll('thead th');
+        thCells.forEach((th, idx) => {
+          const htmlTh = th as HTMLElement;
+          htmlTh.style.textAlign = 'center';
+          htmlTh.style.border = 'none';
+          htmlTh.style.borderBottom = `2px solid ${borderColor}`;
+          htmlTh.style.boxSizing = 'border-box';
+
+          if (idx === 0) {
+            // STT TH: divider between STT and Ingame
+            htmlTh.style.borderRight = `2px solid ${borderColor}`;
+          } else if (idx === 2) {
+            // Class TH: divider between Ingame & Class, and between Class & Logged by
+            htmlTh.style.borderLeft = `2px solid ${borderColor}`;
+            htmlTh.style.borderRight = `2px solid ${borderColor}`;
+          }
+        });
+
+        // Body rows and cells (single source of truth for body dividers)
+        const bodyRows = table.querySelectorAll('tbody tr');
+        bodyRows.forEach((row) => {
+          const htmlRow = row as HTMLElement;
+          htmlRow.style.border = 'none'; // No border on tr to avoid double borders with td
+
+          const cells = htmlRow.querySelectorAll('td');
+          if (cells.length === 1) {
+            // Divider row (colSpan=4)
+            const htmlCell = cells[0] as HTMLElement;
+            htmlCell.style.border = 'none';
+            htmlCell.style.borderBottom = `2px solid ${borderColor}`;
+            return;
+          }
+
+          cells.forEach((cell, cellIdx) => {
+            const htmlCell = cell as HTMLElement;
+            htmlCell.style.textAlign = 'center';
+            htmlCell.style.boxSizing = 'border-box';
+            htmlCell.style.border = 'none';
+            // Every cell in the row draws exactly one 2px bottom border
+            htmlCell.style.borderBottom = `2px solid ${borderColor}`;
+
+            if (cellIdx === 0) {
+              // STT: draws divider between STT and Ingame
+              htmlCell.style.borderRight = `2px solid ${borderColor}`;
+            } else if (cellIdx === 1) {
+              // Ingame: no vertical borders (left is STT borderRight, right is Class borderLeft)
+            } else if (cellIdx === 2) {
+              // Class: draws divider with Ingame on left, and Logged by on right. NO borderTop!
+              htmlCell.style.borderLeft = `2px solid ${borderColor}`;
+              htmlCell.style.borderRight = `2px solid ${borderColor}`;
+              htmlCell.style.backgroundClip = 'padding-box';
+            } else if (cellIdx === 3) {
+              // Logged by: no vertical borders (left is Class borderRight, right is table border)
+            }
+          });
         });
       },
     });
