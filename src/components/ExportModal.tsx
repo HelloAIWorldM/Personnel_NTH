@@ -18,7 +18,7 @@ import {
   Shield,
   Lock,
   Eye,
-  Link2,
+  Link as LinkIcon,
 } from 'lucide-react';
 
 interface ExportModalProps {
@@ -29,7 +29,6 @@ interface ExportModalProps {
   members: RaidMember[];
   customColors?: CustomClassColors;
   activeBoard?: RaidBoard;
-  onShowToast?: (msg: string) => void;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
@@ -40,7 +39,6 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   members,
   customColors,
   activeBoard,
-  onShowToast,
 }) => {
   const [copyingImage, setCopyingImage] = useState(false);
   const [copiedImageSuccess, setCopiedImageSuccess] = useState(false);
@@ -51,27 +49,24 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [downloadCsvSuccess, setDownloadCsvSuccess] = useState(false);
   const [copiedLinkSuccess, setCopiedLinkSuccess] = useState(false);
 
+  const handleCopyShareLink = async () => {
+    if (!activeBoard) return;
+    try {
+      const shareUrl = generateShareLink(activeBoard);
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedLinkSuccess(true);
+      setTimeout(() => setCopiedLinkSuccess(false), 2500);
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   // Privacy & Data Masking Mode ('NONE' = Raw, 'MASK' = Che ký tự, 'HIDE' = Ẩn hẳn)
   const [privacyMode, setPrivacyMode] = useState<PrivacyMode>('NONE');
 
   // Fallback preview when iframe prevents direct clipboard write
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [showClipboardFallback, setShowClipboardFallback] = useState(false);
-
-  const handleCopyShareLink = async () => {
-    if (!activeBoard) return;
-    try {
-      const link = generateShareLink(activeBoard);
-      await navigator.clipboard.writeText(link);
-      setCopiedLinkSuccess(true);
-      if (onShowToast) {
-        onShowToast('Đã sao chép link chia sẻ! Gửi link này để người khác mở xem nguyên vẹn bảng Raid.');
-      }
-      setTimeout(() => setCopiedLinkSuccess(false), 3000);
-    } catch {
-      alert('Không thể sao chép link vào clipboard.');
-    }
-  };
 
   const handlePrivacyModeChange = (mode: PrivacyMode) => {
     setPrivacyMode(mode);
@@ -84,7 +79,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   // Format text for Discord / Game chat
   const generateFormattedText = () => {
     const safeMembers = filterMembersForExport(members, privacyMode);
-    let text = `${raidTitle.toUpperCase()}\n`;
+    let text = `⚔️ ${raidTitle.toUpperCase()} ⚔️\n`;
     text += `STT | Ingame | Phái | Logged by | PT\n`;
     text += `------------------------------------\n`;
     safeMembers.forEach((m) => {
@@ -633,7 +628,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-1">
                   <span className="text-[10px] text-slate-600 dark:text-slate-300">
-                    <strong>Cách 1:</strong> Chuột phải vào ảnh &gt; <em>Sao chép hình ảnh</em> (Copy image)
+                    💡 <strong>Cách 1:</strong> Chuột phải vào ảnh &gt; <em>Sao chép hình ảnh</em> (Copy image)
                   </span>
                   <button
                     type="button"
@@ -742,14 +737,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 onClick={handleExportPlainCsv}
                 className="font-bold text-slate-700 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:underline text-left sm:text-right"
               >
-                {downloadCsvSuccess ? (
-                  <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold">
-                    <Check className="w-3.5 h-3.5" />
-                    <span>Đã tải CSV</span>
-                  </span>
-                ) : (
-                  'Tải file .CSV'
-                )}
+                {downloadCsvSuccess ? '✓ Đã tải CSV' : 'Tải file .CSV'}
               </button>
             </div>
           </div>
@@ -759,7 +747,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             type="button"
             id="btn-copy-formatted-text"
             onClick={handleCopyText}
-            className="w-full flex items-center justify-between p-3 sm:p-3.5 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-colors group min-h-[48px]"
+            className="w-full flex items-center justify-between p-3 sm:p-3.5 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-colors group min-h-[48px] cursor-pointer"
           >
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-950 text-amber-700 dark:text-amber-300 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
@@ -786,38 +774,47 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             )}
           </button>
 
-          {/* Action 4: Shareable Link */}
+          {/* Action 4: Share Direct Web Link */}
           {activeBoard && (
-            <button
-              type="button"
-              id="btn-copy-share-link"
-              onClick={handleCopyShareLink}
-              className="w-full flex items-center justify-between p-3 sm:p-3.5 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-colors group min-h-[48px]"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
-                  <Link2 className="w-4 h-4" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
-                    Sao chép link chia sẻ bảng này
+            <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3 sm:p-3.5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-xl bg-violet-100 dark:bg-violet-950 text-violet-700 dark:text-violet-300 flex items-center justify-center shrink-0">
+                    <LinkIcon className="w-4 h-4" />
                   </div>
-                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Gửi link cho thành viên khác để mở xem hoặc sao chép nguyên vẹn bảng Raid này
+                  <div>
+                    <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
+                      <span>Sao chép Link chia sẻ bảng</span>
+                      <span className="text-[10px] font-bold bg-violet-100 dark:bg-violet-900/60 text-violet-700 dark:text-violet-300 px-1.5 py-0.2 rounded">
+                        Xem tức thì
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Gửi link cho thành viên bang. Họ mở link trên máy/điện thoại là thấy ngay bảng này!
+                    </div>
                   </div>
                 </div>
+
+                <button
+                  type="button"
+                  id="btn-copy-share-link"
+                  onClick={handleCopyShareLink}
+                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold bg-violet-600 hover:bg-violet-700 active:bg-violet-800 text-white rounded-lg shadow-2xs transition-colors shrink-0 min-h-[40px] cursor-pointer"
+                >
+                  {copiedLinkSuccess ? (
+                    <>
+                      <Check className="w-4 h-4" />
+                      <span>Đã copy link!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Share2 className="w-4 h-4" />
+                      <span>Sao chép link</span>
+                    </>
+                  )}
+                </button>
               </div>
-              {copiedLinkSuccess ? (
-                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-bold shrink-0">
-                  <Check className="w-4 h-4" />
-                  <span>Đã copy link!</span>
-                </span>
-              ) : (
-                <span className="text-xs text-indigo-600 dark:text-indigo-400 font-bold bg-white dark:bg-slate-700 px-2.5 py-1 rounded-md border border-indigo-200 dark:border-slate-600 shrink-0">
-                  Copy link
-                </span>
-              )}
-            </button>
+            </div>
           )}
         </div>
 

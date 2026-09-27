@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
+import { CLASS_LIST, RAID1_STANDARD_CLASSES, getEffectiveClassMeta } from '../constants/classes';
 import { CustomClassColors, RaidClass, RaidMember, RaidParty } from '../types';
 import { DuplicateWarningBanner } from './DuplicateWarningBanner';
 import { getDuplicateIngameMap, getDuplicateLoggedByMap } from '../utils/duplicates';
@@ -25,6 +25,7 @@ import {
   Moon,
   AlertTriangle,
   AlertCircle,
+  RefreshCw,
 } from 'lucide-react';
 
 interface RaidTableProps {
@@ -40,6 +41,8 @@ interface RaidTableProps {
   tableRef: React.RefObject<HTMLDivElement | null>;
   selectedClassFilter?: RaidClass | null;
   darkMode?: boolean;
+  onSyncFromRaid1?: () => void;
+  isRaid1?: boolean;
 }
 
 export const RaidTable: React.FC<RaidTableProps> = ({
@@ -58,6 +61,8 @@ export const RaidTable: React.FC<RaidTableProps> = ({
   tableRef,
   selectedClassFilter,
   darkMode = false,
+  onSyncFromRaid1,
+  isRaid1 = false,
 }) => {
   const [editingTitle, setEditingTitle] = useState(false);
   const [tempPrefix, setTempPrefix] = useState(titlePrefix);
@@ -567,8 +572,9 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                 </th>
                 <th
                   className={`w-[31%] sm:w-[32%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-xs sm:text-sm md:text-base border-b-[2px] ${
-                    isTableDark ? 'border-slate-600 text-slate-200' : 'border-black text-slate-900'
+                    isTableDark ? 'border-slate-600 text-slate-200' : 'border-black text-black'
                   }`}
+                  style={{ color: isTableDark ? undefined : '#000000' }}
                 >
                   Ingame
                 </th>
@@ -581,8 +587,9 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                 </th>
                 <th
                   className={`w-[28%] sm:w-[27%] py-2 sm:py-2.5 px-1 sm:px-2 text-center font-black text-xs sm:text-sm md:text-base border-b-[2px] ${
-                    isTableDark ? 'border-slate-600 text-slate-200' : 'border-black text-slate-900'
+                    isTableDark ? 'border-slate-600 text-slate-200' : 'border-black text-black'
                   }`}
+                  style={{ color: isTableDark ? undefined : '#000000' }}
                 >
                   Logged by
                 </th>
@@ -648,8 +655,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                                 isTableDark ? 'text-indigo-300' : 'text-indigo-900'
                               }`}
                             >
-                              <Shield className="w-3.5 h-3.5 text-indigo-500" />
-                              <span>{partyObj.name}</span>
+                              <span>🛡️ {partyObj.name}</span>
                               <span
                                 className={`text-[10px] sm:text-[11px] font-bold ${
                                   isTableDark ? 'text-slate-400' : 'text-slate-600'
@@ -846,10 +852,12 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           <input
                             type="text"
                             data-column-type="ingame"
-                            value={member.ingame}
-                            defaultValue={member.ingame}
+                            value={member.ingame || ''}
                             data-text-value={member.ingame || ''}
-                            style={{ textAlign: 'center' }}
+                            style={{
+                              textAlign: 'center',
+                              color: !isTableDark && !isIngameDup ? '#000000' : undefined,
+                            }}
                             dir="ltr"
                             onChange={(e) =>
                               handleUpdateMember(member.id, { ingame: e.target.value })
@@ -862,14 +870,14 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                                   : 'text-red-900 font-bold placeholder:text-red-400'
                                 : isTableDark
                                 ? 'text-slate-100 placeholder:text-slate-500 focus:bg-slate-800'
-                                : 'text-slate-900 placeholder:text-slate-400 focus:bg-amber-50'
+                                : 'text-black placeholder:text-slate-400 focus:bg-amber-50'
                             }`}
                           />
 
                           {isIngameDup && (
                             <span
                               data-html2canvas-ignore="true"
-                              title={`Cảnh báo: Trùng tên Ingame với ${ingameDupInfo?.stts
+                              title={`⚠️ Trùng tên Ingame với: ${ingameDupInfo?.stts
                                 .filter((s) => s !== member.stt)
                                 .map((s) => `STT #${s}`)
                                 .join(', ')}`}
@@ -992,7 +1000,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           {isLoggedByDup && (
                             <span
                               data-html2canvas-ignore="true"
-                              title={`Cảnh báo: Trùng người log "${loggedByDupInfo?.originalName}" đang log cho ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
+                              title={`⚠️ Trùng người log: "${loggedByDupInfo?.originalName}" đang log cho ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
                                 .map((s) => `#${s}`)
                                 .join(', ')})`}
                               className="absolute left-0.5 sm:left-1 text-amber-500 hover:text-amber-600 cursor-help"
@@ -1004,10 +1012,12 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           <input
                             type="text"
                             data-column-type="logged-by"
-                            value={member.loggedBy}
-                            defaultValue={member.loggedBy}
+                            value={member.loggedBy || ''}
                             data-text-value={member.loggedBy || member.ingame || ''}
-                            style={{ textAlign: 'center' }}
+                            style={{
+                              textAlign: 'center',
+                              color: !isTableDark && !isLoggedByDup ? '#000000' : undefined,
+                            }}
                             dir="ltr"
                             onChange={(e) =>
                               handleUpdateMember(member.id, {
@@ -1022,7 +1032,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                                   : 'text-amber-900 font-bold placeholder:text-amber-400'
                                 : isTableDark
                                 ? 'text-slate-100 placeholder:text-slate-500 focus:bg-slate-800'
-                                : 'text-slate-900 placeholder:text-slate-400 focus:bg-amber-50'
+                                : 'text-black placeholder:text-slate-400 focus:bg-amber-50'
                             }`}
                           />
 
@@ -1102,19 +1112,12 @@ export const RaidTable: React.FC<RaidTableProps> = ({
           >
             <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4">
               <h4 className="font-black text-sm text-slate-900 dark:text-white">
-                Làm trống tên Ingame & Logged by?
+                Tuỳ chọn làm trống bảng Raid
               </h4>
               <p className="text-xs text-slate-600 dark:text-slate-300">
-                Thao tác này sẽ xoá sạch toàn bộ tên Ingame và Logged by của các vị trí trong bảng hiện tại để bạn nhập mới từ đầu.
+                Chọn cách làm trống phù hợp với kế hoạch xếp đội hình của bạn:
               </p>
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setShowResetRaidConfirm(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors border border-slate-200 dark:border-slate-700"
-                >
-                  Huỷ
-                </button>
+              <div className="space-y-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -1126,9 +1129,49 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                     onUpdateMembers(clearedMembers);
                     setShowResetRaidConfirm(false);
                   }}
-                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl shadow-xs transition-colors"
+                  className="w-full text-left p-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:border-indigo-400 bg-slate-50 dark:bg-slate-800/80 hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40 transition-colors"
                 >
-                  Đồng ý làm trống
+                  <div className="font-bold text-xs text-slate-900 dark:text-white">
+                    Làm trống tên (Giữ nguyên {members.length} môn phái hiện tại)
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                    Xoá sạch Ingame & Logged by, giữ nguyên tất cả môn phái đang có trên bảng.
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const raid1Members: RaidMember[] = RAID1_STANDARD_CLASSES.map((className, idx) => ({
+                      id: `m_${Date.now()}_${idx + 1}`,
+                      stt: idx + 1,
+                      ingame: '',
+                      className,
+                      loggedBy: '',
+                      party: idx < 6 ? 1 : 2,
+                    }));
+                    onUpdateMembers(raid1Members);
+                    setShowResetRaidConfirm(false);
+                  }}
+                  className="w-full text-left p-3 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50/60 dark:bg-indigo-950/40 hover:bg-indigo-100/70 dark:hover:bg-indigo-900/60 transition-colors"
+                >
+                  <div className="font-bold text-xs text-indigo-700 dark:text-indigo-300 flex items-center gap-1.5">
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Khôi phục chuẩn 12 môn phái Raid 1</span>
+                  </div>
+                  <div className="text-[11px] text-slate-600 dark:text-slate-400 mt-0.5">
+                    Đưa bảng về chuẩn 12 vị trí (PT 1: Toái Mộng, Huyết Hà, Thiết Y, Thần Tương, Cửu Linh, Thiết Y; PT 2: Long Ngâm, Tố Vấn, Thần Tương, Cửu Linh, Tố Vấn, Tố Vấn).
+                  </div>
+                </button>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowResetRaidConfirm(false)}
+                  className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors border border-slate-200 dark:border-slate-700"
+                >
+                  Đóng
                 </button>
               </div>
             </div>

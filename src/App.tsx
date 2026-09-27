@@ -4,6 +4,9 @@ import { User } from 'firebase/auth';
 import { initAuth } from './services/auth';
 import {
   createEmptyBoard,
+  createSampleBoardFromImage,
+  INITIAL_MEMBERS_FROM_IMAGE,
+  INITIAL_PERSONNEL_POOL,
   CLASS_LIST,
   DEFAULT_RAID_PARTIES,
   getEffectiveClassMeta,
@@ -15,7 +18,11 @@ import {
   RaidParty,
   RaidBoard,
   PersonnelMember,
+  GuildWarBoard,
 } from './types';
+import { createSampleGuildWarBoard } from './constants/guildWarDefaults';
+import { CreateGuildWarModal } from './components/GuildWar/CreateGuildWarModal';
+import { GuildWarBoardView } from './components/GuildWar/GuildWarBoardView';
 import { normalizeName } from './utils/duplicates';
 import { RaidTable } from './components/RaidTable';
 import { PersonnelStorage } from './components/PersonnelStorage';
@@ -25,6 +32,7 @@ import { GoogleSheetsModal } from './components/GoogleSheetsModal';
 import { ExportModal } from './components/ExportModal';
 import { ColorCustomizerModal } from './components/ColorCustomizerModal';
 import { CreateBoardModal } from './components/CreateBoardModal';
+import { AllBoardsOverview } from './components/AllBoardsOverview';
 import {
   FileSpreadsheet,
   Share2,
@@ -45,10 +53,8 @@ import {
   PanelRightOpen,
   Check,
   Calendar,
-  Shield,
-  X,
+  Swords,
   Database,
-  Link2,
 } from 'lucide-react';
 import { BackupRestoreModal } from './components/BackupRestoreModal';
 import {
@@ -57,36 +63,48 @@ import {
   STORAGE_KEY_PERSONNEL,
   STORAGE_KEY_COLORS,
   STORAGE_KEY_THEME,
+  STORAGE_KEY_GUILDWAR_BOARDS,
+  STORAGE_KEY_ACTIVE_GUILDWAR,
+  STORAGE_KEY_APP_MODE,
   loadInitialBoards,
   loadInitialPersonnel,
-  saveToIndexedDB,
-  maybeSaveAutoSnapshot,
+  loadInitialGuildWarBoards,
+  saveAutoSnapshot,
+  flushAllStorageSync,
   parseShareHash,
+  saveToIndexedDB,
 } from './utils/storageBackup';
 
 export default function App() {
-  // Dark Mode State
+  // Dark Mode State - Default to true (Dark mode) for gaming theme
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_THEME);
-      if (saved !== null) {
-        return saved === 'dark';
-      }
-      return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (saved === 'light') return false;
+      return true;
     } catch {
-      return false;
+      return true;
     }
   });
 
-  // Multiple Raid Boards State with multi-layer fallback & auto-recovery
-  const [initialData] = useState(() => loadInitialBoards());
-  const [boards, setBoards] = useState<RaidBoard[]>(initialData.boards);
-  const [activeBoardId, setActiveBoardId] = useState<string>(initialData.activeBoardId);
+  // Multiple Raid Boards State - Multi-layer persistence
+  const [boards, setBoards] = useState<RaidBoard[]>(() => {
+    return loadInitialBoards().boards;
+  });
+
+  const [activeBoardId, setActiveBoardId] = useState<string>(() => {
+    const init = loadInitialBoards();
+    try {
+      const savedId = localStorage.getItem(STORAGE_KEY_ACTIVE_BOARD);
+      if (savedId && init.boards.some((b) => b.id === savedId)) return savedId;
+    } catch {}
+    return init.activeBoardId;
+  });
 
   // Personnel Storage Pool (Ingame, Class, Logged by) - Multi-layer persistence
-  const [personnelPool, setPersonnelPool] = useState<PersonnelMember[]>(() =>
-    loadInitialPersonnel()
-  );
+  const [personnelPool, setPersonnelPool] = useState<PersonnelMember[]>(() => {
+    return loadInitialPersonnel(INITIAL_PERSONNEL_POOL);
+  });
 
   const [customColors, setCustomColors] = useState<CustomClassColors>(() => {
     try {
@@ -98,7 +116,7 @@ export default function App() {
     return {};
   });
 
-  const [activeTab, setActiveTab] = useState<'table' | 'parties' | 'personnel'>('table');
+  const [activeTab, setActiveTab] = useState<'table' | 'parties' | 'personnel' | 'all-boards'>('table');
   const [isPersonnelSidebarOpen, setIsPersonnelSidebarOpen] = useState<boolean>(true);
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
@@ -106,10 +124,29 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isColorModalOpen, setIsColorModalOpen] = useState(false);
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
+  const [isCreateGuildWarModalOpen, setIsCreateGuildWarModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [selectedClassFilter, setSelectedClassFilter] = useState<RaidClass | null>(null);
   const [boardToDelete, setBoardToDelete] = useState<RaidBoard | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // App Mode: 'RAID' (Bảng Raid) or 'GUILD_WAR' (Bảng Bang Chiến)
+  const [appMode, setAppMode] = useState<'RAID' | 'GUILD_WAR'>(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY_APP_MODE);
+      if (saved === 'GUILD_WAR' || saved === 'RAID') return saved;
+    } catch {}
+    return 'RAID';
+  });
+
+  // Multiple Guild War Boards State - Multi-layer persistence
+  const [guildWarBoards, setGuildWarBoards] = useState<GuildWarBoard[]>(() => {
+    return loadInitialGuildWarBoards().boards;
+  });
+
+  const [activeGuildWarBoardId, setActiveGuildWarBoardId] = useState<string>(() => {
+    return loadInitialGuildWarBoards().activeBoardId;
+  });
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -125,26 +162,14 @@ export default function App() {
     return boards.find((b) => b.id === activeBoardId) || boards[0] || createEmptyBoard(1);
   }, [boards, activeBoardId]);
 
-  // Handle shared board link from URL on startup (#share=...)
-  useEffect(() => {
-    try {
-      if (typeof window !== 'undefined' && window.location.hash) {
-        const sharedBoard = parseShareHash(window.location.hash);
-        if (sharedBoard) {
-          setBoards((prev) => {
-            const exists = prev.find((b) => b.id === sharedBoard.id);
-            if (exists) return prev;
-            return [sharedBoard, ...prev];
-          });
-          setActiveBoardId(sharedBoard.id);
-          showToast(`Đã nạp thành công bảng "${sharedBoard.titlePrefix}" từ link chia sẻ!`);
-          history.replaceState(null, '', window.location.pathname + window.location.search);
-        }
-      }
-    } catch (e) {
-      console.error('Error parsing shared link:', e);
-    }
-  }, []);
+  // Active Guild War Board Resolver
+  const activeGuildWarBoard = useMemo(() => {
+    return (
+      guildWarBoards.find((b) => b.id === activeGuildWarBoardId) ||
+      guildWarBoards[0] ||
+      createSampleGuildWarBoard(1)
+    );
+  }, [guildWarBoards, activeGuildWarBoardId]);
 
   // Sync Dark Mode with document.documentElement
   useEffect(() => {
@@ -174,91 +199,180 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Multi-layer Save: LocalStorage + IndexedDB + Auto-Snapshot
+  // Listen for Shared Board via URL Hash (#share=...)
+  useEffect(() => {
+    try {
+      const hash = window.location.hash;
+      if (hash && hash.includes('#share=')) {
+        const sharedBoard = parseShareHash(hash);
+        if (sharedBoard) {
+          setBoards((prev) => {
+            const exists = prev.find((b) => b.id === sharedBoard.id);
+            if (exists) return prev;
+            return [...prev, sharedBoard];
+          });
+          setActiveBoardId(sharedBoard.id);
+          setAppMode('RAID');
+          showToast(`Đã nạp bảng "${sharedBoard.titlePrefix}" từ link chia sẻ!`);
+        }
+      }
+    } catch (e) {
+      console.warn('Error reading share hash on init:', e);
+    }
+  }, []);
+
+  // Synchronous flush on tab close / computer shutdown (beforeunload & visibilitychange)
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      flushAllStorageSync({
+        boards,
+        activeBoardId,
+        personnelPool,
+        customColors,
+        guildWarBoards,
+        activeGuildWarBoardId,
+        appMode,
+      });
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') {
+        flushAllStorageSync({
+          boards,
+          activeBoardId,
+          personnelPool,
+          customColors,
+          guildWarBoards,
+          activeGuildWarBoardId,
+          appMode,
+        });
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [boards, activeBoardId, personnelPool, customColors, guildWarBoards, activeGuildWarBoardId, appMode]);
+
+  // Save boards to localStorage, IndexedDB and auto-snapshot
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_BOARDS, JSON.stringify(boards));
-      saveToIndexedDB(STORAGE_KEY_BOARDS, boards);
-      maybeSaveAutoSnapshot(boards, personnelPool, customColors);
+      saveToIndexedDB('boards', boards);
+      saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
     } catch (e) {
       console.error('Failed to save boards:', e);
     }
-  }, [boards, personnelPool, customColors]);
+  }, [boards]);
 
-  // Save active board id
+  // Save active board id to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_ACTIVE_BOARD, activeBoardId);
-      saveToIndexedDB(STORAGE_KEY_ACTIVE_BOARD, activeBoardId);
+      saveToIndexedDB('activeBoardId', activeBoardId);
     } catch (e) {
       console.error('Failed to save active board ID:', e);
     }
   }, [activeBoardId]);
 
-  // Save personnel pool
+  // Save personnel pool to localStorage and IndexedDB
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_PERSONNEL, JSON.stringify(personnelPool));
-      saveToIndexedDB(STORAGE_KEY_PERSONNEL, personnelPool);
+      saveToIndexedDB('personnelPool', personnelPool);
+      saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
     } catch (e) {
       console.error('Failed to save personnel pool:', e);
     }
   }, [personnelPool]);
 
-  // Save custom colors
+  // Save custom colors to localStorage and IndexedDB
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_COLORS, JSON.stringify(customColors));
-      saveToIndexedDB(STORAGE_KEY_COLORS, customColors);
+      saveToIndexedDB('customColors', customColors);
     } catch (e) {
       console.error('Failed to save custom colors:', e);
     }
   }, [customColors]);
 
-  // Flush state synchronously on beforeunload or visibilitychange (prevent loss on shutdown or reload)
+  // Save app mode to localStorage
   useEffect(() => {
-    const handleFlush = () => {
-      try {
-        localStorage.setItem(STORAGE_KEY_BOARDS, JSON.stringify(boards));
-        localStorage.setItem(STORAGE_KEY_ACTIVE_BOARD, activeBoardId);
-        localStorage.setItem(STORAGE_KEY_PERSONNEL, JSON.stringify(personnelPool));
-        localStorage.setItem(STORAGE_KEY_COLORS, JSON.stringify(customColors));
-        maybeSaveAutoSnapshot(boards, personnelPool, customColors, true);
-      } catch (e) {
-        console.error('Flush error:', e);
-      }
-    };
+    try {
+      localStorage.setItem(STORAGE_KEY_APP_MODE, appMode);
+    } catch {}
+  }, [appMode]);
 
-    window.addEventListener('beforeunload', handleFlush);
-    const handleVisibility = () => {
-      if (document.visibilityState === 'hidden') {
-        handleFlush();
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
+  // Save guild war boards to localStorage and IndexedDB
+  useEffect(() => {
+    try {
+      localStorage.setItem(
+        STORAGE_KEY_GUILDWAR_BOARDS,
+        JSON.stringify(guildWarBoards)
+      );
+      saveToIndexedDB('guildWarBoards', guildWarBoards);
+      saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
+    } catch (e) {
+      console.error('Failed to save guild war boards:', e);
+    }
+  }, [guildWarBoards]);
 
-    return () => {
-      window.removeEventListener('beforeunload', handleFlush);
-      document.removeEventListener('visibilitychange', handleVisibility);
-    };
-  }, [boards, activeBoardId, personnelPool, customColors]);
+  // Save active guild war board id to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY_ACTIVE_GUILDWAR, activeGuildWarBoardId);
+      saveToIndexedDB('activeGuildWarBoardId', activeGuildWarBoardId);
+    } catch {}
+  }, [activeGuildWarBoardId]);
 
-  // Restore callback from Backup & Restore Modal
-  const handleRestoreData = (restored: {
-    boards: RaidBoard[];
-    personnelPool: PersonnelMember[];
-    customColors?: CustomClassColors;
-  }) => {
-    if (restored.boards && restored.boards.length > 0) {
-      setBoards(restored.boards);
-      setActiveBoardId(restored.boards[0].id);
+  // Guild War Board Handlers
+  const handleCreateGuildWarBoard = (newBoard: GuildWarBoard) => {
+    setGuildWarBoards((prev) => [...prev, newBoard]);
+    setActiveGuildWarBoardId(newBoard.id);
+    setAppMode('GUILD_WAR');
+    showToast(`Đã tạo bảng "${newBoard.title}" thành công!`);
+  };
+
+  const handleUpdateGuildWarBoard = (updated: GuildWarBoard) => {
+    setGuildWarBoards((prev) =>
+      prev.map((b) => (b.id === updated.id ? updated : b))
+    );
+  };
+
+  const handleDeleteGuildWarBoard = (boardId: string) => {
+    if (guildWarBoards.length <= 1) {
+      showToast('Không thể xóa bảng Bang Chiến duy nhất.');
+      return;
     }
-    if (restored.personnelPool) {
-      setPersonnelPool(restored.personnelPool);
+    const remaining = guildWarBoards.filter((b) => b.id !== boardId);
+    setGuildWarBoards(remaining);
+    if (activeGuildWarBoardId === boardId) {
+      setActiveGuildWarBoardId(remaining[0].id);
     }
-    if (restored.customColors) {
-      setCustomColors(restored.customColors);
-    }
+    showToast('Đã xóa bảng Bang Chiến.');
+  };
+
+  const handleDuplicateGuildWarBoard = (board: GuildWarBoard) => {
+    const timestamp = Date.now();
+    const newBoard: GuildWarBoard = {
+      ...board,
+      id: `gw_board_${timestamp}_${Math.random().toString(36).substring(2, 6)}`,
+      title: `${board.title} (Bản sao)`,
+      createdAt: timestamp,
+      members: board.members.map((m, idx) => ({
+        ...m,
+        id: `gw_m_${timestamp}_${idx + 1}`,
+        attendance: { ...(m.attendance || {}) },
+      })),
+    };
+    setGuildWarBoards((prev) => [...prev, newBoard]);
+    setActiveGuildWarBoardId(newBoard.id);
+    setAppMode('GUILD_WAR');
+    showToast(`Đã nhân bản thành "${newBoard.title}"`);
   };
 
   // Board Mutators
@@ -280,18 +394,19 @@ export default function App() {
     updateActiveBoard({ parties: newParties });
   };
 
-  // Add a clean empty Board
+  // Add a clean empty Board keeping exact Raid 1 format
   const handleAddNewSampleBoard = () => {
     handleAddNewEmptyBoard();
   };
 
-  // Add a clean empty Board
+  // Add a clean empty Board keeping exact Raid 1 format
   const handleAddNewEmptyBoard = () => {
     const nextNumber = boards.length + 1;
-    const newBoard = createEmptyBoard(nextNumber);
+    const raid1Template = boards[0]?.members || INITIAL_MEMBERS_FROM_IMAGE;
+    const newBoard = createEmptyBoard(nextNumber, raid1Template);
     setBoards((prev) => [...prev, newBoard]);
     setActiveBoardId(newBoard.id);
-    showToast(`Đã tạo thành công "${newBoard.titlePrefix}"!`);
+    showToast(`Đã tạo thành công "${newBoard.titlePrefix}" theo định dạng Raid 1!`);
   };
 
   // Custom Board creation handler from Modal
@@ -343,6 +458,21 @@ export default function App() {
     showToast(`Đã xoá "${boardToDelete.titlePrefix}"`);
   };
 
+  // Toggle checkmark for member inside any board (for AllBoardsOverview)
+  const handleToggleCheckMemberInBoard = (boardId: string, memberId: string) => {
+    setBoards((prev) =>
+      prev.map((b) => {
+        if (b.id !== boardId) return b;
+        return {
+          ...b,
+          members: b.members.map((m) =>
+            m.id === memberId ? { ...m, checked: !m.checked } : m
+          ),
+        };
+      })
+    );
+  };
+
   // Personnel Assignment Handlers
   const handleAssignPersonnelToRaid = (
     person: PersonnelMember,
@@ -366,19 +496,29 @@ export default function App() {
       return;
     }
 
-    // Find first empty slot (ingame is empty or blank)
-    const emptyIndex = currentMembers.findIndex(
-      (m) => !m.ingame || m.ingame.trim() === ''
+    // 1. Smart match: Find first empty slot that matches the person's class (preserves Raid 1 class layout!)
+    let targetIndex = currentMembers.findIndex(
+      (m) => (!m.ingame || m.ingame.trim() === '') && m.className === person.className
     );
 
-    if (emptyIndex !== -1) {
-      currentMembers[emptyIndex] = {
-        ...currentMembers[emptyIndex],
+    // 2. If no exact class slot is empty, find any empty slot
+    if (targetIndex === -1) {
+      targetIndex = currentMembers.findIndex(
+        (m) => !m.ingame || m.ingame.trim() === ''
+      );
+    }
+
+    if (targetIndex !== -1) {
+      currentMembers[targetIndex] = {
+        ...currentMembers[targetIndex],
         ingame: person.ingame,
         className: person.className,
         loggedBy: person.loggedBy || person.ingame,
       };
       updateActiveBoard({ members: currentMembers });
+      showToast(
+        `Đã xếp ${person.ingame} (${person.className}) vào vị trí STT ${currentMembers[targetIndex].stt}`
+      );
     } else {
       // Append a new slot to raid
       const nextStt = currentMembers.length + 1;
@@ -502,6 +642,28 @@ export default function App() {
     }
   };
 
+  const handleRestoreData = (restored: {
+    boards?: RaidBoard[];
+    personnelPool?: PersonnelMember[];
+    customColors?: CustomClassColors;
+    guildWarBoards?: GuildWarBoard[];
+  }) => {
+    if (restored.boards && restored.boards.length > 0) {
+      setBoards(restored.boards);
+      setActiveBoardId(restored.boards[0].id);
+    }
+    if (restored.personnelPool && restored.personnelPool.length > 0) {
+      setPersonnelPool(restored.personnelPool);
+    }
+    if (restored.customColors) {
+      setCustomColors(restored.customColors);
+    }
+    if (restored.guildWarBoards && restored.guildWarBoards.length > 0) {
+      setGuildWarBoards(restored.guildWarBoards);
+      setActiveGuildWarBoardId(restored.guildWarBoards[0].id);
+    }
+  };
+
   const fullRaidTitle = `${activeBoard.titlePrefix} - ${activeBoard.scheduleTime} ${activeBoard.bossName}`;
   const customizedCount = Object.keys(customColors).length;
 
@@ -578,13 +740,13 @@ export default function App() {
               )}
             </button>
 
-            {/* Backup & Restore Action Button */}
+            {/* Backup & Restore Data Button */}
             <button
               type="button"
               id="btn-open-backup-modal"
               onClick={() => setIsBackupModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px]"
-              title="Sao lưu và Khôi phục dữ liệu không bao giờ lo mất"
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
+              title="Sao lưu và khôi phục dữ liệu Raid & Bang chiến"
             >
               <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600 dark:text-indigo-400" />
               <span className="hidden sm:inline">Sao lưu</span>
@@ -595,7 +757,7 @@ export default function App() {
               type="button"
               id="btn-open-export-modal"
               onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-2 bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs min-h-[38px]"
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-2 bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs min-h-[38px] cursor-pointer"
             >
               <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Xuất ảnh</span>
@@ -607,72 +769,165 @@ export default function App() {
 
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 pt-3 sm:pt-5">
-        {/* Raid Board Selector Bar */}
+        {/* Board Selector Bar (Raid & Bang Chiến) */}
         <section className="mb-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 sm:p-3 shadow-2xs transition-colors">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-            {/* Active Raid Boards Tabs */}
-            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar flex-1">
-              {boards.map((board, idx) => {
-                const isActive = board.id === activeBoard.id;
-                const filledCount = board.members.filter(
-                  (m) => m.ingame && m.ingame.trim() !== ''
-                ).length;
+            {/* Mode Switcher + Boards Tabs */}
+            <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar flex-1">
+              {/* Mode Toggle Pills */}
+              <div className="flex items-center p-0.5 bg-slate-100 dark:bg-slate-800 rounded-xl shrink-0 border border-slate-200 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setAppMode('RAID')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                    appMode === 'RAID'
+                      ? 'bg-indigo-600 text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                  }`}
+                >
+                  <TableIcon className="w-3.5 h-3.5" />
+                  <span>Raid ({boards.length})</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAppMode('GUILD_WAR')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                    appMode === 'GUILD_WAR'
+                      ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-2xs'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-black dark:hover:text-white'
+                  }`}
+                >
+                  <Swords className="w-3.5 h-3.5" />
+                  <span>Bang Chiến ({guildWarBoards.length})</span>
+                </button>
+              </div>
 
-                return (
-                  <div
-                    key={board.id}
-                    onClick={() => setActiveBoardId(board.id)}
-                    className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all shrink-0 select-none ${
-                      isActive
-                        ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
-                        : 'bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750'
-                    }`}
-                  >
-                    <span className="truncate max-w-[150px] sm:max-w-[200px]">
-                      {board.titlePrefix} • {board.scheduleTime}
-                    </span>
+              <div className="h-5 w-px bg-slate-200 dark:bg-slate-700 shrink-0" />
 
-                    <span
-                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                        isActive
-                          ? 'bg-white/25 text-white'
-                          : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                      }`}
-                    >
-                      {filledCount}/{board.members.length}
-                    </span>
+              {/* Tabs for current mode */}
+              {appMode === 'RAID' ? (
+                <>
+                  {boards.map((board) => {
+                    const isActive = board.id === activeBoard.id;
+                    const filledCount = board.members.filter(
+                      (m) => m.ingame && m.ingame.trim() !== ''
+                    ).length;
 
-                    {/* Delete Board trigger */}
-                    {boards.length > 1 && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleDeleteBoard(board.id);
-                        }}
-                        title="Xoá bảng Raid này"
-                        className={`p-0.5 rounded hover:bg-black/20 ${
-                          isActive ? 'text-white/80 hover:text-white' : 'text-slate-400 hover:text-red-500'
+                    return (
+                      <div
+                        key={board.id}
+                        onClick={() => setActiveBoardId(board.id)}
+                        className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all shrink-0 select-none ${
+                          isActive
+                            ? 'bg-indigo-600 text-white border-indigo-700 shadow-xs'
+                            : 'bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750'
                         }`}
                       >
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                );
-              })}
+                        <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                          {board.titlePrefix} • {board.scheduleTime}
+                        </span>
 
-              {/* Inline Add New Board Tab Button */}
-              <button
-                type="button"
-                id="btn-tab-add-board"
-                onClick={() => setIsCreateBoardModalOpen(true)}
-                title={`Tạo bảng Raid mới (ví dụ RAID ${boards.length + 1})`}
-                className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-dashed border-indigo-400 dark:border-indigo-600 bg-indigo-50/70 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all shrink-0 shadow-2xs hover:scale-105 active:scale-95"
-              >
-                <Plus className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                <span>+ Thêm Bảng (Raid {boards.length + 1})</span>
-              </button>
+                        <span
+                          className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                            isActive
+                              ? 'bg-white/25 text-white'
+                              : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                          }`}
+                        >
+                          {filledCount}/{board.members.length}
+                        </span>
+
+                        {/* Delete Board trigger */}
+                        {boards.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteBoard(board.id);
+                            }}
+                            title="Xoá bảng Raid này"
+                            className={`p-0.5 rounded hover:bg-black/20 ${
+                              isActive ? 'text-white/80 hover:text-white' : 'text-slate-400 hover:text-red-500'
+                            }`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  {/* Inline Add New Board Tab Button */}
+                  <button
+                    type="button"
+                    id="btn-tab-add-board"
+                    onClick={() => setIsCreateBoardModalOpen(true)}
+                    title={`Tạo bảng Raid mới (ví dụ RAID ${boards.length + 1})`}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-dashed border-indigo-400 dark:border-indigo-600 bg-indigo-50/70 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 text-xs font-bold transition-all shrink-0 shadow-2xs hover:scale-105 active:scale-95"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                    <span>+ Thêm Bảng (Raid {boards.length + 1})</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  {guildWarBoards.map((gwBoard) => {
+                    const isActive = gwBoard.id === activeGuildWarBoard.id;
+                    return (
+                      <div
+                        key={gwBoard.id}
+                        onClick={() => setActiveGuildWarBoardId(gwBoard.id)}
+                        className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all shrink-0 select-none ${
+                          isActive
+                            ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white border-amber-600 shadow-xs'
+                            : 'bg-slate-50 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-750'
+                        }`}
+                      >
+                        <Swords className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate max-w-[150px] sm:max-w-[200px]">
+                          {gwBoard.title}
+                        </span>
+
+                        <span
+                          className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                            isActive
+                              ? 'bg-white/25 text-white'
+                              : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
+                          }`}
+                        >
+                          {gwBoard.members.length}
+                        </span>
+
+                        {guildWarBoards.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteGuildWarBoard(gwBoard.id);
+                            }}
+                            title="Xoá bảng Bang Chiến này"
+                            className={`p-0.5 rounded hover:bg-black/20 ${
+                              isActive ? 'text-white/80 hover:text-white' : 'text-slate-400 hover:text-red-500'
+                            }`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+
+                  <button
+                    type="button"
+                    onClick={() => setIsCreateGuildWarModalOpen(true)}
+                    title={`Tạo bảng Bang Chiến mới`}
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-dashed border-amber-400 dark:border-amber-600 bg-amber-50/70 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-xs font-bold transition-all shrink-0 shadow-2xs hover:scale-105 active:scale-95"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                    <span>+ Thêm Bảng Bang Chiến</span>
+                  </button>
+                </>
+              )}
             </div>
 
             {/* Board Action Buttons */}
@@ -680,7 +935,10 @@ export default function App() {
               <button
                 type="button"
                 id="btn-open-create-board-modal"
-                onClick={() => setIsCreateBoardModalOpen(true)}
+                onClick={() => {
+                  setAppMode('RAID');
+                  setIsCreateBoardModalOpen(true);
+                }}
                 title={`Mở hộp thoại tạo bảng Raid mới (ví dụ RAID ${boards.length + 1})`}
                 className="flex items-center gap-1.5 px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-black transition-all shadow-xs min-h-[36px]"
               >
@@ -690,215 +948,329 @@ export default function App() {
 
               <button
                 type="button"
-                id="btn-duplicate-board"
-                onClick={handleDuplicateActiveBoard}
-                title="Nhân bản bảng Raid hiện tại"
-                className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold transition-all min-h-[36px]"
+                id="btn-open-guildwar-modal"
+                onClick={() => {
+                  setIsCreateGuildWarModalOpen(true);
+                }}
+                title="Tạo Bảng Bang Chiến mới (Bảng nhân sự, chia 5 team Top/Mid/Bot/Cơ Động/Đẩy Trụ & điểm danh)"
+                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white rounded-xl text-xs font-black transition-all shadow-xs min-h-[36px] active:scale-95"
               >
-                <Copy className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Nhân bản</span>
+                <Swords className="w-3.5 h-3.5" />
+                <span>+ Tạo Bảng Bang Chiến</span>
               </button>
+
+              {appMode === 'RAID' && (
+                <>
+                  <button
+                    type="button"
+                    id="btn-all-boards-overview-top"
+                    onClick={() => setActiveTab('all-boards')}
+                    title="Xem tổng tình trạng tất cả các bảng Raid cùng lúc"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all min-h-[36px] shadow-2xs ${
+                      activeTab === 'all-boards'
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5 text-indigo-500" />
+                    <span>Tổng Tình Trạng ({boards.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="btn-duplicate-board"
+                    onClick={handleDuplicateActiveBoard}
+                    title="Nhân bản bảng Raid hiện tại"
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold transition-all min-h-[36px]"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Nhân bản</span>
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </section>
 
-        {/* Composition Summary Bar for Active Board */}
-        <ClassStatsBar
-          members={activeBoard.members}
-          customColors={customColors}
-          onSelectFilter={setSelectedClassFilter}
-          selectedFilter={selectedClassFilter}
-        />
+        {appMode === 'GUILD_WAR' ? (
+          <GuildWarBoardView
+            board={activeGuildWarBoard}
+            customColors={customColors}
+            personnelPool={personnelPool}
+            raidMembers={activeBoard.members}
+            onUpdateBoard={handleUpdateGuildWarBoard}
+            onDeleteBoard={handleDeleteGuildWarBoard}
+            onDuplicateBoard={handleDuplicateGuildWarBoard}
+            onSwitchToRaidMode={() => setAppMode('RAID')}
+          />
+        ) : (
+          <>
+            {/* Composition Summary Bar for Active Board */}
+            <ClassStatsBar
+              members={activeBoard.members}
+              customColors={customColors}
+              onSelectFilter={setSelectedClassFilter}
+              selectedFilter={selectedClassFilter}
+            />
 
-        {/* Selected Filter Notice */}
-        {selectedClassFilter && (
-          <div className="flex items-center justify-between mb-3 px-3 py-2 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-lg text-xs text-blue-900 dark:text-blue-200">
-            <span>
-              Đang lọc theo môn phái: <strong>{selectedClassFilter}</strong>
-            </span>
-            <button
-              type="button"
-              onClick={() => setSelectedClassFilter(null)}
-              className="font-bold underline text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-200"
-            >
-              Hiện tất cả
-            </button>
-          </div>
-        )}
+            {/* Selected Filter Notice */}
+            {selectedClassFilter && (
+              <div className="flex items-center justify-between mb-3 px-3 py-2 bg-blue-50 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-lg text-xs text-blue-900 dark:text-blue-200">
+                <span>
+                  Đang lọc theo môn phái: <strong>{selectedClassFilter}</strong>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSelectedClassFilter(null)}
+                  className="font-bold underline text-blue-700 dark:text-blue-400 hover:text-blue-900 dark:hover:text-blue-200"
+                >
+                  Hiện tất cả
+                </button>
+              </div>
+            )}
 
-        {/* Navigation Tab Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-slate-200 dark:border-slate-800 pb-3">
-          <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto overflow-x-auto">
-            <button
-              type="button"
-              id="tab-view-table"
-              onClick={() => setActiveTab('table')}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
-                activeTab === 'table'
-                  ? 'bg-slate-900 dark:bg-slate-800 text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700'
-              }`}
-            >
-              <TableIcon className="w-4 h-4 shrink-0" />
-              <span>Bảng Xếp Raid</span>
-            </button>
+            {/* Navigation Tab Bar */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-slate-200 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto overflow-x-auto">
+                <button
+                  type="button"
+                  id="tab-view-table"
+                  onClick={() => setActiveTab('table')}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
+                    activeTab === 'table'
+                      ? 'bg-slate-900 dark:bg-slate-800 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700'
+                  }`}
+                >
+                  <TableIcon className="w-4 h-4 shrink-0" />
+                  <span>📋 Bảng Xếp Raid</span>
+                </button>
 
-            <button
-              type="button"
-              id="tab-view-personnel"
-              onClick={() => setActiveTab('personnel')}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
-                activeTab === 'personnel'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700'
-              }`}
-            >
-              <Users className="w-4 h-4 shrink-0" />
-              <span>Kho Nhân Sự</span>
-              <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  activeTab === 'personnel'
-                    ? 'bg-white/20 text-white'
-                    : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300'
-                }`}
-              >
-                {personnelPool.length}
-              </span>
-            </button>
+                <button
+                  type="button"
+                  id="tab-view-all-boards"
+                  onClick={() => setActiveTab('all-boards')}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
+                    activeTab === 'all-boards'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700'
+                  }`}
+                >
+                  <LayoutGrid className="w-4 h-4 shrink-0" />
+                  <span>📊 Tổng Quan Tất Cả Bảng</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      activeTab === 'all-boards'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300'
+                    }`}
+                  >
+                    {boards.length}
+                  </span>
+                </button>
 
-            <button
-              type="button"
-              id="tab-view-parties"
-              onClick={() => setActiveTab('parties')}
-              className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
-                activeTab === 'parties'
-                  ? 'bg-indigo-600 text-white shadow-xs'
-                  : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700'
-              }`}
-            >
-              <Shield className="w-4 h-4 shrink-0" />
-              <span>Phân Nhóm PT</span>
-              <span
-                className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                  activeTab === 'parties'
-                    ? 'bg-white/20 text-white'
-                    : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300'
-                }`}
-              >
-                {activeBoard.parties?.length || 2}
-              </span>
-            </button>
-          </div>
+                <button
+                  type="button"
+                  id="tab-view-personnel"
+                  onClick={() => setActiveTab('personnel')}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
+                    activeTab === 'personnel'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700'
+                  }`}
+                >
+                  <Users className="w-4 h-4 shrink-0" />
+                  <span>👥 Kho Nhân Sự</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      activeTab === 'personnel'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300'
+                    }`}
+                  >
+                    {personnelPool.length}
+                  </span>
+                </button>
 
-          {activeTab === 'table' && (
-            <div className="flex items-center gap-2 self-end sm:self-auto">
-              <button
-                type="button"
-                onClick={() => setIsPersonnelSidebarOpen(!isPersonnelSidebarOpen)}
-                className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition-colors"
-                title="Bật/Tắt khung kéo thả Kho Nhân Sự bên cạnh bảng"
-              >
-                {isPersonnelSidebarOpen ? (
-                  <>
-                    <PanelRightClose className="w-4 h-4" />
-                    <span>Ẩn Kho Nhân Sự</span>
-                  </>
-                ) : (
-                  <>
-                    <PanelRightOpen className="w-4 h-4" />
-                    <span>Hiện Kho Nhân Sự để Kéo Thả</span>
-                  </>
-                )}
-              </button>
+                <button
+                  type="button"
+                  id="tab-view-parties"
+                  onClick={() => setActiveTab('parties')}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
+                    activeTab === 'parties'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 border border-slate-300 dark:border-slate-700'
+                  }`}
+                >
+                  <Users className="w-4 h-4 shrink-0" />
+                  <span>🛡️ Phân Nhóm PT</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      activeTab === 'parties'
+                        ? 'bg-white/20 text-white'
+                        : 'bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300'
+                    }`}
+                  >
+                    {activeBoard.parties?.length || 2}
+                  </span>
+                </button>
+              </div>
+
+              {activeTab === 'table' && (
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <button
+                    type="button"
+                    onClick={() => setIsPersonnelSidebarOpen(!isPersonnelSidebarOpen)}
+                    className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/50 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 transition-colors"
+                    title="Bật/Tắt khung kéo thả Kho Nhân Sự bên cạnh bảng"
+                  >
+                    {isPersonnelSidebarOpen ? (
+                      <>
+                        <PanelRightClose className="w-4 h-4" />
+                        <span>Ẩn Kho Nhân Sự</span>
+                      </>
+                    ) : (
+                      <>
+                        <PanelRightOpen className="w-4 h-4" />
+                        <span>Hiện Kho Nhân Sự để Kéo Thả</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              )}
             </div>
-          )}
-        </div>
 
-        {/* Tab 1: Main Table View with Side-by-Side Drag-Drop Personnel Storage */}
-        <div className={activeTab === 'table' ? 'block' : 'hidden'}>
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-            {/* Raid Table Column */}
-            <div
-              className={`transition-all ${
-                isPersonnelSidebarOpen ? 'lg:col-span-7 xl:col-span-7' : 'lg:col-span-12'
-              }`}
-            >
-              <div className="bg-white dark:bg-slate-900 rounded-2xl p-2 sm:p-5 shadow-xs border border-slate-200 dark:border-slate-800 flex flex-col items-center transition-colors">
-                <RaidTable
-                  titlePrefix={activeBoard.titlePrefix}
-                  scheduleTime={activeBoard.scheduleTime}
-                  bossName={activeBoard.bossName}
-                  members={activeBoard.members}
-                  parties={activeBoard.parties || DEFAULT_RAID_PARTIES}
-                  customColors={customColors}
-                  onUpdateTitle={handleUpdateTitle}
-                  onUpdateMembers={handleUpdateMembers}
-                  onOpenColorCustomizer={() => setIsColorModalOpen(true)}
-                  tableRef={tableRef}
-                  selectedClassFilter={selectedClassFilter}
-                />
+            {/* Tab 1: Main Table View with Side-by-Side Drag-Drop Personnel Storage */}
+            <div className={activeTab === 'table' ? 'block' : 'hidden'}>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+                {/* Raid Table Column */}
+                <div
+                  className={`transition-all ${
+                    isPersonnelSidebarOpen ? 'lg:col-span-7 xl:col-span-7' : 'lg:col-span-12'
+                  }`}
+                >
+                  <div className="bg-white dark:bg-slate-900 rounded-2xl p-2 sm:p-5 shadow-xs border border-slate-200 dark:border-slate-800 flex flex-col items-center transition-colors">
+                    <RaidTable
+                      titlePrefix={activeBoard.titlePrefix}
+                      scheduleTime={activeBoard.scheduleTime}
+                      bossName={activeBoard.bossName}
+                      members={activeBoard.members}
+                      parties={activeBoard.parties || DEFAULT_RAID_PARTIES}
+                      customColors={customColors}
+                      onUpdateTitle={handleUpdateTitle}
+                      onUpdateMembers={handleUpdateMembers}
+                      onOpenColorCustomizer={() => setIsColorModalOpen(true)}
+                      tableRef={tableRef}
+                      selectedClassFilter={selectedClassFilter}
+                    />
+                  </div>
+                </div>
+
+                {/* Draggable Personnel Pool Sidebar Column */}
+                {isPersonnelSidebarOpen && (
+                  <div className="lg:col-span-5 xl:col-span-5 sticky top-20">
+                    <PersonnelStorage
+                      personnelPool={personnelPool}
+                      onUpdatePersonnelPool={setPersonnelPool}
+                      activeRaidMembers={activeBoard.members}
+                      allBoards={boards}
+                      activeBoardId={activeBoard.id}
+                      activeBoardTitle={activeBoard.titlePrefix}
+                      onAssignToRaid={handleAssignPersonnelToRaid}
+                      onRemoveFromRaid={handleRemoveFromRaid}
+                      onSyncFromActiveRaid={handleSyncFromActiveRaid}
+                      onLoadSamplePersonnel={() => setPersonnelPool(INITIAL_PERSONNEL_POOL)}
+                      customColors={customColors}
+                      isCompact={true}
+                    />
+                  </div>
+                )}
               </div>
             </div>
 
-            {/* Draggable Personnel Pool Sidebar Column */}
-            {isPersonnelSidebarOpen && (
-              <div className="lg:col-span-5 xl:col-span-5 sticky top-20">
+            {/* Tab 2: Full Personnel Storage View */}
+            {activeTab === 'personnel' && (
+              <div className="max-w-4xl mx-auto">
                 <PersonnelStorage
                   personnelPool={personnelPool}
                   onUpdatePersonnelPool={setPersonnelPool}
                   activeRaidMembers={activeBoard.members}
+                  allBoards={boards}
+                  activeBoardId={activeBoard.id}
+                  activeBoardTitle={activeBoard.titlePrefix}
                   onAssignToRaid={handleAssignPersonnelToRaid}
                   onRemoveFromRaid={handleRemoveFromRaid}
                   onSyncFromActiveRaid={handleSyncFromActiveRaid}
+                  onLoadSamplePersonnel={() => setPersonnelPool(INITIAL_PERSONNEL_POOL)}
                   customColors={customColors}
-                  isCompact={true}
+                  isCompact={false}
                 />
               </div>
             )}
-          </div>
-        </div>
 
-        {/* Tab 2: Full Personnel Storage View */}
-        {activeTab === 'personnel' && (
-          <div className="max-w-4xl mx-auto">
-            <PersonnelStorage
-              personnelPool={personnelPool}
-              onUpdatePersonnelPool={setPersonnelPool}
-              activeRaidMembers={activeBoard.members}
-              onAssignToRaid={handleAssignPersonnelToRaid}
-              onRemoveFromRaid={handleRemoveFromRaid}
-              onSyncFromActiveRaid={handleSyncFromActiveRaid}
-              customColors={customColors}
-              isCompact={false}
-            />
-          </div>
-        )}
+            {/* Tab 3: Party Manager View */}
+            {activeTab === 'parties' && (
+              <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
+                <PartyManager
+                  members={activeBoard.members}
+                  parties={activeBoard.parties || DEFAULT_RAID_PARTIES}
+                  customColors={customColors}
+                  onUpdateMembers={handleUpdateMembers}
+                  onUpdateParties={handleUpdateParties}
+                />
 
-        {/* Tab 3: Party Manager View */}
-        {activeTab === 'parties' && (
-          <div className="bg-white dark:bg-slate-900 rounded-2xl p-4 sm:p-6 shadow-sm border border-slate-200 dark:border-slate-800 transition-colors">
-            <PartyManager
-              members={activeBoard.members}
-              parties={activeBoard.parties || DEFAULT_RAID_PARTIES}
-              customColors={customColors}
-              onUpdateMembers={handleUpdateMembers}
-              onUpdateParties={handleUpdateParties}
-            />
+                <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    Sau khi phân bổ xong, bạn có thể chuyển về tab Bảng Xếp Raid để xem và xuất ảnh.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('table')}
+                    className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-3.5 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800 min-h-[40px]"
+                  >
+                    <TableIcon className="w-3.5 h-3.5" />
+                    <span>Xem Bảng Raid</span>
+                  </button>
+                </div>
+              </div>
+            )}
 
-            <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <span className="text-xs text-slate-500 dark:text-slate-400">
-                Sau khi phân bổ xong, bạn có thể chuyển về tab Bảng Xếp Raid để xem và xuất ảnh.
-              </span>
-              <button
-                type="button"
-                onClick={() => setActiveTab('table')}
-                className="w-full sm:w-auto flex items-center justify-center gap-1.5 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 px-3.5 py-2 rounded-xl border border-indigo-200 dark:border-indigo-800 min-h-[40px]"
-              >
-                <TableIcon className="w-3.5 h-3.5" />
-                <span>Xem Bảng Raid</span>
-              </button>
-            </div>
-          </div>
+            {/* Tab 4: All Boards Overview View */}
+            {activeTab === 'all-boards' && (
+              <AllBoardsOverview
+                boards={boards}
+                activeBoardId={activeBoard.id}
+                customColors={customColors}
+                personnelPool={personnelPool}
+                onSelectBoard={(boardId) => {
+                  setActiveBoardId(boardId);
+                  setActiveTab('table');
+                }}
+                onDuplicateBoard={(boardId) => {
+                  const target = boards.find((b) => b.id === boardId);
+                  if (target) {
+                    const timestamp = Date.now();
+                    const duplicated: RaidBoard = {
+                      ...target,
+                      id: `board_${timestamp}_${Math.random().toString(36).substring(2, 6)}`,
+                      titlePrefix: `${target.titlePrefix} (Bản sao)`,
+                      createdAt: timestamp,
+                      members: target.members.map((m) => ({
+                        ...m,
+                        id: `m_${timestamp}_${m.stt}`,
+                      })),
+                    };
+                    setBoards((prev) => [...prev, duplicated]);
+                    showToast(`Đã nhân bản "${duplicated.titlePrefix}"!`);
+                  }
+                }}
+                onDeleteBoard={(boardId) => handleDeleteBoard(boardId)}
+                onToggleCheckMember={handleToggleCheckMemberInBoard}
+                onOpenCreateBoardModal={() => setIsCreateBoardModalOpen(true)}
+                onBackToTable={() => setActiveTab('table')}
+              />
+            )}
+          </>
         )}
 
         {/* Classes Quick Legend */}
@@ -980,7 +1352,6 @@ export default function App() {
         members={activeBoard.members}
         customColors={customColors}
         activeBoard={activeBoard}
-        onShowToast={showToast}
       />
 
       {/* Backup & Restore Modal */}
@@ -990,6 +1361,7 @@ export default function App() {
         boards={boards}
         personnelPool={personnelPool}
         customColors={customColors}
+        guildWarBoards={guildWarBoards}
         onRestoreData={handleRestoreData}
         onShowToast={showToast}
       />
@@ -1001,7 +1373,20 @@ export default function App() {
         nextBoardNumber={boards.length + 1}
         currentBoardTitle={activeBoard.titlePrefix}
         currentBoardMembers={activeBoard.members}
+        raid1Members={boards[0]?.members || INITIAL_MEMBERS_FROM_IMAGE}
+        personnelPool={personnelPool}
+        allBoards={boards}
         onCreateBoard={handleCreateCustomBoard}
+      />
+
+      {/* Create Guild War Board Modal */}
+      <CreateGuildWarModal
+        isOpen={isCreateGuildWarModalOpen}
+        onClose={() => setIsCreateGuildWarModalOpen(false)}
+        nextBoardNumber={guildWarBoards.length + 1}
+        personnelPool={personnelPool}
+        raidMembers={activeBoard.members}
+        onCreateBoard={handleCreateGuildWarBoard}
       />
 
       {/* Delete Board Confirmation Modal */}
@@ -1058,10 +1443,9 @@ export default function App() {
             <button
               type="button"
               onClick={() => setToastMessage(null)}
-              className="text-slate-400 hover:text-white ml-2 p-1 rounded-md hover:bg-slate-800 transition-colors"
-              aria-label="Đóng"
+              className="text-slate-400 hover:text-white ml-2"
             >
-              <X className="w-3.5 h-3.5" />
+              ✕
             </button>
           </div>,
           document.body

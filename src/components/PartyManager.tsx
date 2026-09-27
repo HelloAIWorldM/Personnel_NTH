@@ -578,12 +578,15 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                           {/* Ingame & Logged by */}
                           <div className="min-w-0 pr-1">
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-xs text-slate-900 dark:text-slate-100 truncate max-w-[120px] sm:max-w-[140px]">
+                              <span
+                                className="font-bold text-xs text-black truncate max-w-[120px] sm:max-w-[140px]"
+                                style={{ color: '#000000' }}
+                              >
                                 {member.ingame || 'Chưa đặt tên'}
                               </span>
                               {isIngameDup && (
                                 <span
-                                  title={`Cảnh báo: Trùng tên Ingame với ${ingameDupInfo?.stts
+                                  title={`⚠️ Trùng tên Ingame với: ${ingameDupInfo?.stts
                                     .filter((s) => s !== member.stt)
                                     .map((s) => `STT #${s}`)
                                     .join(', ')}`}
@@ -595,12 +598,15 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                               )}
                             </div>
                             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                              <span className="text-[10px] text-slate-400 dark:text-slate-400 truncate max-w-[110px]">
+                              <span
+                                className="text-[10px] text-black font-semibold truncate max-w-[110px]"
+                                style={{ color: '#000000' }}
+                              >
                                 {member.loggedBy ? `by: ${member.loggedBy}` : 'Tự log'}
                               </span>
                               {isLoggedByDup && (
                                 <span
-                                  title={`Cảnh báo: Trùng người log "${loggedByDupInfo?.originalName}" đang log ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
+                                  title={`⚠️ Trùng người log: "${loggedByDupInfo?.originalName}" đang log ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
                                     .map((s) => `#${s}`)
                                     .join(', ')})`}
                                   className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[9px] font-black bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-200 border border-amber-200 dark:border-amber-800/60"

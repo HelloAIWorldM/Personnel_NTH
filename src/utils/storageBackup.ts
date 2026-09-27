@@ -1,81 +1,86 @@
 /**
- * Storage & Data Resilience Utility
- * Multi-layer persistence (LocalStorage + IndexedDB + Auto Snapshots)
- * Ngăn chặn tuyệt đối tình trạng mất dữ liệu khi tắt máy, load lại trang hoặc chuyển tab.
+ * Multi-layer Storage, IndexedDB, Auto-Snapshot & Backup/Restore Utility
+ * Đảm bảo dữ liệu bảng Raid và Bang Chiến không bao giờ bị mất khi tắt máy, load lại trình duyệt.
  */
 
-import { CustomClassColors, PersonnelMember, RaidBoard, RaidMember } from '../types';
+import { RaidBoard, RaidMember, PersonnelMember, CustomClassColors, GuildWarBoard } from '../types';
 import { createEmptyBoard } from '../constants/classes';
+import { createEmptyGuildWarBoard } from '../constants/guildWarDefaults';
 
 export const STORAGE_KEY_BOARDS = 'raid_roster_boards_v2';
 export const STORAGE_KEY_ACTIVE_BOARD = 'raid_roster_active_board_id_v2';
 export const STORAGE_KEY_PERSONNEL = 'raid_roster_personnel_pool_v2';
 export const STORAGE_KEY_COLORS = 'raid_roster_custom_colors_v1';
 export const STORAGE_KEY_THEME = 'raid_roster_theme_mode_v1';
-export const STORAGE_KEY_AUTO_SNAPSHOTS = 'raid_roster_auto_snapshots_v1';
+export const STORAGE_KEY_GUILDWAR_BOARDS = 'guildwar_roster_boards_v1';
+export const STORAGE_KEY_ACTIVE_GUILDWAR = 'guildwar_active_board_id_v1';
+export const STORAGE_KEY_APP_MODE = 'guildwar_app_mode_v1';
+export const STORAGE_KEY_SNAPSHOTS = 'raid_roster_auto_snapshots_v2';
 
-// Legacy keys for automatic migration
-const LEGACY_STORAGE_KEY_MEMBERS = 'raid_roster_members_v1';
-const LEGACY_STORAGE_KEY_CONFIG = 'raid_roster_config_v1';
-const LEGACY_STORAGE_KEY_PARTIES = 'raid_roster_parties_v1';
+export const LEGACY_STORAGE_KEY_MEMBERS = 'raid_roster_members_v1';
+export const LEGACY_STORAGE_KEY_CONFIG = 'raid_roster_config_v1';
+export const LEGACY_STORAGE_KEY_PARTIES = 'raid_roster_parties_v1';
 
-export interface BackupSnapshot {
-  id: string;
-  timestamp: number;
-  label: string;
-  boardCount: number;
-  totalMembersWithData: number;
-  personnelCount: number;
-  boards: RaidBoard[];
-  personnelPool: PersonnelMember[];
-  customColors?: CustomClassColors;
-}
+// IndexedDB Constants
+const IDB_NAME = 'RaidPersonnelDB_v2';
+const IDB_STORE_NAME = 'app_state';
+const IDB_VERSION = 1;
 
-const DB_NAME = 'RaidPersonnelDB';
-const DB_VERSION = 1;
-const STORE_NAME = 'app_state';
-
-// Initialize IndexedDB connection
-function openDB(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
+/**
+ * Mở kết nối IndexedDB an toàn
+ */
+function openIDB(): Promise<IDBDatabase | null> {
+  return new Promise((resolve) => {
     if (typeof window === 'undefined' || !window.indexedDB) {
-      reject(new Error('IndexedDB not supported'));
+      resolve(null);
       return;
     }
-    const request = window.indexedDB.open(DB_NAME, DB_VERSION);
-    request.onupgradeneeded = (event) => {
-      const db = (event.target as IDBOpenDBRequest).result;
-      if (!db.objectStoreNames.contains(STORE_NAME)) {
-        db.createObjectStore(STORE_NAME);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
+    try {
+      const request = indexedDB.open(IDB_NAME, IDB_VERSION);
+      request.onupgradeneeded = () => {
+        const db = request.result;
+        if (!db.objectStoreNames.contains(IDB_STORE_NAME)) {
+          db.createObjectStore(IDB_STORE_NAME);
+        }
+      };
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => {
+        console.warn('[IndexedDB] Cannot open database:', request.error);
+        resolve(null);
+      };
+    } catch {
+      resolve(null);
+    }
   });
 }
 
-// Write to IndexedDB in background
+/**
+ * Ghi dữ liệu vào IndexedDB ngầm
+ */
 export async function saveToIndexedDB(key: string, value: any): Promise<void> {
   try {
-    const db = await openDB();
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-    const store = tx.objectStore(STORE_NAME);
+    const db = await openIDB();
+    if (!db) return;
+    const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
+    const store = tx.objectStore(IDB_STORE_NAME);
     store.put(value, key);
   } catch (err) {
-    // Non-critical fallback
-    console.warn('[IndexedDB] Save warning:', err);
+    console.warn(`[IndexedDB] Error saving ${key}:`, err);
   }
 }
 
-// Read from IndexedDB
-export async function getFromIndexedDB<T>(key: string): Promise<T | null> {
+/**
+ * Đọc dữ liệu từ IndexedDB ngầm
+ */
+export async function getFromIndexedDB<T = any>(key: string): Promise<T | null> {
   try {
-    const db = await openDB();
+    const db = await openIDB();
+    if (!db) return null;
     return new Promise((resolve) => {
-      const tx = db.transaction(STORE_NAME, 'readonly');
-      const store = tx.objectStore(STORE_NAME);
+      const tx = db.transaction(IDB_STORE_NAME, 'readonly');
+      const store = tx.objectStore(IDB_STORE_NAME);
       const req = store.get(key);
-      req.onsuccess = () => resolve(req.result || null);
+      req.onsuccess = () => resolve(req.result ?? null);
       req.onerror = () => resolve(null);
     });
   } catch {
@@ -83,89 +88,119 @@ export async function getFromIndexedDB<T>(key: string): Promise<T | null> {
   }
 }
 
-/**
- * Kiểm tra xem bảng có dữ liệu thực tế hay không (đếm số thành viên có tên ingame)
- */
-export function countMembersWithData(boards: RaidBoard[]): number {
-  let count = 0;
-  for (const b of boards) {
-    if (b && Array.isArray(b.members)) {
-      for (const m of b.members) {
-        if (m && m.ingame && m.ingame.trim() !== '') {
-          count++;
-        }
-      }
-    }
-  }
-  return count;
+export interface AutoSnapshot {
+  id: string;
+  timestamp: number;
+  label: string;
+  boardCount: number;
+  totalMembersWithData: number;
+  boards: RaidBoard[];
+  personnelPool: PersonnelMember[];
+  customColors?: CustomClassColors;
+  guildWarBoards?: GuildWarBoard[];
+  personnelCount: number;
 }
 
 /**
- * Lấy danh sách các bản lưu tự động (Auto Snapshots)
+ * Đếm số lượng thành viên đã có tên ingame trong các bảng Raid
  */
-export function getAutoSnapshots(): BackupSnapshot[] {
+export function countMembersWithData(boards: RaidBoard[]): number {
+  if (!Array.isArray(boards)) return 0;
+  return boards.reduce((acc, board) => {
+    const valid = (board.members || []).filter((m) => m.ingame && m.ingame.trim().length > 0);
+    return acc + valid.length;
+  }, 0);
+}
+
+/**
+ * Đếm số lượng thành viên có tên trong các bảng Bang Chiến
+ */
+export function countGuildWarMembers(guildWarBoards: GuildWarBoard[]): number {
+  if (!Array.isArray(guildWarBoards)) return 0;
+  return guildWarBoards.reduce((acc, board) => {
+    const valid = (board.members || []).filter((m) => m.ingame && m.ingame.trim().length > 0);
+    return acc + valid.length;
+  }, 0);
+}
+
+/**
+ * Lấy danh sách các bản tự động sao lưu (Auto-snapshots)
+ */
+export function getAutoSnapshots(): AutoSnapshot[] {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_AUTO_SNAPSHOTS);
+    const raw = localStorage.getItem(STORAGE_KEY_SNAPSHOTS);
     if (!raw) return [];
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
-  } catch {
+  } catch (e) {
+    console.warn('[AutoSnapshot] Error reading snapshots:', e);
     return [];
   }
 }
 
 /**
- * Lưu một bản snapshot tự động vào bộ nhớ dự phòng
+ * Tự động tạo snapshot nếu dữ liệu có giá trị (có thành viên hoặc kho có người)
+ * Giữ tối đa 15 bản ghi gần nhất.
  */
-let lastSnapshotTime = 0;
-export function maybeSaveAutoSnapshot(
+export function saveAutoSnapshot(
   boards: RaidBoard[],
   personnelPool: PersonnelMember[],
   customColors?: CustomClassColors,
-  force: boolean = false
+  guildWarBoards?: GuildWarBoard[]
 ): void {
-  const now = Date.now();
-  // Chỉ tự động tạo snapshot nếu cách lần trước ít nhất 60s hoặc khi có yêu cầu force
-  if (!force && now - lastSnapshotTime < 60000) {
-    return;
-  }
-
-  const memberDataCount = countMembersWithData(boards);
-  // Không snapshot bảng trống hoàn toàn nếu chưa có gì
-  if (memberDataCount === 0 && personnelPool.length === 0 && !force) {
-    return;
-  }
-
   try {
+    const totalMembers = countMembersWithData(boards);
+    const totalGwMembers = guildWarBoards ? countGuildWarMembers(guildWarBoards) : 0;
+    const personnelCount = Array.isArray(personnelPool) ? personnelPool.length : 0;
+
+    // Không snapshot nếu hoàn toàn không có dữ liệu nào
+    if (totalMembers === 0 && totalGwMembers === 0 && personnelCount === 0) {
+      return;
+    }
+
     const snapshots = getAutoSnapshots();
-    const newSnapshot: BackupSnapshot = {
-      id: `snap_${now}_${Math.random().toString(36).substring(2, 6)}`,
+    const lastSnap = snapshots[0];
+    const now = Date.now();
+
+    // Nếu snapshot gần nhất cách chưa đầy 60 giây và số lượng thành viên không đổi thì bỏ qua để tránh rác storage
+    if (
+      lastSnap &&
+      now - lastSnap.timestamp < 60000 &&
+      lastSnap.totalMembersWithData === totalMembers &&
+      lastSnap.personnelCount === personnelCount
+    ) {
+      return;
+    }
+
+    const newSnapshot: AutoSnapshot = {
+      id: `snap_${now}`,
       timestamp: now,
-      label: `Bản lưu tự động (${new Date(now).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' })})`,
+      label: `Bản lưu ${new Date(now).toLocaleTimeString('vi-VN')} (${totalMembers} thành viên Raid, ${totalGwMembers} Bang chiến, ${personnelCount} kho)`,
       boardCount: boards.length,
-      totalMembersWithData: memberDataCount,
-      personnelCount: personnelPool.length,
-      boards,
-      personnelPool,
-      customColors,
+      totalMembersWithData: totalMembers,
+      boards: JSON.parse(JSON.stringify(boards)),
+      personnelPool: JSON.parse(JSON.stringify(personnelPool)),
+      customColors: customColors ? { ...customColors } : {},
+      guildWarBoards: guildWarBoards ? JSON.parse(JSON.stringify(guildWarBoards)) : [],
+      personnelCount,
     };
 
-    // Giữ tối đa 10 bản sao lưu gần nhất
-    const updated = [newSnapshot, ...snapshots.slice(0, 9)];
-    localStorage.setItem(STORAGE_KEY_AUTO_SNAPSHOTS, JSON.stringify(updated));
-    saveToIndexedDB(STORAGE_KEY_AUTO_SNAPSHOTS, updated);
-    lastSnapshotTime = now;
+    const updatedSnapshots = [newSnapshot, ...snapshots.slice(0, 14)];
+    const serialized = JSON.stringify(updatedSnapshots);
+    localStorage.setItem(STORAGE_KEY_SNAPSHOTS, serialized);
+    // Lưu song song vào IndexedDB
+    saveToIndexedDB('snapshots', updatedSnapshots);
   } catch (err) {
     console.warn('[AutoSnapshot] Warning:', err);
   }
 }
 
 /**
- * Tải danh sách boards với cơ chế phục hồi nhiều lớp:
+ * Tải danh sách boards với cơ chế phục hồi đa tầng:
  * 1. Đọc localStorage boards
- * 2. Nếu không có hoặc rỗng, kiểm tra auto snapshot
+ * 2. Nếu không có hoặc rỗng, kiểm tra auto snapshot gần nhất có dữ liệu
  * 3. Nếu vẫn không có, kiểm tra legacy storage
- * 4. Fallback cuối cùng là bảng trống mặc định
+ * 4. Fallback cuối cùng là bảng sạch mặc định (không chứa dữ liệu rác mẫu)
  */
 export function loadInitialBoards(): { boards: RaidBoard[]; activeBoardId: string } {
   let loadedBoards: RaidBoard[] | null = null;
@@ -183,14 +218,13 @@ export function loadInitialBoards(): { boards: RaidBoard[]; activeBoardId: strin
     console.error('[Storage] Error reading saved boards:', e);
   }
 
-  // 2. Nếu localStorage rỗng hoặc lỗi, thử khôi phục từ bản Auto Snapshot gần nhất có dữ liệu
+  // 2. Nếu localStorage rỗng hoặc dữ liệu rỗng, thử khôi phục từ bản Auto Snapshot gần nhất
   if (!loadedBoards || loadedBoards.length === 0 || countMembersWithData(loadedBoards) === 0) {
     const snapshots = getAutoSnapshots();
     const validSnap = snapshots.find((s) => s.boards && s.boards.length > 0 && s.totalMembersWithData > 0);
     if (validSnap) {
       console.info('[Storage] Tự động phục hồi bảng Raid từ bản sao lưu gần nhất:', validSnap.label);
       loadedBoards = validSnap.boards;
-      // Khôi phục lại vào localStorage
       try {
         localStorage.setItem(STORAGE_KEY_BOARDS, JSON.stringify(loadedBoards));
       } catch {}
@@ -225,7 +259,7 @@ export function loadInitialBoards(): { boards: RaidBoard[]; activeBoardId: strin
     } catch {}
   }
 
-  // 4. Fallback mặc định
+  // 4. Fallback mặc định: Tạo bảng sạch
   if (!loadedBoards || loadedBoards.length === 0) {
     loadedBoards = [createEmptyBoard(1)];
   }
@@ -245,7 +279,7 @@ export function loadInitialBoards(): { boards: RaidBoard[]; activeBoardId: strin
 /**
  * Tải kho nhân sự với cơ chế phục hồi
  */
-export function loadInitialPersonnel(): PersonnelMember[] {
+export function loadInitialPersonnel(initialFallback: PersonnelMember[] = []): PersonnelMember[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_PERSONNEL);
     if (saved) {
@@ -265,7 +299,90 @@ export function loadInitialPersonnel(): PersonnelMember[] {
     return validSnap.personnelPool;
   }
 
-  return [];
+  return initialFallback;
+}
+
+/**
+ * Tải danh sách bảng Bang Chiến với cơ chế phục hồi
+ */
+export function loadInitialGuildWarBoards(): { boards: GuildWarBoard[]; activeBoardId: string } {
+  let loadedBoards: GuildWarBoard[] | null = null;
+
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_GUILDWAR_BOARDS);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        loadedBoards = parsed;
+      }
+    }
+  } catch (e) {
+    console.error('[Storage] Error loading guild war boards:', e);
+  }
+
+  if (!loadedBoards || loadedBoards.length === 0) {
+    const snapshots = getAutoSnapshots();
+    const validSnap = snapshots.find((s) => s.guildWarBoards && s.guildWarBoards.length > 0);
+    if (validSnap && validSnap.guildWarBoards) {
+      loadedBoards = validSnap.guildWarBoards;
+    }
+  }
+
+  if (!loadedBoards || loadedBoards.length === 0) {
+    loadedBoards = [createEmptyGuildWarBoard(1)];
+  }
+
+  let activeId = loadedBoards[0]?.id || '';
+  try {
+    const savedId = localStorage.getItem(STORAGE_KEY_ACTIVE_GUILDWAR);
+    if (savedId && loadedBoards.some((b) => b.id === savedId)) {
+      activeId = savedId;
+    }
+  } catch {}
+
+  return { boards: loadedBoards, activeBoardId: activeId };
+}
+
+/**
+ * Ghi đồng bộ ngay lập tức tất cả state xuống LocalStorage & IndexedDB
+ * Gọi khi `beforeunload` hoặc `visibilitychange` để ngăn việc mất dữ liệu khi đóng tab hoặc tắt máy.
+ */
+export function flushAllStorageSync(params: {
+  boards: RaidBoard[];
+  activeBoardId: string;
+  personnelPool: PersonnelMember[];
+  customColors?: CustomClassColors;
+  guildWarBoards?: GuildWarBoard[];
+  activeGuildWarBoardId?: string;
+  appMode?: 'RAID' | 'GUILD_WAR';
+}): void {
+  try {
+    localStorage.setItem(STORAGE_KEY_BOARDS, JSON.stringify(params.boards));
+    localStorage.setItem(STORAGE_KEY_ACTIVE_BOARD, params.activeBoardId);
+    localStorage.setItem(STORAGE_KEY_PERSONNEL, JSON.stringify(params.personnelPool));
+    if (params.customColors) {
+      localStorage.setItem(STORAGE_KEY_COLORS, JSON.stringify(params.customColors));
+    }
+    if (params.guildWarBoards) {
+      localStorage.setItem(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(params.guildWarBoards));
+    }
+    if (params.activeGuildWarBoardId) {
+      localStorage.setItem(STORAGE_KEY_ACTIVE_GUILDWAR, params.activeGuildWarBoardId);
+    }
+    if (params.appMode) {
+      localStorage.setItem(STORAGE_KEY_APP_MODE, params.appMode);
+    }
+
+    // Tự động tạo snapshot nhanh
+    saveAutoSnapshot(params.boards, params.personnelPool, params.customColors, params.guildWarBoards);
+
+    // Lưu vào IndexedDB ngầm
+    saveToIndexedDB('boards', params.boards);
+    saveToIndexedDB('personnelPool', params.personnelPool);
+    if (params.guildWarBoards) saveToIndexedDB('guildWarBoards', params.guildWarBoards);
+  } catch (err) {
+    console.warn('[FlushSync] Error flushing storage:', err);
+  }
 }
 
 /**
@@ -274,15 +391,17 @@ export function loadInitialPersonnel(): PersonnelMember[] {
 export function downloadBackupFile(
   boards: RaidBoard[],
   personnelPool: PersonnelMember[],
-  customColors?: CustomClassColors
+  customColors?: CustomClassColors,
+  guildWarBoards?: GuildWarBoard[]
 ): void {
   const data = {
-    version: 2,
-    appName: 'Bảng Sắp Xếp Nhân Sự Raid',
+    version: 3,
+    appName: 'Bảng Sắp Xếp Nhân Sự Raid & Bang Chiến NTH',
     exportedAt: new Date().toISOString(),
     boards,
     personnelPool,
     customColors,
+    guildWarBoards: guildWarBoards || [],
   };
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -290,7 +409,7 @@ export function downloadBackupFile(
   const a = document.createElement('a');
   const dateStr = new Date().toISOString().slice(0, 10);
   a.href = url;
-  a.download = `SaoLuu_Raid_NTH_${dateStr}.json`;
+  a.download = `SaoLuu_Raid_BangChien_NTH_${dateStr}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -306,6 +425,7 @@ export function parseBackupFile(
   boards: RaidBoard[];
   personnelPool: PersonnelMember[];
   customColors?: CustomClassColors;
+  guildWarBoards?: GuildWarBoard[];
 } {
   const parsed = JSON.parse(jsonText);
   if (!parsed || typeof parsed !== 'object') {
@@ -315,12 +435,13 @@ export function parseBackupFile(
   const boards = Array.isArray(parsed.boards) ? parsed.boards : [];
   const personnelPool = Array.isArray(parsed.personnelPool) ? parsed.personnelPool : [];
   const customColors = parsed.customColors || {};
+  const guildWarBoards = Array.isArray(parsed.guildWarBoards) ? parsed.guildWarBoards : [];
 
-  if (boards.length === 0 && personnelPool.length === 0) {
+  if (boards.length === 0 && personnelPool.length === 0 && guildWarBoards.length === 0) {
     throw new Error('File sao lưu không chứa dữ liệu bảng hoặc kho nhân sự.');
   }
 
-  return { boards, personnelPool, customColors };
+  return { boards, personnelPool, customColors, guildWarBoards };
 }
 
 /**
@@ -345,11 +466,13 @@ function base64ToUtf8(b64: string): string {
 }
 
 /**
- * Mã hóa 1 bảng Raid thành link chia sẻ
+ * Mã hóa 1 bảng Raid thành link chia sẻ trực tiếp (URL Hash)
+ * Cho phép thành viên mở link là thấy ngay bảng mà không cần chung máy tính hay đăng nhập database.
  */
 export function generateShareLink(board: RaidBoard): string {
   try {
     const compactData = {
+      type: 'raid',
       t: board.titlePrefix,
       s: board.scheduleTime,
       b: board.bossName,
@@ -360,6 +483,7 @@ export function generateShareLink(board: RaidBoard): string {
         c: m.className,
         l: m.loggedBy,
         p: m.party,
+        k: m.checked ? 1 : 0,
       })),
     };
     const encoded = utf8ToBase64(JSON.stringify(compactData));
@@ -382,6 +506,8 @@ export function parseShareHash(hash: string): RaidBoard | null {
     const jsonStr = base64ToUtf8(base64Data);
     const data = JSON.parse(jsonStr);
 
+    if (data.type && data.type !== 'raid') return null;
+
     const timestamp = Date.now();
     const members: RaidMember[] = (data.m || []).map((item: any, idx: number) => ({
       id: `m_shared_${timestamp}_${idx + 1}`,
@@ -390,6 +516,7 @@ export function parseShareHash(hash: string): RaidBoard | null {
       className: item.c || 'Toái Mộng',
       loggedBy: item.l || '',
       party: item.p || (idx < 6 ? 1 : 2),
+      checked: item.k === 1,
     }));
 
     const parties = (data.p || []).map((pt: any) => ({

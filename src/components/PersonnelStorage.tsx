@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
-import { CustomClassColors, PersonnelMember, RaidClass, RaidMember } from '../types';
+import { CustomClassColors, PersonnelMember, RaidBoard, RaidClass, RaidMember } from '../types';
 import { normalizeName } from '../utils/duplicates';
 import {
   Users,
@@ -15,6 +15,7 @@ import {
   GripVertical,
   Filter,
   ArrowRight,
+  UserCheck,
   RefreshCw,
   Plus,
   Sparkles,
@@ -25,13 +26,25 @@ import {
   ChevronUp,
 } from 'lucide-react';
 
+export interface PersonnelAssignment {
+  boardId: string;
+  boardTitle: string;
+  stt: number;
+  party?: number;
+  isActiveBoard: boolean;
+}
+
 interface PersonnelStorageProps {
   personnelPool: PersonnelMember[];
   onUpdatePersonnelPool: (updated: PersonnelMember[]) => void;
   activeRaidMembers: RaidMember[];
+  allBoards?: RaidBoard[];
+  activeBoardId?: string;
+  activeBoardTitle?: string;
   onAssignToRaid: (personnel: PersonnelMember, targetStt?: number) => void;
   onRemoveFromRaid: (ingame: string) => void;
   onSyncFromActiveRaid: () => void;
+  onLoadSamplePersonnel?: () => void;
   customColors?: CustomClassColors;
   isCompact?: boolean; // For sidebar display
 }
@@ -40,15 +53,21 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   personnelPool,
   onUpdatePersonnelPool,
   activeRaidMembers,
+  allBoards,
+  activeBoardId,
+  activeBoardTitle,
   onAssignToRaid,
   onRemoveFromRaid,
   onSyncFromActiveRaid,
+  onLoadSamplePersonnel,
   customColors,
   isCompact = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState<RaidClass | 'ALL'>('ALL');
-  const [statusFilter, setStatusFilter] = useState<'ALL' | 'UNASSIGNED' | 'ASSIGNED'>('ALL');
+  const [statusFilter, setStatusFilter] = useState<
+    'ALL' | 'UNASSIGNED' | 'ASSIGNED' | 'UNASSIGNED_IN_ACTIVE'
+  >('ALL');
 
   // Form states
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -70,26 +89,56 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   // In-app dialog states (avoids window.confirm which is blocked in sandboxed iframes)
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
-  // Map of active raid members by normalized ingame name for lightning-fast lookup
-  const assignedMap = useMemo(() => {
-    const map = new Map<string, RaidMember>();
-    activeRaidMembers.forEach((m) => {
-      const key = normalizeName(m.ingame);
-      if (key) {
-        map.set(key, m);
-      }
+  // Comprehensive assignment tracking across all boards
+  // This guarantees that when a new board is created, all personnel already assigned in previous boards maintain their "Đã xếp" status!
+  const assignmentsByIngame = useMemo(() => {
+    const map = new Map<string, PersonnelAssignment[]>();
+
+    const boardsToScan: Array<{ id: string; titlePrefix: string; members: RaidMember[] }> =
+      allBoards && allBoards.length > 0
+        ? allBoards
+        : [
+            {
+              id: activeBoardId || 'active',
+              titlePrefix: activeBoardTitle || 'Raid',
+              members: activeRaidMembers,
+            },
+          ];
+
+    boardsToScan.forEach((board) => {
+      const isCurrentActive = board.id === activeBoardId;
+      (board.members || []).forEach((m) => {
+        const key = normalizeName(m.ingame);
+        if (key) {
+          const list = map.get(key) || [];
+          list.push({
+            boardId: board.id,
+            boardTitle: board.titlePrefix,
+            stt: m.stt,
+            party: m.party,
+            isActiveBoard: isCurrentActive,
+          });
+          map.set(key, list);
+        }
+      });
     });
+
     return map;
-  }, [activeRaidMembers]);
+  }, [allBoards, activeBoardId, activeBoardTitle, activeRaidMembers]);
 
   // Filtered list
   const filteredPersonnel = useMemo(() => {
     return personnelPool.filter((person) => {
+      const norm = normalizeName(person.ingame);
+      const assignments = assignmentsByIngame.get(norm) || [];
+      const isAssigned = assignments.length > 0;
+      const isAssignedInActive = assignments.some((a) => a.isActiveBoard);
+
       // Search
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
         const matchIngame = person.ingame.toLowerCase().includes(query);
-        const matchLogged = person.loggedBy.toLowerCase().includes(query);
+        const matchLogged = (person.loggedBy || '').toLowerCase().includes(query);
         const matchClass = person.className.toLowerCase().includes(query);
         if (!matchIngame && !matchLogged && !matchClass) return false;
       }
@@ -100,20 +149,24 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
       }
 
       // Assignment status filter
-      const isAssigned = assignedMap.has(normalizeName(person.ingame));
       if (statusFilter === 'UNASSIGNED' && isAssigned) return false;
       if (statusFilter === 'ASSIGNED' && !isAssigned) return false;
+      if (statusFilter === 'UNASSIGNED_IN_ACTIVE' && isAssignedInActive) return false;
 
       return true;
     });
-  }, [personnelPool, searchQuery, selectedClassFilter, statusFilter, assignedMap]);
+  }, [personnelPool, searchQuery, selectedClassFilter, statusFilter, assignmentsByIngame]);
 
-  // Counts
+  // Counts - Preserved accurately across all boards
   const totalCount = personnelPool.length;
   const assignedCount = personnelPool.filter((p) =>
-    assignedMap.has(normalizeName(p.ingame))
+    assignmentsByIngame.has(normalizeName(p.ingame))
   ).length;
   const unassignedCount = totalCount - assignedCount;
+  const unassignedInActiveCount = personnelPool.filter((p) => {
+    const list = assignmentsByIngame.get(normalizeName(p.ingame));
+    return !list || !list.some((a) => a.isActiveBoard);
+  }).length;
 
   // Handlers
   const handleAddNew = (e: React.FormEvent) => {
@@ -164,6 +217,13 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
     onUpdatePersonnelPool(personnelPool.filter((p) => p.id !== id));
   };
 
+  const handleToggleCheck = (id: string) => {
+    const updated = personnelPool.map((p) =>
+      p.id === id ? { ...p, checked: !p.checked } : p
+    );
+    onUpdatePersonnelPool(updated);
+  };
+
   // HTML5 Drag Start
   const handleDragStart = (e: React.DragEvent, person: PersonnelMember) => {
     setDraggedPersonnelId(person.id);
@@ -188,18 +248,18 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
 
   return (
     <div className="w-full flex flex-col h-full bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xs overflow-hidden transition-colors">
-      {/* Header bar */}
-      <div className="p-3 sm:p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-850/50">
+      {/* Header bar - Tươi sáng, hài hòa, dễ nhìn */}
+      <div className="p-3 sm:p-3.5 border-b border-indigo-100/80 dark:border-slate-800 bg-gradient-to-r from-indigo-50/90 via-violet-50/40 to-white dark:from-slate-850 dark:via-slate-850 dark:to-slate-850">
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-xs shadow-2xs">
+            <div className="w-7 h-7 rounded-xl bg-gradient-to-tr from-indigo-500 to-violet-600 text-white flex items-center justify-center font-bold text-xs shadow-xs">
               <Users className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="font-black text-xs sm:text-sm flex items-center gap-1.5">
-                <span className="text-black">Kho Nhân Sự</span>
-                <span className="text-[11px] font-bold text-black">
-                  ({assignedCount}/{totalCount} đã xếp)
+              <h3 className="font-black text-xs sm:text-sm flex items-center gap-2">
+                <span className="text-slate-900 dark:text-white tracking-tight">Kho Nhân Sự</span>
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-indigo-100/90 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 border border-indigo-200/70 dark:border-indigo-800/80 shadow-2xs">
+                  {assignedCount}/{totalCount} đã xếp
                 </span>
               </h3>
             </div>
@@ -210,7 +270,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               type="button"
               onClick={onSyncFromActiveRaid}
               title="Thêm các thành viên trong bảng Raid hiện tại vào Kho Nhân Sự (nếu chưa có)"
-              className="flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg hover:border-indigo-300 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 hover:text-indigo-900 dark:hover:text-white bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-800/80 rounded-lg hover:bg-indigo-50/80 dark:hover:bg-indigo-950/50 shadow-2xs transition-all active:scale-95"
             >
               <RefreshCw className="w-3 h-3 text-indigo-500" />
               <span className="hidden sm:inline">Lấy từ Raid</span>
@@ -220,7 +280,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               type="button"
               id="btn-add-personnel-open"
               onClick={() => setIsAddingNew(!isAddingNew)}
-              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg shadow-2xs transition-colors"
+              className="flex items-center gap-1 px-3 py-1 text-[11px] font-bold text-white bg-gradient-to-r from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 rounded-lg shadow-xs transition-all active:scale-95"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>{isAddingNew ? 'Đóng' : '+ Thêm'}</span>
@@ -255,7 +315,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     }
                   }}
                   placeholder="Ví dụ: Hiệp Sĩ 01"
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
 
@@ -296,7 +356,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                   value={newLoggedBy}
                   onChange={(e) => setNewLoggedBy(e.target.value)}
                   placeholder="Người log acc..."
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500"
                 />
               </div>
             </div>
@@ -324,19 +384,19 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
         <div className="mt-2.5 space-y-2">
           {/* Search bar */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-1/2 -translate-y-1/2" />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm theo Ingame, Logged by hoặc Class..."
-              className="w-full pl-8 pr-7 py-1.5 text-xs font-bold bg-white border border-slate-300 rounded-xl text-black placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full pl-8 pr-7 py-1.5 text-xs font-bold bg-white dark:bg-slate-800/90 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 shadow-2xs transition-all"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500 hover:text-black"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -345,14 +405,14 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
 
           {/* Status filter tabs */}
           <div className="flex items-center justify-between gap-1 text-[11px] font-bold">
-            <div className="flex items-center gap-1 bg-slate-200/90 dark:bg-slate-800 p-0.5 rounded-lg w-full">
+            <div className="flex items-center gap-1 bg-slate-200/80 dark:bg-slate-800 p-0.5 rounded-xl w-full border border-slate-200/60 dark:border-slate-700/60">
               <button
                 type="button"
                 onClick={() => setStatusFilter('ALL')}
-                className={`flex-1 py-1 rounded-md transition-all text-center ${
+                className={`flex-1 py-1 rounded-lg transition-all text-center ${
                   statusFilter === 'ALL'
-                    ? 'bg-white text-black shadow-2xs font-black'
-                    : 'text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white font-bold'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-black'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-black dark:hover:text-white font-bold'
                 }`}
               >
                 Tất cả ({totalCount})
@@ -360,10 +420,11 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               <button
                 type="button"
                 onClick={() => setStatusFilter('UNASSIGNED')}
-                className={`flex-1 py-1 rounded-md transition-all text-center ${
+                title="Các nhân sự chưa được xếp vào bất kỳ bảng Raid nào"
+                className={`flex-1 py-1 rounded-lg transition-all text-center ${
                   statusFilter === 'UNASSIGNED'
-                    ? 'bg-white text-emerald-800 shadow-2xs font-black'
-                    : 'text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white font-bold'
+                    ? 'bg-white dark:bg-slate-700 text-emerald-700 dark:text-emerald-400 shadow-xs font-black'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-black dark:hover:text-white font-bold'
                 }`}
               >
                 Chưa xếp ({unassignedCount})
@@ -371,26 +432,41 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               <button
                 type="button"
                 onClick={() => setStatusFilter('ASSIGNED')}
-                className={`flex-1 py-1 rounded-md transition-all text-center ${
+                title="Tất cả nhân sự đã được xếp vào các bảng Raid (giữ nguyên khi thêm bảng mới)"
+                className={`flex-1 py-1 rounded-lg transition-all text-center ${
                   statusFilter === 'ASSIGNED'
-                    ? 'bg-white text-black shadow-2xs font-black'
-                    : 'text-slate-700 dark:text-slate-300 hover:text-black dark:hover:text-white font-bold'
+                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs font-black'
+                    : 'text-slate-600 dark:text-slate-300 hover:text-black dark:hover:text-white font-bold'
                 }`}
               >
                 Đã xếp ({assignedCount})
               </button>
+              {allBoards && allBoards.length > 1 && (
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter('UNASSIGNED_IN_ACTIVE')}
+                  title={`Nhân sự chưa có trong bảng ${activeBoardTitle || 'hiện tại'}`}
+                  className={`flex-1 py-1 rounded-lg transition-all text-center text-[10px] ${
+                    statusFilter === 'UNASSIGNED_IN_ACTIVE'
+                      ? 'bg-indigo-600 text-white shadow-xs font-black'
+                      : 'text-indigo-600 dark:text-indigo-400 hover:text-indigo-800 dark:hover:text-indigo-300 font-bold'
+                  }`}
+                >
+                  Chưa vào bảng này ({unassignedInActiveCount})
+                </button>
+              )}
             </div>
           </div>
 
-          {/* Class Filter Badges (Horizontal scroll) */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar text-[10px]">
+          {/* Class Filter Badges (Horizontal scroll, no ugly scrollbar) */}
+          <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-[10px] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
             <button
               type="button"
               onClick={() => setSelectedClassFilter('ALL')}
-              className={`px-2 py-0.5 rounded-md font-bold shrink-0 transition-colors ${
+              className={`px-2 py-0.5 rounded-lg font-bold shrink-0 transition-colors shadow-2xs ${
                 selectedClassFilter === 'ALL'
-                  ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200'
+                  ? 'bg-slate-900 dark:bg-indigo-600 text-white'
+                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
               }`}
             >
               Tất cả phái
@@ -405,8 +481,8 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                   onClick={() =>
                     setSelectedClassFilter(isSelected ? 'ALL' : cls)
                   }
-                  className={`px-1.5 py-0.5 rounded-md font-bold shrink-0 flex items-center gap-1 transition-all ${
-                    isSelected ? 'ring-2 ring-indigo-500 shadow-2xs scale-105' : 'opacity-80 hover:opacity-100'
+                  className={`px-2 py-0.5 rounded-lg font-black shrink-0 flex items-center gap-1 transition-all shadow-2xs ${
+                    isSelected ? 'ring-2 ring-indigo-500 scale-105' : 'opacity-85 hover:opacity-100'
                   }`}
                   style={{
                     backgroundColor: meta.bgColor,
@@ -422,8 +498,8 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
       </div>
 
       {/* Guide note */}
-      <div className="px-3 py-1.5 bg-indigo-50/70 dark:bg-indigo-950/30 border-b border-indigo-100 dark:border-indigo-900/40 text-[11px] text-indigo-900 dark:text-indigo-300 flex items-center justify-between">
-        <span className="flex items-center gap-1 font-medium">
+      <div className="px-3.5 py-1.5 bg-gradient-to-r from-indigo-50/80 via-blue-50/40 to-indigo-50/80 dark:from-indigo-950/40 dark:via-slate-850 dark:to-indigo-950/40 border-b border-indigo-100/70 dark:border-indigo-900/40 text-xs text-indigo-900 dark:text-indigo-200 flex items-center justify-between font-medium">
+        <span className="flex items-center gap-1.5">
           <GripVertical className="w-3.5 h-3.5 text-indigo-500" />
           <span>Kéo thả thẻ nhân sự vào hàng bảng Raid hoặc bấm <strong>+ Xếp</strong></span>
         </span>
@@ -440,17 +516,33 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                 ? 'Thử xóa bớt bộ lọc để hiển thị nhiều hơn'
                 : 'Bấm "+ Thêm" hoặc "Lấy từ Raid" để nạp danh sách nhân sự'}
             </p>
+            {personnelPool.length === 0 && onLoadSamplePersonnel && (
+              <button
+                type="button"
+                onClick={onLoadSamplePersonnel}
+                className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors shadow-2xs"
+              >
+                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+                <span>Nạp danh sách mẫu 12 người</span>
+              </button>
+            )}
           </div>
         ) : (
           filteredPersonnel.map((person) => {
             const classMeta = getEffectiveClassMeta(person.className, customColors);
-            const isAssigned = assignedMap.has(normalizeName(person.ingame));
-            const assignedInfo = assignedMap.get(normalizeName(person.ingame));
+            const norm = normalizeName(person.ingame);
+            const assignments = assignmentsByIngame.get(norm) || [];
+            const isAssigned = assignments.length > 0;
+            const isAssignedInActiveBoard = assignments.some((a) => a.isActiveBoard);
+            const activeAssignment = assignments.find((a) => a.isActiveBoard);
+            const otherAssignments = assignments.filter((a) => !a.isActiveBoard);
+
             const isEditing = editingId === person.id;
             const isDragging = draggedPersonnelId === person.id;
 
-            // Strikethrough condition: Assigned to the active raid board
-            const isCrossedOut = isAssigned;
+            // Strikethrough condition:
+            // Either assigned to any raid board OR manually checked
+            const isCrossedOut = isAssigned || person.checked;
 
             if (isEditing) {
               return (
@@ -467,12 +559,12 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                       value={editIngame}
                       onChange={(e) => setEditIngame(e.target.value)}
                       placeholder="Ingame..."
-                      className="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white text-black text-xs font-bold"
+                      className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
                     />
                     <select
                       value={editClass}
                       onChange={(e) => setEditClass(e.target.value as RaidClass)}
-                      className="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white text-black text-xs font-bold"
+                      className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
                     >
                       {CLASS_LIST.map((cls) => (
                         <option key={cls} value={cls}>
@@ -485,19 +577,19 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                       value={editLoggedBy}
                       onChange={(e) => setEditLoggedBy(e.target.value)}
                       placeholder="Logged by..."
-                      className="px-2 py-1 rounded border border-slate-300 dark:border-slate-700 bg-white text-black text-xs font-bold"
+                      className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
                     />
                   </div>
                   <div className="flex justify-end gap-1.5">
                     <button
                       type="button"
                       onClick={() => setEditingId(null)}
-                      className="px-2 py-0.5 text-xs text-slate-500 hover:text-slate-700"
+                      className="px-2 py-0.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400"
                     >
                       Hủy
                     </button>
                     <button
-                      type="button"
+                      type="submit"
                       onClick={() => handleSaveEdit(person.id)}
                       className="px-2.5 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-xs flex items-center gap-1"
                     >
@@ -512,65 +604,104 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
             return (
               <div
                 key={person.id}
-                draggable={!isAssigned}
+                draggable={!isAssignedInActiveBoard}
                 onDragStart={(e) => handleDragStart(e, person)}
                 onDragEnd={handleDragEnd}
-                className={`group flex items-center justify-between gap-2 p-2 rounded-xl border transition-all ${
+                className={`group flex items-center justify-between gap-2 p-2.5 rounded-xl border transition-all ${
                   isDragging
-                    ? 'opacity-40 border-indigo-500 bg-indigo-50'
+                    ? 'opacity-40 border-indigo-500 bg-indigo-50 dark:bg-indigo-950/40'
                     : isAssigned
-                    ? 'bg-slate-100 border-slate-300 text-black'
-                    : 'bg-white border-slate-300 hover:border-indigo-400 shadow-2xs hover:shadow-xs cursor-grab active:cursor-grabbing text-black'
+                    ? 'bg-slate-50/90 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700/60 opacity-90'
+                    : 'bg-white dark:bg-slate-800 border-slate-200/90 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 shadow-2xs hover:shadow-xs cursor-grab active:cursor-grabbing'
                 }`}
               >
-                {/* Left side: Grip handle, Name, LoggedBy */}
+                {/* Left side: Grip handle, Checkbox, Name, LoggedBy */}
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   {/* Drag Grip Handle */}
                   <span
-                    className={`cursor-grab shrink-0 ${
-                      isAssigned
-                        ? 'text-slate-400 cursor-not-allowed'
-                        : 'text-slate-600 group-hover:text-black'
+                    className={`shrink-0 ${
+                      isAssignedInActiveBoard
+                        ? 'text-slate-300 dark:text-slate-600 cursor-not-allowed'
+                        : 'cursor-grab text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400'
                     }`}
                     title={
-                      isAssigned
-                        ? 'Nhân sự này đã có trong bảng Raid'
+                      isAssignedInActiveBoard
+                        ? `Nhân sự này đã có trong ${activeBoardTitle || 'bảng hiện tại'}`
+                        : isAssigned
+                        ? `Đã xếp ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Có thể kéo thả vào bảng hiện tại`
                         : 'Kéo thẻ này thả vào hàng bất kỳ trong Bảng Raid'
                     }
                   >
                     <GripVertical className="w-4 h-4" />
                   </span>
 
+                  {/* Presence Checkbox (Điểm danh / Có mặt) */}
+                  <button
+                    type="button"
+                    onClick={() => handleToggleCheck(person.id)}
+                    title={
+                      person.checked
+                        ? 'Đã đánh dấu có mặt (Click để bỏ gạch tên)'
+                        : 'Đánh dấu có mặt / Điểm danh (Click để gạch tên)'
+                    }
+                    className={`w-4 h-4 rounded shrink-0 flex items-center justify-center border transition-colors ${
+                      person.checked
+                        ? 'bg-emerald-600 border-emerald-600 text-white shadow-xs'
+                        : 'border-slate-300 dark:border-slate-600 hover:border-indigo-500 bg-white dark:bg-slate-700/70'
+                    }`}
+                  >
+                    {person.checked && <Check className="w-3 h-3 stroke-[3]" />}
+                  </button>
+
                   {/* Name and Logged by */}
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span
-                        className={`text-xs font-black truncate ${
+                        className={`text-xs sm:text-sm font-black truncate text-slate-900 dark:text-white ${
                           isCrossedOut
-                            ? 'line-through decoration-2 decoration-red-600 text-black/70'
-                            : 'text-black'
+                            ? 'line-through decoration-2 decoration-rose-500 text-slate-400 dark:text-slate-400'
+                            : ''
                         }`}
                         title={person.ingame}
                       >
-                        {person.ingame}
+                        {person.ingame || 'Chưa đặt tên'}
                       </span>
 
-                      {/* Status Tag: Đã xếp */}
-                      {isAssigned && assignedInfo && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-200 text-slate-800 border border-slate-300 shrink-0">
-                          <span>STT #{assignedInfo.stt}</span>
-                          {assignedInfo.party && (
-                            <span className="text-slate-600 font-bold">
-                              • P{assignedInfo.party}
+                      {/* Status Tag: Assigned status across all boards */}
+                      {isAssigned && (
+                        <span
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[9px] font-bold bg-emerald-50 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/70 shrink-0 shadow-2xs"
+                          title={`Đã xếp ở: ${assignments.map((a) => `${a.boardTitle} (STT #${a.stt})`).join(', ')}`}
+                        >
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          {isAssignedInActiveBoard && activeAssignment ? (
+                            <span>
+                              {activeAssignment.boardTitle} • STT #{activeAssignment.stt}
+                              {activeAssignment.party ? ` • P${activeAssignment.party}` : ''}
+                            </span>
+                          ) : (
+                            <span>
+                              Đã xếp: {otherAssignments.map((a) => a.boardTitle).join(', ')}
                             </span>
                           )}
                         </span>
                       )}
+
+                      {!isAssigned && person.checked && (
+                        <span
+                          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg text-[9px] font-bold bg-sky-50 dark:bg-sky-950/70 text-sky-800 dark:text-sky-300 border border-sky-300 dark:border-sky-800/70 shrink-0 shadow-2xs"
+                        >
+                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          <span>Có mặt</span>
+                        </span>
+                      )}
                     </div>
 
-                    <div className="text-[10px] text-black truncate flex items-center gap-1">
-                      <span className="text-slate-800 font-medium">Log:</span>
-                      <span className="font-bold text-black">
+                    <div className="text-[10px] truncate flex items-center gap-1 text-slate-500 dark:text-slate-400 mt-0.5">
+                      <span className="font-semibold text-slate-400 dark:text-slate-500">
+                        Log:
+                      </span>
+                      <span className="font-bold text-slate-700 dark:text-slate-300">
                         {person.loggedBy || person.ingame}
                       </span>
                     </div>
@@ -581,7 +712,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                 <div className="flex items-center gap-1.5 shrink-0">
                   {/* Class Badge */}
                   <span
-                    className="px-2 py-0.5 rounded-lg text-[11px] font-bold shrink-0 shadow-2xs"
+                    className="px-2 py-0.5 rounded-lg text-[11px] font-black shrink-0 shadow-2xs"
                     style={{
                       backgroundColor: classMeta.bgColor,
                       color: classMeta.textColor,
@@ -591,12 +722,12 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                   </span>
 
                   {/* Assign / Remove Button */}
-                  {isAssigned ? (
+                  {isAssignedInActiveBoard ? (
                     <button
                       type="button"
                       onClick={() => onRemoveFromRaid(person.ingame)}
-                      title="Bỏ nhân sự này khỏi bảng Raid hiện tại"
-                      className="px-2 py-1 text-[10px] font-bold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/50 rounded-lg border border-red-200 dark:border-red-900/60 transition-colors"
+                      title={`Bỏ nhân sự này khỏi ${activeBoardTitle || 'bảng hiện tại'}`}
+                      className="px-2.5 py-1 text-[11px] font-black rounded-lg bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800 transition-all hover:scale-105 active:scale-95 shadow-2xs"
                     >
                       Bỏ xếp
                     </button>
@@ -604,11 +735,15 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     <button
                       type="button"
                       onClick={() => onAssignToRaid(person)}
-                      title="Xếp vào ô trống kế tiếp hoặc thêm slot mới trong Raid"
-                      className="flex items-center gap-0.5 px-2 py-1 text-[10px] font-bold text-white bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 rounded-lg shadow-2xs transition-colors"
+                      title={
+                        isAssigned
+                          ? `Đã có ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Click để xếp vào bảng này`
+                          : 'Xếp vào ô trống kế tiếp hoặc thêm slot mới trong Raid'
+                      }
+                      className="flex items-center gap-0.5 px-2.5 py-1 text-[11px] font-black rounded-lg bg-indigo-600 hover:bg-indigo-500 active:bg-indigo-700 text-white shadow-xs transition-all hover:scale-105 active:scale-95"
                     >
-                      <Plus className="w-3 h-3" />
-                      <span>Xếp</span>
+                      <Plus className="w-3 h-3 stroke-[2.5]" />
+                      <span>{isAssigned ? 'Xếp tiếp' : 'Xếp'}</span>
                     </button>
                   )}
 
@@ -639,18 +774,31 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
       </div>
 
       {/* Storage Footer */}
-      <div className="p-2.5 px-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900 text-[11px] text-black dark:text-white flex items-center justify-between">
-        <span className="text-black dark:text-white font-medium">
-          Đã xếp vào Raid: <strong className="text-black dark:text-white font-black">{assignedCount}</strong> / {totalCount} nhân sự
+      <div className="p-3 px-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-850/90 text-xs text-slate-700 dark:text-slate-300 flex items-center justify-between">
+        <span className="font-medium flex items-center gap-1.5">
+          <span>Đã xếp / gạch tên:</span>
+          <strong className="px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-black text-[11px]">
+            {assignedCount}
+          </strong>
         </span>
-        {personnelPool.length > 0 && (
+        {personnelPool.length > 0 ? (
           <button
             type="button"
             onClick={() => setShowResetConfirm(true)}
-            className="text-rose-600 dark:text-rose-400 hover:underline font-bold text-[10px]"
+            className="text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 hover:underline font-bold text-[11px] transition-colors"
           >
             Xoá toàn bộ kho
           </button>
+        ) : (
+          onLoadSamplePersonnel && (
+            <button
+              type="button"
+              onClick={onLoadSamplePersonnel}
+              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline font-bold text-[11px] transition-colors"
+            >
+              Nạp lại mẫu 12 người
+            </button>
+          )
         )}
       </div>
 

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { RaidBoard, RaidMember, RaidClass } from '../types';
+import { RaidBoard, RaidMember, RaidClass, PersonnelMember } from '../types';
+import { normalizeName } from '../utils/duplicates';
 import {
   X,
   Plus,
   Copy,
   Calendar,
   Layers,
+  Users,
   CheckCircle2,
 } from 'lucide-react';
 
@@ -16,6 +18,9 @@ interface CreateBoardModalProps {
   nextBoardNumber: number;
   currentBoardTitle: string;
   currentBoardMembers: RaidMember[];
+  raid1Members?: RaidMember[];
+  personnelPool?: PersonnelMember[];
+  allBoards?: RaidBoard[];
   onCreateBoard: (board: RaidBoard) => void;
 }
 
@@ -25,6 +30,9 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
   nextBoardNumber,
   currentBoardTitle,
   currentBoardMembers,
+  raid1Members,
+  personnelPool = [],
+  allBoards = [],
   onCreateBoard,
 }) => {
   const [titlePrefix, setTitlePrefix] = useState(`RAID ${nextBoardNumber}`);
@@ -32,7 +40,7 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
     nextBoardNumber % 2 === 0 ? 'THU 20:30' : 'MON 20:30'
   );
   const [bossName, setBossName] = useState('NIÊN DU');
-  const [templateType, setTemplateType] = useState<'empty' | 'clone'>('empty');
+  const [templateType, setTemplateType] = useState<'empty' | 'from_personnel' | 'clone'>('empty');
 
   // Reset form whenever modal opens with new nextBoardNumber
   useEffect(() => {
@@ -53,31 +61,69 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
     const uniqueId = `board_${timestamp}_${Math.random().toString(36).substring(2, 7)}`;
 
     let members: RaidMember[] = [];
+    const template =
+      raid1Members && raid1Members.length > 0 ? raid1Members : currentBoardMembers;
 
     if (templateType === 'empty') {
-      // 12 empty slots ready to be assigned with blank ingame and loggedBy
-      const defaultClasses: RaidClass[] = [
-        'Toái Mộng',
-        'Huyết Hà',
-        'Thiết Y',
-        'Thần Tương',
-        'Cửu Linh',
-        'Thiết Y',
-        'Long Ngâm',
-        'Tố Vấn',
-        'Thần Tương',
-        'Cửu Linh',
-        'Tố Vấn',
-        'Tố Vấn',
-      ];
-      members = Array.from({ length: 12 }, (_, i) => ({
-        id: `m_${timestamp}_${i + 1}`,
-        stt: i + 1,
+      // 12 empty slots preserving the exact class and party format of Raid 1
+      members = template.map((m, idx) => ({
+        id: `m_${timestamp}_${idx + 1}`,
+        stt: m.stt || idx + 1,
         ingame: '',
-        className: defaultClasses[i % defaultClasses.length] || 'Toái Mộng',
+        className: m.className,
         loggedBy: '',
-        party: i < 6 ? 1 : 2,
+        party: m.party || (idx < 6 ? 1 : 2),
       }));
+    } else if (templateType === 'from_personnel') {
+      // Keep exact class and party format of Raid 1, fill matching personnel from Kho Nhân Sự
+      // SMART ASSIGNMENT: Prioritize unassigned personnel who have not yet been placed into any raid board
+      const assignedAcrossBoards = new Set<string>();
+      (allBoards || []).forEach((b) => {
+        (b.members || []).forEach((mem) => {
+          const norm = normalizeName(mem.ingame);
+          if (norm) assignedAcrossBoards.add(norm);
+        });
+      });
+
+      const usedPersonnelIds = new Set<string>();
+
+      members = template.map((m, idx) => {
+        // Priority 1: Unassigned person in personnelPool (not yet in any raid board)
+        let matchedPerson = personnelPool.find(
+          (p) =>
+            !usedPersonnelIds.has(p.id) &&
+            p.className === m.className &&
+            !assignedAcrossBoards.has(normalizeName(p.ingame))
+        );
+
+        // Priority 2: Any matching class person in pool not yet used in this board
+        if (!matchedPerson) {
+          matchedPerson = personnelPool.find(
+            (p) => !usedPersonnelIds.has(p.id) && p.className === m.className
+          );
+        }
+
+        if (matchedPerson) {
+          usedPersonnelIds.add(matchedPerson.id);
+          return {
+            id: `m_${timestamp}_${idx + 1}`,
+            stt: m.stt || idx + 1,
+            ingame: matchedPerson.ingame,
+            className: m.className, // Strictly maintain Raid 1 format
+            loggedBy: matchedPerson.loggedBy || matchedPerson.ingame,
+            party: m.party || (idx < 6 ? 1 : 2),
+          };
+        }
+
+        return {
+          id: `m_${timestamp}_${idx + 1}`,
+          stt: m.stt || idx + 1,
+          ingame: '',
+          className: m.className,
+          loggedBy: '',
+          party: m.party || (idx < 6 ? 1 : 2),
+        };
+      });
     } else {
       // Clone current board roster
       members = currentBoardMembers.map((m, idx) => ({
@@ -213,15 +259,42 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
                     <div className="flex-1">
                       <div className="flex items-center gap-1.5 font-black text-xs text-slate-900 dark:text-white">
                         <Layers className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-                        <span>Bảng trống 12 vị trí (Khuyên dùng)</span>
+                        <span>Bảng trống theo định dạng Raid 1 (Khuyên dùng)</span>
                       </div>
                       <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                        Tạo sẵn 12 ô phân đều P1 (1-6) và P2 (7-12) để bạn tự do kéo thả thành viên từ Kho Nhân Sự.
+                        Giữ nguyên chuẩn 12 vị trí môn phái & phân nhóm của Raid 1. Toàn bộ nhân sự đã xếp ở các bảng trước vẫn giữ nguyên trạng thái "Đã xếp" trong Kho Nhân Sự.
                       </p>
                     </div>
                   </label>
 
-                  {/* Option 2: Clone Current Board */}
+                  {/* Option 2: Fill from Personnel Storage keeping Raid 1 format */}
+                  <label
+                    className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
+                      templateType === 'from_personnel'
+                        ? 'bg-indigo-50/80 dark:bg-indigo-950/40 border-indigo-500 ring-2 ring-indigo-500/20'
+                        : 'bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="templateType"
+                      value="from_personnel"
+                      checked={templateType === 'from_personnel'}
+                      onChange={() => setTemplateType('from_personnel')}
+                      className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                    />
+                    <div className="flex-1">
+                      <div className="flex items-center gap-1.5 font-black text-xs text-slate-900 dark:text-white">
+                        <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
+                        <span>Điền nhân sự từ Kho Nhân Sự (giữ nguyên định dạng Raid 1)</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                        Tự động ưu tiên xếp các nhân sự chưa xếp trong Kho Nhân Sự vào đúng môn phái tương ứng, giữ nguyên trạng thái các nhân sự đã xếp ở bảng khác.
+                      </p>
+                    </div>
+                  </label>
+
+                  {/* Option 3: Clone Current Board */}
                   <label
                     className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                       templateType === 'clone'
