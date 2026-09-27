@@ -47,61 +47,22 @@ import {
   Calendar,
   Shield,
   X,
+  Database,
+  Link2,
 } from 'lucide-react';
-
-const STORAGE_KEY_BOARDS = 'raid_roster_boards_v2';
-const STORAGE_KEY_ACTIVE_BOARD = 'raid_roster_active_board_id_v2';
-const STORAGE_KEY_PERSONNEL = 'raid_roster_personnel_pool_v2';
-const STORAGE_KEY_COLORS = 'raid_roster_custom_colors_v1';
-const STORAGE_KEY_THEME = 'raid_roster_theme_mode_v1';
-
-// Legacy keys for migration
-const LEGACY_STORAGE_KEY_MEMBERS = 'raid_roster_members_v1';
-const LEGACY_STORAGE_KEY_CONFIG = 'raid_roster_config_v1';
-const LEGACY_STORAGE_KEY_PARTIES = 'raid_roster_parties_v1';
-
-// Blacklist of sample/mock names to purge from any browser cache
-const LEAKED_SAMPLE_NAMES = new Set([
-  'minos k',
-  'nim k',
-  'bún piu piuuu',
-  'bún',
-  'ferrijit',
-  'back code thin',
-  'syk yuuk',
-  'dạ du',
-  'vivy',
-  'tố linhhh',
-  'souu',
-  'libra',
-  'cửu u vương',
-  'thỏbạolực',
-  'hanemeii',
-  'kuroba',
-  'băng nhi',
-  'gia cát',
-  'quang minh',
-]);
-
-const isLeakedSampleName = (name?: string): boolean => {
-  if (!name) return false;
-  return LEAKED_SAMPLE_NAMES.has(name.trim().toLowerCase());
-};
-
-const sanitizeMember = (m: RaidMember): RaidMember => {
-  return {
-    ...m,
-    ingame: isLeakedSampleName(m.ingame) ? '' : (m.ingame || ''),
-    loggedBy: isLeakedSampleName(m.loggedBy) ? '' : (m.loggedBy || ''),
-  };
-};
-
-const sanitizeBoard = (board: RaidBoard): RaidBoard => {
-  return {
-    ...board,
-    members: (board.members || []).map(sanitizeMember),
-  };
-};
+import { BackupRestoreModal } from './components/BackupRestoreModal';
+import {
+  STORAGE_KEY_BOARDS,
+  STORAGE_KEY_ACTIVE_BOARD,
+  STORAGE_KEY_PERSONNEL,
+  STORAGE_KEY_COLORS,
+  STORAGE_KEY_THEME,
+  loadInitialBoards,
+  loadInitialPersonnel,
+  saveToIndexedDB,
+  maybeSaveAutoSnapshot,
+  parseShareHash,
+} from './utils/storageBackup';
 
 export default function App() {
   // Dark Mode State
@@ -117,70 +78,15 @@ export default function App() {
     }
   });
 
-  // Multiple Raid Boards State - Default clean empty boards
-  const [boards, setBoards] = useState<RaidBoard[]>(() => {
-    try {
-      const savedBoards = localStorage.getItem(STORAGE_KEY_BOARDS);
-      if (savedBoards) {
-        const parsed = JSON.parse(savedBoards);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.map(sanitizeBoard);
-        }
-      }
-      // Migrate from legacy single-board storage if available
-      const legacyMembers = localStorage.getItem(LEGACY_STORAGE_KEY_MEMBERS);
-      const legacyConfig = localStorage.getItem(LEGACY_STORAGE_KEY_CONFIG);
-      const legacyParties = localStorage.getItem(LEGACY_STORAGE_KEY_PARTIES);
-      if (legacyMembers) {
-        const parsedMembers: RaidMember[] = JSON.parse(legacyMembers);
-        const parsedConfig = legacyConfig ? JSON.parse(legacyConfig) : {};
-        const parsedParties: RaidParty[] = legacyParties
-          ? JSON.parse(legacyParties)
-          : DEFAULT_RAID_PARTIES;
-        return [
-          {
-            id: 'board_1',
-            titlePrefix: parsedConfig.titlePrefix || 'RAID 1',
-            scheduleTime: parsedConfig.scheduleTime || 'MON 20:30',
-            bossName: parsedConfig.bossName || 'NIÊN DU',
-            members: parsedMembers.map(sanitizeMember),
-            parties: parsedParties,
-            createdAt: Date.now(),
-          },
-        ];
-      }
-    } catch (e) {
-      console.error('Failed to load initial boards:', e);
-    }
-    // Default initial board with blank Ingame and Logged by
-    return [createEmptyBoard(1)];
-  });
+  // Multiple Raid Boards State with multi-layer fallback & auto-recovery
+  const [initialData] = useState(() => loadInitialBoards());
+  const [boards, setBoards] = useState<RaidBoard[]>(initialData.boards);
+  const [activeBoardId, setActiveBoardId] = useState<string>(initialData.activeBoardId);
 
-  const [activeBoardId, setActiveBoardId] = useState<string>(() => {
-    try {
-      const savedId = localStorage.getItem(STORAGE_KEY_ACTIVE_BOARD);
-      if (savedId) return savedId;
-    } catch {}
-    return boards[0]?.id || 'board_1';
-  });
-
-  // Personnel Storage Pool (Ingame, Class, Logged by) - Default empty
-  const [personnelPool, setPersonnelPool] = useState<PersonnelMember[]>(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY_PERSONNEL);
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          return parsed.filter(
-            (p: PersonnelMember) => !isLeakedSampleName(p.ingame) && !isLeakedSampleName(p.loggedBy)
-          );
-        }
-      }
-    } catch (e) {
-      console.error('Failed to load personnel pool:', e);
-    }
-    return [];
-  });
+  // Personnel Storage Pool (Ingame, Class, Logged by) - Multi-layer persistence
+  const [personnelPool, setPersonnelPool] = useState<PersonnelMember[]>(() =>
+    loadInitialPersonnel()
+  );
 
   const [customColors, setCustomColors] = useState<CustomClassColors>(() => {
     try {
@@ -200,6 +106,7 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isColorModalOpen, setIsColorModalOpen] = useState(false);
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [selectedClassFilter, setSelectedClassFilter] = useState<RaidClass | null>(null);
   const [boardToDelete, setBoardToDelete] = useState<RaidBoard | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -217,6 +124,27 @@ export default function App() {
   const activeBoard = useMemo(() => {
     return boards.find((b) => b.id === activeBoardId) || boards[0] || createEmptyBoard(1);
   }, [boards, activeBoardId]);
+
+  // Handle shared board link from URL on startup (#share=...)
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.location.hash) {
+        const sharedBoard = parseShareHash(window.location.hash);
+        if (sharedBoard) {
+          setBoards((prev) => {
+            const exists = prev.find((b) => b.id === sharedBoard.id);
+            if (exists) return prev;
+            return [sharedBoard, ...prev];
+          });
+          setActiveBoardId(sharedBoard.id);
+          showToast(`Đã nạp thành công bảng "${sharedBoard.titlePrefix}" từ link chia sẻ!`);
+          history.replaceState(null, '', window.location.pathname + window.location.search);
+        }
+      }
+    } catch (e) {
+      console.error('Error parsing shared link:', e);
+    }
+  }, []);
 
   // Sync Dark Mode with document.documentElement
   useEffect(() => {
@@ -246,41 +174,92 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Save boards to localStorage
+  // Multi-layer Save: LocalStorage + IndexedDB + Auto-Snapshot
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_BOARDS, JSON.stringify(boards));
+      saveToIndexedDB(STORAGE_KEY_BOARDS, boards);
+      maybeSaveAutoSnapshot(boards, personnelPool, customColors);
     } catch (e) {
       console.error('Failed to save boards:', e);
     }
-  }, [boards]);
+  }, [boards, personnelPool, customColors]);
 
-  // Save active board id to localStorage
+  // Save active board id
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_ACTIVE_BOARD, activeBoardId);
+      saveToIndexedDB(STORAGE_KEY_ACTIVE_BOARD, activeBoardId);
     } catch (e) {
       console.error('Failed to save active board ID:', e);
     }
   }, [activeBoardId]);
 
-  // Save personnel pool to localStorage
+  // Save personnel pool
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_PERSONNEL, JSON.stringify(personnelPool));
+      saveToIndexedDB(STORAGE_KEY_PERSONNEL, personnelPool);
     } catch (e) {
       console.error('Failed to save personnel pool:', e);
     }
   }, [personnelPool]);
 
-  // Save custom colors to localStorage on change
+  // Save custom colors
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_COLORS, JSON.stringify(customColors));
+      saveToIndexedDB(STORAGE_KEY_COLORS, customColors);
     } catch (e) {
       console.error('Failed to save custom colors:', e);
     }
   }, [customColors]);
+
+  // Flush state synchronously on beforeunload or visibilitychange (prevent loss on shutdown or reload)
+  useEffect(() => {
+    const handleFlush = () => {
+      try {
+        localStorage.setItem(STORAGE_KEY_BOARDS, JSON.stringify(boards));
+        localStorage.setItem(STORAGE_KEY_ACTIVE_BOARD, activeBoardId);
+        localStorage.setItem(STORAGE_KEY_PERSONNEL, JSON.stringify(personnelPool));
+        localStorage.setItem(STORAGE_KEY_COLORS, JSON.stringify(customColors));
+        maybeSaveAutoSnapshot(boards, personnelPool, customColors, true);
+      } catch (e) {
+        console.error('Flush error:', e);
+      }
+    };
+
+    window.addEventListener('beforeunload', handleFlush);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'hidden') {
+        handleFlush();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleFlush);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
+  }, [boards, activeBoardId, personnelPool, customColors]);
+
+  // Restore callback from Backup & Restore Modal
+  const handleRestoreData = (restored: {
+    boards: RaidBoard[];
+    personnelPool: PersonnelMember[];
+    customColors?: CustomClassColors;
+  }) => {
+    if (restored.boards && restored.boards.length > 0) {
+      setBoards(restored.boards);
+      setActiveBoardId(restored.boards[0].id);
+    }
+    if (restored.personnelPool) {
+      setPersonnelPool(restored.personnelPool);
+    }
+    if (restored.customColors) {
+      setCustomColors(restored.customColors);
+    }
+  };
 
   // Board Mutators
   const updateActiveBoard = (updates: Partial<RaidBoard>) => {
@@ -597,6 +576,18 @@ export default function App() {
               {currentUser && (
                 <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block ml-0.5" />
               )}
+            </button>
+
+            {/* Backup & Restore Action Button */}
+            <button
+              type="button"
+              id="btn-open-backup-modal"
+              onClick={() => setIsBackupModalOpen(true)}
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px]"
+              title="Sao lưu và Khôi phục dữ liệu không bao giờ lo mất"
+            >
+              <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-indigo-600 dark:text-indigo-400" />
+              <span className="hidden sm:inline">Sao lưu</span>
             </button>
 
             {/* Export / Share Modal Button */}
@@ -988,6 +979,19 @@ export default function App() {
         raidTitle={fullRaidTitle}
         members={activeBoard.members}
         customColors={customColors}
+        activeBoard={activeBoard}
+        onShowToast={showToast}
+      />
+
+      {/* Backup & Restore Modal */}
+      <BackupRestoreModal
+        isOpen={isBackupModalOpen}
+        onClose={() => setIsBackupModalOpen(false)}
+        boards={boards}
+        personnelPool={personnelPool}
+        customColors={customColors}
+        onRestoreData={handleRestoreData}
+        onShowToast={showToast}
       />
 
       {/* Create Board Modal */}

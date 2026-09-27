@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import html2canvas from 'html2canvas-pro';
-import { CustomClassColors, RaidMember } from '../types';
+import { CustomClassColors, RaidMember, RaidBoard } from '../types';
 import { getEffectiveClassMeta } from '../constants/classes';
 import { PrivacyMode, maskSensitiveText, filterMembersForExport } from '../utils/security';
+import { generateShareLink } from '../utils/storageBackup';
 import {
   Download,
   Copy,
@@ -17,6 +18,7 @@ import {
   Shield,
   Lock,
   Eye,
+  Link2,
 } from 'lucide-react';
 
 interface ExportModalProps {
@@ -26,6 +28,8 @@ interface ExportModalProps {
   raidTitle: string;
   members: RaidMember[];
   customColors?: CustomClassColors;
+  activeBoard?: RaidBoard;
+  onShowToast?: (msg: string) => void;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
@@ -35,6 +39,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   raidTitle,
   members,
   customColors,
+  activeBoard,
+  onShowToast,
 }) => {
   const [copyingImage, setCopyingImage] = useState(false);
   const [copiedImageSuccess, setCopiedImageSuccess] = useState(false);
@@ -43,6 +49,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   const [copiedTextSuccess, setCopiedTextSuccess] = useState(false);
   const [downloadExcelSuccess, setDownloadExcelSuccess] = useState(false);
   const [downloadCsvSuccess, setDownloadCsvSuccess] = useState(false);
+  const [copiedLinkSuccess, setCopiedLinkSuccess] = useState(false);
 
   // Privacy & Data Masking Mode ('NONE' = Raw, 'MASK' = Che ký tự, 'HIDE' = Ẩn hẳn)
   const [privacyMode, setPrivacyMode] = useState<PrivacyMode>('NONE');
@@ -50,6 +57,21 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   // Fallback preview when iframe prevents direct clipboard write
   const [previewImageUrl, setPreviewImageUrl] = useState<string | null>(null);
   const [showClipboardFallback, setShowClipboardFallback] = useState(false);
+
+  const handleCopyShareLink = async () => {
+    if (!activeBoard) return;
+    try {
+      const link = generateShareLink(activeBoard);
+      await navigator.clipboard.writeText(link);
+      setCopiedLinkSuccess(true);
+      if (onShowToast) {
+        onShowToast('Đã sao chép link chia sẻ! Gửi link này để người khác mở xem nguyên vẹn bảng Raid.');
+      }
+      setTimeout(() => setCopiedLinkSuccess(false), 3000);
+    } catch {
+      alert('Không thể sao chép link vào clipboard.');
+    }
+  };
 
   const handlePrivacyModeChange = (mode: PrivacyMode) => {
     setPrivacyMode(mode);
@@ -763,6 +785,40 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </span>
             )}
           </button>
+
+          {/* Action 4: Shareable Link */}
+          {activeBoard && (
+            <button
+              type="button"
+              id="btn-copy-share-link"
+              onClick={handleCopyShareLink}
+              className="w-full flex items-center justify-between p-3 sm:p-3.5 bg-slate-50 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-left transition-colors group min-h-[48px]"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-950 text-indigo-700 dark:text-indigo-300 flex items-center justify-center group-hover:scale-105 transition-transform shrink-0">
+                  <Link2 className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100">
+                    Sao chép link chia sẻ bảng này
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Gửi link cho thành viên khác để mở xem hoặc sao chép nguyên vẹn bảng Raid này
+                  </div>
+                </div>
+              </div>
+              {copiedLinkSuccess ? (
+                <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-bold shrink-0">
+                  <Check className="w-4 h-4" />
+                  <span>Đã copy link!</span>
+                </span>
+              ) : (
+                <span className="text-xs text-indigo-600 dark:text-indigo-400 font-bold bg-white dark:bg-slate-700 px-2.5 py-1 rounded-md border border-indigo-200 dark:border-slate-600 shrink-0">
+                  Copy link
+                </span>
+              )}
+            </button>
+          )}
         </div>
 
         <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex justify-end">
