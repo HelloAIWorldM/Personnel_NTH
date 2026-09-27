@@ -72,7 +72,11 @@ import {
   saveAutoSnapshot,
   flushAllStorageSync,
   parseShareHash,
+  parseGuildWarShareHash,
   saveToIndexedDB,
+  recoverAsyncFromIndexedDB,
+  countMembersWithData,
+  countGuildWarMembers,
 } from './utils/storageBackup';
 
 export default function App() {
@@ -199,26 +203,88 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  // Listen for Shared Board via URL Hash (#share=...)
+  const [isStorageHydrated, setIsStorageHydrated] = useState(false);
+
+  // Initialize and recover from IndexedDB if localStorage was cleared, and listen for share links
   useEffect(() => {
-    try {
-      const hash = window.location.hash;
-      if (hash && hash.includes('#share=')) {
-        const sharedBoard = parseShareHash(hash);
-        if (sharedBoard) {
-          setBoards((prev) => {
-            const exists = prev.find((b) => b.id === sharedBoard.id);
-            if (exists) return prev;
-            return [...prev, sharedBoard];
-          });
-          setActiveBoardId(sharedBoard.id);
-          setAppMode('RAID');
-          showToast(`Đã nạp bảng "${sharedBoard.titlePrefix}" từ link chia sẻ!`);
+    let isMounted = true;
+
+    async function initializeAndRecover() {
+      try {
+        const hash = window.location.hash;
+
+        // 1. Kiểm tra link chia sẻ Bang Chiến (#share_gw=...)
+        if (hash && hash.includes('#share_gw=')) {
+          const sharedGw = parseGuildWarShareHash(hash);
+          if (sharedGw && isMounted) {
+            setGuildWarBoards((prev) => {
+              const exists = prev.find((b) => b.id === sharedGw.id);
+              if (exists) return prev;
+              return [...prev, sharedGw];
+            });
+            setActiveGuildWarBoardId(sharedGw.id);
+            setAppMode('GUILD_WAR');
+            showToast(`Đã nạp bảng Bang Chiến "${sharedGw.title}" từ link chia sẻ!`);
+            setIsStorageHydrated(true);
+            return;
+          }
         }
+
+        // 2. Kiểm tra link chia sẻ Raid (#share=...)
+        if (hash && hash.includes('#share=')) {
+          const sharedBoard = parseShareHash(hash);
+          if (sharedBoard && isMounted) {
+            setBoards((prev) => {
+              const exists = prev.find((b) => b.id === sharedBoard.id);
+              if (exists) return prev;
+              return [...prev, sharedBoard];
+            });
+            setActiveBoardId(sharedBoard.id);
+            setAppMode('RAID');
+            showToast(`Đã nạp bảng "${sharedBoard.titlePrefix}" từ link chia sẻ!`);
+            setIsStorageHydrated(true);
+            return;
+          }
+        }
+
+        // 3. Nếu trên máy hiện tại không có dữ liệu thật (0 thành viên có tên), thử phục hồi từ IndexedDB
+        const currentRaidCount = countMembersWithData(boards);
+        const currentGwCount = countGuildWarMembers(guildWarBoards);
+        if (currentRaidCount === 0 && currentGwCount === 0) {
+          const recovered = await recoverAsyncFromIndexedDB();
+          if (recovered && isMounted) {
+            console.info('[Storage] Tự động phục hồi thành công từ IndexedDB!');
+            if (recovered.boards && recovered.boards.length > 0) {
+              setBoards(recovered.boards);
+              if (recovered.activeBoardId) setActiveBoardId(recovered.activeBoardId);
+            }
+            if (recovered.personnelPool && recovered.personnelPool.length > 0) {
+              setPersonnelPool(recovered.personnelPool);
+            }
+            if (recovered.customColors) {
+              setCustomColors(recovered.customColors);
+            }
+            if (recovered.guildWarBoards && recovered.guildWarBoards.length > 0) {
+              setGuildWarBoards(recovered.guildWarBoards);
+              if (recovered.activeGuildWarBoardId) {
+                setActiveGuildWarBoardId(recovered.activeGuildWarBoardId);
+              }
+            }
+            showToast('Đã tự động phục hồi dữ liệu từ bản lưu IndexedDB an toàn!');
+          }
+        }
+      } catch (err) {
+        console.warn('[Storage] Error during initial recovery:', err);
+      } finally {
+        if (isMounted) setIsStorageHydrated(true);
       }
-    } catch (e) {
-      console.warn('Error reading share hash on init:', e);
     }
+
+    initializeAndRecover();
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Synchronous flush on tab close / computer shutdown (beforeunload & visibilitychange)
@@ -262,43 +328,52 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_BOARDS, JSON.stringify(boards));
-      saveToIndexedDB('boards', boards);
-      saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
+      // Chỉ lưu sang IndexedDB khi đã hydrate xong hoặc board đã có thành viên
+      if (isStorageHydrated || countMembersWithData(boards) > 0) {
+        saveToIndexedDB('boards', boards);
+        saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
+      }
     } catch (e) {
       console.error('Failed to save boards:', e);
     }
-  }, [boards]);
+  }, [boards, isStorageHydrated]);
 
   // Save active board id to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_ACTIVE_BOARD, activeBoardId);
-      saveToIndexedDB('activeBoardId', activeBoardId);
+      if (isStorageHydrated) {
+        saveToIndexedDB('activeBoardId', activeBoardId);
+      }
     } catch (e) {
       console.error('Failed to save active board ID:', e);
     }
-  }, [activeBoardId]);
+  }, [activeBoardId, isStorageHydrated]);
 
   // Save personnel pool to localStorage and IndexedDB
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_PERSONNEL, JSON.stringify(personnelPool));
-      saveToIndexedDB('personnelPool', personnelPool);
-      saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
+      if (isStorageHydrated || personnelPool.length > 0) {
+        saveToIndexedDB('personnelPool', personnelPool);
+        saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
+      }
     } catch (e) {
       console.error('Failed to save personnel pool:', e);
     }
-  }, [personnelPool]);
+  }, [personnelPool, isStorageHydrated]);
 
   // Save custom colors to localStorage and IndexedDB
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_COLORS, JSON.stringify(customColors));
-      saveToIndexedDB('customColors', customColors);
+      if (isStorageHydrated) {
+        saveToIndexedDB('customColors', customColors);
+      }
     } catch (e) {
       console.error('Failed to save custom colors:', e);
     }
-  }, [customColors]);
+  }, [customColors, isStorageHydrated]);
 
   // Save app mode to localStorage
   useEffect(() => {
@@ -314,20 +389,24 @@ export default function App() {
         STORAGE_KEY_GUILDWAR_BOARDS,
         JSON.stringify(guildWarBoards)
       );
-      saveToIndexedDB('guildWarBoards', guildWarBoards);
-      saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
+      if (isStorageHydrated || countGuildWarMembers(guildWarBoards) > 0) {
+        saveToIndexedDB('guildWarBoards', guildWarBoards);
+        saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
+      }
     } catch (e) {
       console.error('Failed to save guild war boards:', e);
     }
-  }, [guildWarBoards]);
+  }, [guildWarBoards, isStorageHydrated]);
 
   // Save active guild war board id to localStorage
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY_ACTIVE_GUILDWAR, activeGuildWarBoardId);
-      saveToIndexedDB('activeGuildWarBoardId', activeGuildWarBoardId);
+      if (isStorageHydrated) {
+        saveToIndexedDB('activeGuildWarBoardId', activeGuildWarBoardId);
+      }
     } catch {}
-  }, [activeGuildWarBoardId]);
+  }, [activeGuildWarBoardId, isStorageHydrated]);
 
   // Guild War Board Handlers
   const handleCreateGuildWarBoard = (newBoard: GuildWarBoard) => {

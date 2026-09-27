@@ -22,7 +22,9 @@ import {
   Plus,
   ArrowLeft,
   Check,
+  Share2,
 } from 'lucide-react';
+import { generateGuildWarShareLink } from '../../utils/storageBackup';
 
 interface GuildWarBoardViewProps {
   board: GuildWarBoard;
@@ -53,6 +55,18 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
   const [tempTitle, setTempTitle] = useState(board.title);
   const [tempSchedule, setTempSchedule] = useState(board.scheduleTime);
   const [tempTarget, setTempTarget] = useState(board.targetName);
+  const [copiedShareLink, setCopiedShareLink] = useState(false);
+
+  const handleCopyGuildWarShareLink = async () => {
+    try {
+      const shareUrl = generateGuildWarShareLink(board);
+      await navigator.clipboard.writeText(shareUrl);
+      setCopiedShareLink(true);
+      setTimeout(() => setCopiedShareLink(false), 2500);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleSaveHeader = () => {
     onUpdateBoard({
@@ -265,10 +279,21 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
               )}
             </div>
 
+            {/* Share Guild War Link Button */}
+            <button
+              type="button"
+              onClick={handleCopyGuildWarShareLink}
+              className="flex items-center gap-1.5 px-3 py-2 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-600 hover:to-rose-700 active:scale-95 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+              title="Sao chép link chia sẻ bảng Bang Chiến này cho các thành viên"
+            >
+              {copiedShareLink ? <Check className="w-4 h-4" /> : <Share2 className="w-4 h-4" />}
+              <span className="hidden sm:inline">{copiedShareLink ? 'Đã copy link!' : 'Chia sẻ link'}</span>
+            </button>
+
             <button
               type="button"
               onClick={() => onDuplicateBoard(board)}
-              className="p-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-200 transition-colors shadow-2xs"
+              className="p-2 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-300 dark:border-slate-700 rounded-xl text-slate-700 dark:text-slate-200 transition-colors shadow-2xs cursor-pointer"
               title="Nhân bản bảng Bang Chiến này"
             >
               <Copy className="w-4 h-4" />

@@ -241,7 +241,7 @@ export const PersonnelExcelImportModal: React.FC<PersonnelExcelImportModalProps>
       ingame: r.ingame.trim(),
       className: r.className,
       loggedBy: r.loggedBy.trim() || r.ingame.trim(),
-      createdAt: new Date().toISOString(),
+      createdAt: Date.now(),
     }));
 
     onImport(newPersonnelList, importMode);
