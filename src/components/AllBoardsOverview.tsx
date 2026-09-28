@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   Users,
   Clock,
-  Sparkles,
   ExternalLink,
   Copy,
   Trash2,
@@ -604,18 +603,12 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                   </span>
                 </div>
 
-                {/* Subinfo: Schedule & Boss */}
-                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 gap-2 flex-wrap">
-                  <span className="flex items-center gap-1">
-                    <Clock className="w-3.5 h-3.5 text-indigo-500" />
-                    <span className="text-white font-medium" style={{ color: '#ffffff' }}>
+                {/* Subinfo: Schedule */}
+                <div className="flex items-center text-xs text-indigo-500 dark:text-indigo-400 gap-2 flex-wrap">
+                  <span className="flex items-center gap-1 font-semibold">
+                    <Clock className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+                    <span>
                       {board.scheduleTime || 'Chưa hẹn giờ'}
-                    </span>
-                  </span>
-                  <span className="flex items-center gap-1 font-semibold text-slate-700 dark:text-slate-300">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                    <span className="text-white font-medium" style={{ color: '#ffffff' }}>
-                      Boss: {board.bossName || 'Tất cả Boss'}
                     </span>
                   </span>
                 </div>

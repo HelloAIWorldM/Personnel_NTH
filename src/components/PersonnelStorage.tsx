@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
 import { CustomClassColors, PersonnelMember, RaidBoard, RaidClass, RaidMember } from '../types';
@@ -22,8 +22,6 @@ import {
   Shield,
   Heart,
   Swords,
-  ChevronDown,
-  ChevronUp,
 } from 'lucide-react';
 
 export interface PersonnelAssignment {
@@ -46,6 +44,7 @@ interface PersonnelStorageProps {
   onSyncFromActiveRaid: () => void;
   onLoadSamplePersonnel?: () => void;
   customColors?: CustomClassColors;
+  onOpenColorCustomizer?: () => void;
   isCompact?: boolean; // For sidebar display
 }
 
@@ -61,6 +60,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   onSyncFromActiveRaid,
   onLoadSamplePersonnel,
   customColors,
+  onOpenColorCustomizer,
   isCompact = false,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,6 +88,24 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
 
   // In-app dialog states (avoids window.confirm which is blocked in sandboxed iframes)
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+
+  // Count personnel per class in pool (hiển thị số lượng trên từng badge giống Ảnh 2)
+  const classCountMap = useMemo(() => {
+    const counts: Record<string, number> = {};
+    CLASS_LIST.forEach((cls) => {
+      counts[cls] = 0;
+    });
+    personnelPool.forEach((p) => {
+      if (counts[p.className] !== undefined) {
+        counts[p.className]++;
+      } else {
+        counts[p.className] = 1;
+      }
+    });
+    return counts;
+  }, [personnelPool]);
+
+
 
   // Comprehensive assignment tracking across all boards
   // This guarantees that when a new board is created, all personnel already assigned in previous boards maintain their "Đã xếp" status!
@@ -396,7 +414,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               <button
                 type="button"
                 onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white"
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-white cursor-pointer"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -458,38 +476,32 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
             </div>
           </div>
 
-          {/* Class Filter Badges (Horizontal scroll, no ugly scrollbar) */}
-          <div className="flex items-center gap-1 overflow-x-auto pb-0.5 text-[10px] [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
-            <button
-              type="button"
-              onClick={() => setSelectedClassFilter('ALL')}
-              className={`px-2 py-0.5 rounded-lg font-bold shrink-0 transition-colors shadow-2xs ${
-                selectedClassFilter === 'ALL'
-                  ? 'bg-slate-900 dark:bg-indigo-600 text-white'
-                  : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
-              }`}
-            >
-              Tất cả phái
-            </button>
+          {/* Class Filter Badges (Đầy đủ 12 môn phái kèm số lượng như Ảnh 2, đặt ở vị trí cũ) */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
             {CLASS_LIST.map((cls) => {
               const meta = getEffectiveClassMeta(cls, customColors);
+              const count = classCountMap[cls] || 0;
               const isSelected = selectedClassFilter === cls;
               return (
                 <button
                   key={cls}
                   type="button"
-                  onClick={() =>
-                    setSelectedClassFilter(isSelected ? 'ALL' : cls)
-                  }
-                  className={`px-2 py-0.5 rounded-lg font-black shrink-0 flex items-center gap-1 transition-all shadow-2xs ${
-                    isSelected ? 'ring-2 ring-indigo-500 scale-105' : 'opacity-85 hover:opacity-100'
+                  onClick={() => setSelectedClassFilter(isSelected ? 'ALL' : cls)}
+                  title={`Môn phái: ${cls} (${count} nhân sự) - Bấm để ${isSelected ? 'bỏ lọc' : 'lọc'}`}
+                  className={`px-2 py-0.5 rounded-lg text-[10px] font-bold shrink-0 flex items-center gap-1 transition-all shadow-2xs cursor-pointer ${
+                    isSelected
+                      ? 'ring-2 ring-white dark:ring-white scale-105 shadow-md'
+                      : 'opacity-90 hover:opacity-100 hover:scale-102'
                   }`}
                   style={{
                     backgroundColor: meta.bgColor,
                     color: meta.textColor,
                   }}
                 >
-                  <span>{cls}</span>
+                  <span className="truncate max-w-[56px] sm:max-w-none">{cls}</span>
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black bg-black/25 dark:bg-black/35 text-white/95">
+                    {count}
+                  </span>
                 </button>
               );
             })}
@@ -775,8 +787,8 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
 
       {/* Storage Footer */}
       <div className="p-3 px-4 border-t border-slate-200 dark:border-slate-800 bg-slate-50/90 dark:bg-slate-850/90 text-xs text-slate-700 dark:text-slate-300 flex items-center justify-between">
-        <span className="font-medium flex items-center gap-1.5">
-          <span>Đã xếp / gạch tên:</span>
+        <span className="font-bold flex items-center gap-1.5">
+          <span className="text-indigo-700 dark:text-indigo-300">Đã xếp / gạch tên:</span>
           <strong className="px-2 py-0.5 rounded-md bg-indigo-100 dark:bg-indigo-950/80 text-indigo-700 dark:text-indigo-300 font-black text-[11px]">
             {assignedCount}
           </strong>

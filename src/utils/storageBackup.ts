@@ -15,7 +15,7 @@ import {
   GuildTeam,
   RaidClass,
 } from '../types';
-import { createEmptyBoard } from '../constants/classes';
+import { createEmptyBoard, INITIAL_PERSONNEL_POOL } from '../constants/classes';
 import { createEmptyGuildWarBoard, DEFAULT_GUILD_SESSIONS } from '../constants/guildWarDefaults';
 
 export const STORAGE_KEY_BOARDS = 'raid_roster_boards_v2';
@@ -36,6 +36,31 @@ export const LEGACY_STORAGE_KEY_PARTIES = 'raid_roster_parties_v1';
 const IDB_NAME = 'RaidPersonnelDB_v2';
 const IDB_STORE_NAME = 'app_state';
 const IDB_VERSION = 1;
+
+/**
+ * Yêu cầu quyền Persistent Storage từ trình duyệt (Chrome / Edge / Firefox / Safari).
+ * Ngăn trình duyệt tự ý xóa IndexedDB và LocalStorage khi máy tính sắp hết dung lượng ổ đĩa.
+ */
+export async function requestPersistentStorage(): Promise<boolean> {
+  if (typeof navigator !== 'undefined' && navigator.storage && navigator.storage.persist) {
+    try {
+      const isPersisted = await navigator.storage.persisted();
+      if (!isPersisted) {
+        const granted = await navigator.storage.persist();
+        console.info(
+          `[Storage] Quyền lưu trữ vĩnh viễn (Persistent Storage): ${
+            granted ? 'ĐÃ ĐƯỢC CẤP' : 'TỰ ĐỘNG BỞI TRÌNH DUYỆT'
+          }`
+        );
+        return granted;
+      }
+      return true;
+    } catch (e) {
+      console.warn('[Storage] Lỗi khi yêu cầu Persistent Storage:', e);
+    }
+  }
+  return false;
+}
 
 /**
  * Mở kết nối IndexedDB an toàn
@@ -66,18 +91,30 @@ function openIDB(): Promise<IDBDatabase | null> {
 }
 
 /**
- * Ghi dữ liệu vào IndexedDB ngầm
+ * Ghi dữ liệu vào IndexedDB an toàn với cam kết transaction hoàn tất (tx.oncomplete)
  */
-export async function saveToIndexedDB(key: string, value: any): Promise<void> {
-  try {
-    const db = await openIDB();
-    if (!db) return;
-    const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
-    const store = tx.objectStore(IDB_STORE_NAME);
-    store.put(value, key);
-  } catch (err) {
-    console.warn(`[IndexedDB] Error saving ${key}:`, err);
-  }
+export function saveToIndexedDB(key: string, value: any): Promise<boolean> {
+  return new Promise(async (resolve) => {
+    try {
+      const db = await openIDB();
+      if (!db) {
+        resolve(false);
+        return;
+      }
+      const tx = db.transaction(IDB_STORE_NAME, 'readwrite');
+      const store = tx.objectStore(IDB_STORE_NAME);
+      store.put(value, key);
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = (e) => {
+        console.warn(`[IndexedDB] Error committing ${key}:`, e);
+        resolve(false);
+      };
+      tx.onabort = () => resolve(false);
+    } catch (err) {
+      console.warn(`[IndexedDB] Error saving ${key}:`, err);
+      resolve(false);
+    }
+  });
 }
 
 /**
@@ -417,29 +454,84 @@ export function loadInitialBoards(): { boards: RaidBoard[]; activeBoardId: strin
 }
 
 /**
- * Tải kho nhân sự với cơ chế phục hồi
+ * Tải kho nhân sự với cơ chế phục hồi đa tầng:
+ * 1. Đọc localStorage: Nếu có mảng hợp lệ (kể cả rỗng []), ưu tiên sử dụng
+ * 2. Nếu localStorage key hoàn toàn không có (null), tự động phục hồi từ bản Auto Snapshot gần nhất
+ * 3. Fallback cuối cùng mới dùng danh sách mẫu
  */
 export function loadInitialPersonnel(initialFallback: PersonnelMember[] = []): PersonnelMember[] {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_PERSONNEL);
-    if (saved) {
+    if (saved !== null) {
       const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed) && parsed.length > 0) {
+      if (Array.isArray(parsed)) {
         return parsed;
       }
     }
   } catch (e) {
-    console.error('[Storage] Error loading personnel:', e);
+    console.error('[Storage] Error loading personnel from localStorage:', e);
   }
 
   // Thử khôi phục từ snapshot
   const snapshots = getAutoSnapshots();
   const validSnap = snapshots.find((s) => s.personnelPool && s.personnelPool.length > 0);
-  if (validSnap) {
+  if (validSnap && Array.isArray(validSnap.personnelPool)) {
+    console.info('[Storage] Tự động phục hồi Kho nhân sự từ Snapshot gần nhất:', validSnap.label);
+    try {
+      safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(validSnap.personnelPool));
+    } catch {}
     return validSnap.personnelPool;
   }
 
   return initialFallback;
+}
+
+/**
+ * Kiểm tra xem danh sách nhân sự có phải là danh sách mẫu mặc định hay không
+ */
+export function isSamplePersonnelPool(pool: PersonnelMember[]): boolean {
+  if (!Array.isArray(pool) || pool.length === 0) return false;
+  const sampleNames = new Set(
+    INITIAL_PERSONNEL_POOL.map((p) => (p.ingame || '').trim().toLowerCase())
+  );
+  return pool.every((p) => p && sampleNames.has((p.ingame || '').trim().toLowerCase()));
+}
+
+/**
+ * Gộp hai danh sách nhân sự thông minh theo tên Ingame (không phân biệt hoa/thường):
+ * Giữ nguyên thông tin chi tiết, đảm bảo tuyệt đối không bỏ sót bất kỳ nhân sự nào.
+ */
+export function mergePersonnelPools(
+  primary: PersonnelMember[],
+  secondary: PersonnelMember[]
+): PersonnelMember[] {
+  if (!Array.isArray(primary) && !Array.isArray(secondary)) return [];
+  if (!Array.isArray(primary)) return secondary || [];
+  if (!Array.isArray(secondary)) return primary || [];
+
+  const map = new Map<string, PersonnelMember>();
+
+  // Nạp danh sách secondary trước (từ IndexedDB hoặc snapshot)
+  for (const item of secondary) {
+    if (item && item.ingame && typeof item.ingame === 'string') {
+      const norm = item.ingame.trim().toLowerCase();
+      if (norm) {
+        map.set(norm, item);
+      }
+    }
+  }
+
+  // Ghi đè hoặc thêm mới bằng danh sách primary (state hiện thời)
+  for (const item of primary) {
+    if (item && item.ingame && typeof item.ingame === 'string') {
+      const norm = item.ingame.trim().toLowerCase();
+      if (norm) {
+        map.set(norm, item);
+      }
+    }
+  }
+
+  return Array.from(map.values());
 }
 
 /**
@@ -484,7 +576,7 @@ export function loadInitialGuildWarBoards(): { boards: GuildWarBoard[]; activeBo
 }
 
 /**
- * Phục hồi bất đồng bộ từ IndexedDB nếu LocalStorage bị xóa sạch
+ * Phục hồi bất đồng bộ từ IndexedDB nếu LocalStorage bị xóa hoặc thiếu dữ liệu
  * Gọi 1 lần duy nhất khi ứng dụng vừa mount để bảo vệ tuyệt đối.
  */
 export async function recoverAsyncFromIndexedDB(): Promise<{
@@ -494,27 +586,45 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
   customColors?: CustomClassColors;
   guildWarBoards?: GuildWarBoard[];
   activeGuildWarBoardId?: string;
+  snapshots?: AutoSnapshot[];
 } | null> {
   try {
-    const [dbBoards, dbPersonnel, dbColors, dbGuildWar] = await Promise.all([
-      getFromIndexedDB<RaidBoard[]>('boards'),
-      getFromIndexedDB<PersonnelMember[]>('personnelPool'),
-      getFromIndexedDB<CustomClassColors>('customColors'),
-      getFromIndexedDB<GuildWarBoard[]>('guildWarBoards'),
-    ]);
+    const [dbBoards, dbPersonnel, dbColors, dbGuildWar, dbSnapshots, dbActiveBoardId, dbActiveGwId] =
+      await Promise.all([
+        getFromIndexedDB<RaidBoard[]>('boards'),
+        getFromIndexedDB<PersonnelMember[]>('personnelPool'),
+        getFromIndexedDB<CustomClassColors>('customColors'),
+        getFromIndexedDB<GuildWarBoard[]>('guildWarBoards'),
+        getFromIndexedDB<AutoSnapshot[]>('snapshots'),
+        getFromIndexedDB<string>('activeBoardId'),
+        getFromIndexedDB<string>('activeGuildWarBoardId'),
+      ]);
 
     const hasBoards = Array.isArray(dbBoards) && countMembersWithData(dbBoards) > 0;
     const hasPersonnel = Array.isArray(dbPersonnel) && dbPersonnel.length > 0;
     const hasGuildWar = Array.isArray(dbGuildWar) && countGuildWarMembers(dbGuildWar) > 0;
+    const hasSnapshots = Array.isArray(dbSnapshots) && dbSnapshots.length > 0;
 
-    if (!hasBoards && !hasPersonnel && !hasGuildWar) {
+    if (!hasBoards && !hasPersonnel && !hasGuildWar && !hasSnapshots) {
       return null;
     }
 
-    const result: any = {};
+    const result: {
+      boards?: RaidBoard[];
+      activeBoardId?: string;
+      personnelPool?: PersonnelMember[];
+      customColors?: CustomClassColors;
+      guildWarBoards?: GuildWarBoard[];
+      activeGuildWarBoardId?: string;
+      snapshots?: AutoSnapshot[];
+    } = {};
+
     if (hasBoards) {
       result.boards = dbBoards.map((b, idx) => sanitizeRaidBoard(b, idx + 1));
-      result.activeBoardId = result.boards[0].id;
+      result.activeBoardId =
+        dbActiveBoardId && result.boards.some((b) => b.id === dbActiveBoardId)
+          ? dbActiveBoardId
+          : result.boards[0].id;
       safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(result.boards));
       safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD, result.activeBoardId);
     }
@@ -528,9 +638,19 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
     }
     if (hasGuildWar) {
       result.guildWarBoards = dbGuildWar.map((b, idx) => sanitizeGuildWarBoard(b, idx + 1));
-      result.activeGuildWarBoardId = result.guildWarBoards[0].id;
+      result.activeGuildWarBoardId =
+        dbActiveGwId && result.guildWarBoards.some((b) => b.id === dbActiveGwId)
+          ? dbActiveGwId
+          : result.guildWarBoards[0].id;
       safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(result.guildWarBoards));
       safeLocalStorageSet(STORAGE_KEY_ACTIVE_GUILDWAR, result.activeGuildWarBoardId);
+    }
+    if (hasSnapshots) {
+      result.snapshots = dbSnapshots;
+      const localSnaps = getAutoSnapshots();
+      if (localSnaps.length < dbSnapshots.length) {
+        safeLocalStorageSet(STORAGE_KEY_SNAPSHOTS, JSON.stringify(dbSnapshots));
+      }
     }
 
     return result;
@@ -575,8 +695,15 @@ export function flushAllStorageSync(params: {
 
     // Lưu vào IndexedDB ngầm
     saveToIndexedDB('boards', params.boards);
+    saveToIndexedDB('activeBoardId', params.activeBoardId);
     saveToIndexedDB('personnelPool', params.personnelPool);
-    if (params.guildWarBoards) saveToIndexedDB('guildWarBoards', params.guildWarBoards);
+    if (params.customColors) saveToIndexedDB('customColors', params.customColors);
+    if (params.guildWarBoards) {
+      saveToIndexedDB('guildWarBoards', params.guildWarBoards);
+      if (params.activeGuildWarBoardId) {
+        saveToIndexedDB('activeGuildWarBoardId', params.activeGuildWarBoardId);
+      }
+    }
   } catch (err) {
     console.warn('[FlushSync] Error flushing storage:', err);
   }

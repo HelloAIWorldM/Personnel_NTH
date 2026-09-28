@@ -4,6 +4,7 @@ import { CustomClassColors, RaidMember, RaidBoard } from '../types';
 import { getEffectiveClassMeta } from '../constants/classes';
 import { PrivacyMode, maskSensitiveText, filterMembersForExport } from '../utils/security';
 import { generateShareLink } from '../utils/storageBackup';
+import { drawRaidTableToCanvas } from '../utils/canvasRaidRenderer';
 import {
   Download,
   Copy,
@@ -101,177 +102,182 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   };
 
-  // Helper to generate canvas using html2canvas-pro (full support for oklch colors & Tailwind v4)
-  const generateCanvas = async () => {
-    if (!tableRef.current) {
-      throw new Error('Bảng Raid chưa sẵn sàng để chụp');
+  // Helper to generate canvas: tries html2canvas if visible, but seamlessly falls back to drawRaidTableToCanvas
+  const generateCanvas = async (): Promise<HTMLCanvasElement> => {
+    const isDark =
+      (tableRef.current &&
+        (tableRef.current.getAttribute('data-table-theme') === 'dark' ||
+          tableRef.current.classList.contains('bg-slate-900'))) ||
+      document.documentElement.classList.contains('dark');
+
+    const getPureCanvas = () => {
+      return drawRaidTableToCanvas({
+        raidTitle,
+        members,
+        customColors,
+        isDark,
+        privacyMode,
+        titlePrefix: activeBoard?.titlePrefix,
+        scheduleTime: activeBoard?.scheduleTime,
+        bossName: activeBoard?.bossName,
+        parties: activeBoard?.parties,
+      });
+    };
+
+    // If tableRef is not mounted or hidden (e.g. inactive tab with display: none), immediately use pure canvas
+    if (!tableRef.current || tableRef.current.offsetWidth === 0 || tableRef.current.offsetHeight === 0) {
+      return getPureCanvas();
     }
 
-    const originalTable = tableRef.current;
-    // Determine darkness based strictly on the table itself, NOT on document.documentElement dark mode
-    const isDark =
-      originalTable.getAttribute('data-table-theme') === 'dark' ||
-      originalTable.classList.contains('bg-slate-900');
+    try {
+      const originalTable = tableRef.current;
+      const textColor = isDark ? '#ffffff' : '#000000';
+      const bgColor = isDark ? '#0f172a' : '#ffffff';
 
-    const textColor = isDark ? '#ffffff' : '#000000';
-    const bgColor = isDark ? '#0f172a' : '#ffffff';
+      const canvas = await html2canvas(originalTable, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: bgColor,
+        logging: false,
+        onclone: (clonedDoc: Document) => {
+          const table =
+            clonedDoc.getElementById('raid-capture-canvas') ||
+            clonedDoc.querySelector('#raid-capture-canvas') ||
+            clonedDoc.body;
 
-    return await html2canvas(originalTable, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: bgColor,
-      logging: false,
-      onclone: (clonedDoc: Document) => {
-        const table =
-          clonedDoc.getElementById('raid-capture-canvas') ||
-          clonedDoc.querySelector('#raid-capture-canvas') ||
-          clonedDoc.body;
+          // 1. Remove all elements with data-html2canvas-ignore to avoid layout shift/interference
+          const ignored = table.querySelectorAll('[data-html2canvas-ignore="true"]');
+          ignored.forEach((el) => el.remove());
 
-        // 1. Remove all elements with data-html2canvas-ignore to avoid layout shift/interference
-        const ignored = table.querySelectorAll('[data-html2canvas-ignore="true"]');
-        ignored.forEach((el) => el.remove());
+          // 2. Query original inputs from the live DOM before cloning to guarantee accurate values
+          const originalInputs = originalTable.querySelectorAll('input');
 
-        // 2. Query original inputs from the live DOM before cloning to guarantee accurate values
-        const originalInputs = originalTable.querySelectorAll('input');
+          // 3. Replace all interactive inputs with static centered text blocks
+          const inputs = table.querySelectorAll('input');
+          inputs.forEach((input, index) => {
+            const htmlInput = input as HTMLInputElement;
+            const parent = htmlInput.parentElement;
+            if (!parent) return;
 
-        // 3. Replace all interactive inputs with static centered text blocks
-        // (html2canvas has a known bug misaligning text-align inside <input> elements)
-        const inputs = table.querySelectorAll('input');
-        inputs.forEach((input, index) => {
-          const htmlInput = input as HTMLInputElement;
-          const parent = htmlInput.parentElement;
-          if (!parent) return;
+            const originalInput = originalInputs[index] as HTMLInputElement | undefined;
+            let textValue =
+              htmlInput.getAttribute('data-text-value') ||
+              originalInput?.value ||
+              htmlInput.value ||
+              htmlInput.getAttribute('value') ||
+              '';
 
-          // Priority 1: data-text-value attribute (preserved across cloneNode)
-          // Priority 2: original live DOM input.value
-          // Priority 3: cloned input.value or getAttribute('value')
-          // Priority 4: placeholder
-          const originalInput = originalInputs[index] as HTMLInputElement | undefined;
-          let textValue =
-            htmlInput.getAttribute('data-text-value') ||
-            originalInput?.value ||
-            htmlInput.value ||
-            htmlInput.getAttribute('value') ||
-            '';
+            textValue = textValue.trim();
 
-          textValue = textValue.trim();
+            if (
+              !textValue &&
+              htmlInput.placeholder &&
+              htmlInput.placeholder !== 'Ingame...' &&
+              htmlInput.placeholder !== 'Log by...'
+            ) {
+              textValue = htmlInput.placeholder.trim();
+            }
 
-          // Fallback to placeholder if it was a non-generic placeholder (e.g. member.ingame as fallback for loggedBy)
-          if (
-            !textValue &&
-            htmlInput.placeholder &&
-            htmlInput.placeholder !== 'Ingame...' &&
-            htmlInput.placeholder !== 'Log by...'
-          ) {
-            textValue = htmlInput.placeholder.trim();
+            const colType =
+              htmlInput.getAttribute('data-column-type') ||
+              originalInput?.getAttribute('data-column-type');
+            if (
+              privacyMode !== 'NONE' &&
+              (colType === 'logged-by' || htmlInput.placeholder?.includes('Log by'))
+            ) {
+              textValue = maskSensitiveText(textValue, privacyMode);
+            }
+
+            const textDiv = clonedDoc.createElement('div');
+            textDiv.textContent = textValue || '\u00A0';
+            textDiv.setAttribute(
+              'style',
+              `text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto !important; padding: 2px 0 !important; font-weight: 700 !important; font-size: 15px !important; line-height: 1.35 !important; color: ${textColor} !important; font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif !important; box-sizing: border-box !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;`
+            );
+
+            parent.style.textAlign = 'center';
+            parent.style.width = '100%';
+            parent.style.display = 'block';
+
+            parent.replaceChild(textDiv, htmlInput);
+          });
+
+          // 4. Ensure all table cells TD and TH enforce text-align: center and uniform 2px borders
+          const borderColor = isDark ? '#334155' : '#000000';
+          const tableContainer = table as HTMLElement;
+          tableContainer.style.border = `2px solid ${borderColor}`;
+          tableContainer.style.boxSizing = 'border-box';
+
+          const titleDiv = table.querySelector('#raid-table-title') as HTMLElement | null;
+          if (titleDiv) {
+            titleDiv.style.border = 'none';
+            titleDiv.style.borderBottom = `2px solid ${borderColor}`;
           }
 
-          // Apply privacy masking if this is the logged-by column
-          const colType =
-            htmlInput.getAttribute('data-column-type') ||
-            originalInput?.getAttribute('data-column-type');
-          if (
-            privacyMode !== 'NONE' &&
-            (colType === 'logged-by' || htmlInput.placeholder?.includes('Log by'))
-          ) {
-            textValue = maskSensitiveText(textValue, privacyMode);
+          const tableEl = table.querySelector('table') as HTMLTableElement | null;
+          if (tableEl) {
+            tableEl.style.borderCollapse = 'collapse';
+            tableEl.style.width = '100%';
           }
 
-          const textDiv = clonedDoc.createElement('div');
-          // Use non-breaking space if empty so the div doesn't collapse height
-          textDiv.textContent = textValue || '\u00A0';
+          const thCells = table.querySelectorAll('thead th');
+          thCells.forEach((th, idx) => {
+            const htmlTh = th as HTMLElement;
+            htmlTh.style.textAlign = 'center';
+            htmlTh.style.border = 'none';
+            htmlTh.style.borderBottom = `2px solid ${borderColor}`;
+            htmlTh.style.boxSizing = 'border-box';
 
-          // Pure block styling with bulletproof center alignment and sharp high-contrast text color
-          textDiv.setAttribute(
-            'style',
-            `text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto !important; padding: 2px 0 !important; font-weight: 700 !important; font-size: 15px !important; line-height: 1.35 !important; color: ${textColor} !important; font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif !important; box-sizing: border-box !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;`
-          );
-
-          parent.style.textAlign = 'center';
-          parent.style.width = '100%';
-          parent.style.display = 'block';
-
-          parent.replaceChild(textDiv, htmlInput);
-        });
-
-        // 4. Ensure all table cells TD and TH enforce text-align: center and uniform 2px borders
-        const borderColor = isDark ? '#334155' : '#000000';
-
-        const tableContainer = table as HTMLElement;
-        tableContainer.style.border = `2px solid ${borderColor}`;
-        tableContainer.style.boxSizing = 'border-box';
-
-        const titleDiv = table.querySelector('#raid-table-title') as HTMLElement | null;
-        if (titleDiv) {
-          titleDiv.style.border = 'none';
-          titleDiv.style.borderBottom = `2px solid ${borderColor}`;
-        }
-
-        const tableEl = table.querySelector('table') as HTMLTableElement | null;
-        if (tableEl) {
-          tableEl.style.borderCollapse = 'collapse';
-          tableEl.style.width = '100%';
-        }
-
-        // Header cells (single source of truth for header column dividers)
-        const thCells = table.querySelectorAll('thead th');
-        thCells.forEach((th, idx) => {
-          const htmlTh = th as HTMLElement;
-          htmlTh.style.textAlign = 'center';
-          htmlTh.style.border = 'none';
-          htmlTh.style.borderBottom = `2px solid ${borderColor}`;
-          htmlTh.style.boxSizing = 'border-box';
-
-          if (idx === 0) {
-            // STT TH: divider between STT and Ingame
-            htmlTh.style.borderRight = `2px solid ${borderColor}`;
-          } else if (idx === 2) {
-            // Class TH: divider between Ingame & Class, and between Class & Logged by
-            htmlTh.style.borderLeft = `2px solid ${borderColor}`;
-            htmlTh.style.borderRight = `2px solid ${borderColor}`;
-          }
-        });
-
-        // Body rows and cells (single source of truth for body dividers)
-        const bodyRows = table.querySelectorAll('tbody tr');
-        bodyRows.forEach((row) => {
-          const htmlRow = row as HTMLElement;
-          htmlRow.style.border = 'none'; // No border on tr to avoid double borders with td
-
-          const cells = htmlRow.querySelectorAll('td');
-          if (cells.length === 1) {
-            // Divider row (colSpan=4)
-            const htmlCell = cells[0] as HTMLElement;
-            htmlCell.style.border = 'none';
-            htmlCell.style.borderBottom = `2px solid ${borderColor}`;
-            return;
-          }
-
-          cells.forEach((cell, cellIdx) => {
-            const htmlCell = cell as HTMLElement;
-            htmlCell.style.textAlign = 'center';
-            htmlCell.style.boxSizing = 'border-box';
-            htmlCell.style.border = 'none';
-            // Every cell in the row draws exactly one 2px bottom border
-            htmlCell.style.borderBottom = `2px solid ${borderColor}`;
-
-            if (cellIdx === 0) {
-              // STT: draws divider between STT and Ingame
-              htmlCell.style.borderRight = `2px solid ${borderColor}`;
-            } else if (cellIdx === 1) {
-              // Ingame: no vertical borders (left is STT borderRight, right is Class borderLeft)
-            } else if (cellIdx === 2) {
-              // Class: draws divider with Ingame on left, and Logged by on right. NO borderTop!
-              htmlCell.style.borderLeft = `2px solid ${borderColor}`;
-              htmlCell.style.borderRight = `2px solid ${borderColor}`;
-              htmlCell.style.backgroundClip = 'padding-box';
-            } else if (cellIdx === 3) {
-              // Logged by: no vertical borders (left is Class borderRight, right is table border)
+            if (idx === 0) {
+              htmlTh.style.borderRight = `2px solid ${borderColor}`;
+            } else if (idx === 2) {
+              htmlTh.style.borderLeft = `2px solid ${borderColor}`;
+              htmlTh.style.borderRight = `2px solid ${borderColor}`;
             }
           });
-        });
-      },
-    });
+
+          const bodyRows = table.querySelectorAll('tbody tr');
+          bodyRows.forEach((row) => {
+            const htmlRow = row as HTMLElement;
+            htmlRow.style.border = 'none';
+
+            const cells = htmlRow.querySelectorAll('td');
+            if (cells.length === 1) {
+              const htmlCell = cells[0] as HTMLElement;
+              htmlCell.style.border = 'none';
+              htmlCell.style.borderBottom = `2px solid ${borderColor}`;
+              return;
+            }
+
+            cells.forEach((cell, cellIdx) => {
+              const htmlCell = cell as HTMLElement;
+              htmlCell.style.textAlign = 'center';
+              htmlCell.style.boxSizing = 'border-box';
+              htmlCell.style.border = 'none';
+              htmlCell.style.borderBottom = `2px solid ${borderColor}`;
+
+              if (cellIdx === 0) {
+                htmlCell.style.borderRight = `2px solid ${borderColor}`;
+              } else if (cellIdx === 2) {
+                htmlCell.style.borderLeft = `2px solid ${borderColor}`;
+                htmlCell.style.borderRight = `2px solid ${borderColor}`;
+                htmlCell.style.backgroundClip = 'padding-box';
+              }
+            });
+          });
+        },
+      });
+
+      if (!canvas || canvas.width < 50 || canvas.height < 50) {
+        console.warn('html2canvas returned empty canvas, using pure canvas fallback');
+        return getPureCanvas();
+      }
+
+      return canvas;
+    } catch (err) {
+      console.warn('html2canvas failed, falling back to pure canvas:', err);
+      return getPureCanvas();
+    }
   };
 
   // Direct high-res PNG image download
@@ -279,7 +285,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     setDownloadingImage(true);
     try {
       let dataUrl = existingUrl || previewImageUrl;
-      if (!dataUrl) {
+      if (!dataUrl || dataUrl === 'data:,' || !dataUrl.startsWith('data:image/png;base64,')) {
         const canvas = await generateCanvas();
         dataUrl = canvas.toDataURL('image/png');
         setPreviewImageUrl(dataUrl);
@@ -288,7 +294,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       const link = document.createElement('a');
       const safeTitle = raidTitle.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
       link.href = dataUrl;
-      link.download = `${safeTitle}_bang_raid.png`;
+      link.download = `${safeTitle || 'bang_raid'}.png`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -304,22 +310,52 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
   // Robust copy image to clipboard with real Blob and fallback for iframe restrictions
   const handleCopyImageToClipboard = async () => {
-    if (!tableRef.current) return;
     setCopyingImage(true);
     setShowClipboardFallback(false);
 
     try {
       const canvas = await generateCanvas();
-      const dataUrl = canvas.toDataURL('image/png');
+      let dataUrl = canvas.toDataURL('image/png');
+      if (!dataUrl || dataUrl === 'data:,' || !dataUrl.startsWith('data:image/png;base64,')) {
+        const pure = drawRaidTableToCanvas({
+          raidTitle,
+          members,
+          customColors,
+          isDark: document.documentElement.classList.contains('dark'),
+          privacyMode,
+          titlePrefix: activeBoard?.titlePrefix,
+          scheduleTime: activeBoard?.scheduleTime,
+          bossName: activeBoard?.bossName,
+          parties: activeBoard?.parties,
+        });
+        dataUrl = pure.toDataURL('image/png');
+      }
       setPreviewImageUrl(dataUrl);
 
       // Convert canvas to Blob
-      const blob = await new Promise<Blob | null>((resolve) => {
+      let blob = await new Promise<Blob | null>((resolve) => {
         canvas.toBlob((b) => resolve(b), 'image/png');
       });
 
-      if (!blob) {
-        throw new Error('Canvas blob is null');
+      if (!blob || blob.size === 0) {
+        const pure = drawRaidTableToCanvas({
+          raidTitle,
+          members,
+          customColors,
+          isDark: document.documentElement.classList.contains('dark'),
+          privacyMode,
+          titlePrefix: activeBoard?.titlePrefix,
+          scheduleTime: activeBoard?.scheduleTime,
+          bossName: activeBoard?.bossName,
+          parties: activeBoard?.parties,
+        });
+        blob = await new Promise<Blob | null>((resolve) => {
+          pure.toBlob((b) => resolve(b), 'image/png');
+        });
+      }
+
+      if (!blob || blob.size === 0) {
+        throw new Error('Canvas blob is null or empty');
       }
 
       let writeSuccess = false;
@@ -350,7 +386,23 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         setShowClipboardFallback(true);
       }
     } catch (err) {
-      console.error('Error generating canvas:', err);
+      console.error('Error generating/copying canvas:', err);
+      try {
+        const pure = drawRaidTableToCanvas({
+          raidTitle,
+          members,
+          customColors,
+          isDark: document.documentElement.classList.contains('dark'),
+          privacyMode,
+          titlePrefix: activeBoard?.titlePrefix,
+          scheduleTime: activeBoard?.scheduleTime,
+          bossName: activeBoard?.bossName,
+          parties: activeBoard?.parties,
+        });
+        setPreviewImageUrl(pure.toDataURL('image/png'));
+      } catch (e) {
+        console.error('Fallback pure canvas generation failed:', e);
+      }
       setShowClipboardFallback(true);
     } finally {
       setCopyingImage(false);
@@ -608,7 +660,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             </button>
 
             {/* Fallback Image Preview if iframe prevents direct clipboard write */}
-            {showClipboardFallback && previewImageUrl && (
+            {showClipboardFallback && previewImageUrl && previewImageUrl.length > 50 && (
               <div className="mt-3 p-3 bg-amber-50/80 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl space-y-2.5">
                 <div className="flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />

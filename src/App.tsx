@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { User } from 'firebase/auth';
 import { initAuth } from './services/auth';
@@ -55,8 +55,10 @@ import {
   Calendar,
   Swords,
   Database,
+  Coffee,
 } from 'lucide-react';
 import { BackupRestoreModal } from './components/BackupRestoreModal';
+import { DonateModal } from './components/DonateModal';
 import {
   STORAGE_KEY_BOARDS,
   STORAGE_KEY_ACTIVE_BOARD,
@@ -77,6 +79,10 @@ import {
   recoverAsyncFromIndexedDB,
   countMembersWithData,
   countGuildWarMembers,
+  safeLocalStorageSet,
+  requestPersistentStorage,
+  isSamplePersonnelPool,
+  mergePersonnelPools,
 } from './utils/storageBackup';
 
 export default function App() {
@@ -130,6 +136,7 @@ export default function App() {
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
   const [isCreateGuildWarModalOpen, setIsCreateGuildWarModalOpen] = useState(false);
   const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
+  const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
   const [selectedClassFilter, setSelectedClassFilter] = useState<RaidClass | null>(null);
   const [boardToDelete, setBoardToDelete] = useState<RaidBoard | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -211,7 +218,10 @@ export default function App() {
 
     async function initializeAndRecover() {
       try {
-        const hash = window.location.hash;
+        // 0. Yêu cầu quyền lưu trữ vĩnh viễn (Persistent Storage) từ trình duyệt
+        await requestPersistentStorage();
+
+        const hash = typeof window !== 'undefined' ? window.location.hash : '';
 
         // 1. Kiểm tra link chia sẻ Bang Chiến (#share_gw=...)
         if (hash && hash.includes('#share_gw=')) {
@@ -247,30 +257,76 @@ export default function App() {
           }
         }
 
-        // 3. Nếu trên máy hiện tại không có dữ liệu thật (0 thành viên có tên), thử phục hồi từ IndexedDB
-        const currentRaidCount = countMembersWithData(boards);
-        const currentGwCount = countGuildWarMembers(guildWarBoards);
-        if (currentRaidCount === 0 && currentGwCount === 0) {
-          const recovered = await recoverAsyncFromIndexedDB();
-          if (recovered && isMounted) {
-            console.info('[Storage] Tự động phục hồi thành công từ IndexedDB!');
-            if (recovered.boards && recovered.boards.length > 0) {
+        // 3. Phục hồi và bảo toàn dữ liệu đa tầng từ IndexedDB
+        const recovered = await recoverAsyncFromIndexedDB();
+        if (recovered && isMounted) {
+          let hasRestoredAny = false;
+
+          // A. Phục hồi / Hợp nhất Kho Nhân Sự:
+          if (recovered.personnelPool && recovered.personnelPool.length > 0) {
+            if (isSamplePersonnelPool(personnelPool)) {
+              console.info(
+                '[Storage] Tự động nạp Kho Nhân sự từ IndexedDB (thay cho mẫu):',
+                recovered.personnelPool.length
+              );
+              setPersonnelPool(recovered.personnelPool);
+              safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(recovered.personnelPool));
+              hasRestoredAny = true;
+            } else {
+              const merged = mergePersonnelPools(personnelPool, recovered.personnelPool);
+              if (merged.length !== personnelPool.length) {
+                console.info(
+                  '[Storage] Tự động hợp nhất Kho Nhân sự từ IndexedDB & LocalStorage:',
+                  merged.length
+                );
+                setPersonnelPool(merged);
+                safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(merged));
+                hasRestoredAny = true;
+              }
+            }
+          }
+
+          // B. Phục hồi Bảng Raid nếu LocalStorage hiện rỗng hoặc ít dữ liệu hơn IndexedDB:
+          const currentRaidCount = countMembersWithData(boards);
+          if (recovered.boards && recovered.boards.length > 0) {
+            const idbCount = countMembersWithData(recovered.boards);
+            if (currentRaidCount === 0 && idbCount > 0) {
+              console.info('[Storage] Tự động phục hồi Bảng Raid từ IndexedDB:', idbCount, 'thành viên');
               setBoards(recovered.boards);
               if (recovered.activeBoardId) setActiveBoardId(recovered.activeBoardId);
+              hasRestoredAny = true;
             }
-            if (recovered.personnelPool && recovered.personnelPool.length > 0) {
-              setPersonnelPool(recovered.personnelPool);
-            }
-            if (recovered.customColors) {
-              setCustomColors(recovered.customColors);
-            }
-            if (recovered.guildWarBoards && recovered.guildWarBoards.length > 0) {
+          }
+
+          // C. Phục hồi Bảng Bang Chiến nếu LocalStorage hiện rỗng hoặc ít dữ liệu hơn:
+          const currentGwCount = countGuildWarMembers(guildWarBoards);
+          if (recovered.guildWarBoards && recovered.guildWarBoards.length > 0) {
+            const idbGwCount = countGuildWarMembers(recovered.guildWarBoards);
+            if (currentGwCount === 0 && idbGwCount > 0) {
+              console.info(
+                '[Storage] Tự động phục hồi Bảng Bang Chiến từ IndexedDB:',
+                idbGwCount,
+                'thành viên'
+              );
               setGuildWarBoards(recovered.guildWarBoards);
               if (recovered.activeGuildWarBoardId) {
                 setActiveGuildWarBoardId(recovered.activeGuildWarBoardId);
               }
+              hasRestoredAny = true;
             }
-            showToast('Đã tự động phục hồi dữ liệu từ bản lưu IndexedDB an toàn!');
+          }
+
+          // D. Phục hồi Custom Colors:
+          if (
+            recovered.customColors &&
+            Object.keys(recovered.customColors).length > 0 &&
+            Object.keys(customColors).length === 0
+          ) {
+            setCustomColors(recovered.customColors);
+          }
+
+          if (hasRestoredAny) {
+            showToast('Đã tự động bảo toàn & phục hồi dữ liệu an toàn từ IndexedDB!');
           }
         }
       } catch (err) {
@@ -287,9 +343,11 @@ export default function App() {
     };
   }, []);
 
-  // Synchronous flush on tab close / computer shutdown (beforeunload & visibilitychange)
+  // Synchronous flush on tab close / computer shutdown (beforeunload, pagehide & visibilitychange)
   useEffect(() => {
-    const handleBeforeUnload = () => {
+    const handleFlush = () => {
+      // Chỉ flush khi app đã nạp xong (đã hydrate) để không bao giờ flush đè state chưa kịp nạp!
+      if (!isStorageHydrated) return;
       flushAllStorageSync({
         boards,
         activeBoardId,
@@ -303,36 +361,37 @@ export default function App() {
 
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'hidden') {
-        flushAllStorageSync({
-          boards,
-          activeBoardId,
-          personnelPool,
-          customColors,
-          guildWarBoards,
-          activeGuildWarBoardId,
-          appMode,
-        });
+        handleFlush();
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('beforeunload', handleFlush);
+    window.addEventListener('pagehide', handleFlush);
     document.addEventListener('visibilitychange', handleVisibilityChange);
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('beforeunload', handleFlush);
+      window.removeEventListener('pagehide', handleFlush);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-  }, [boards, activeBoardId, personnelPool, customColors, guildWarBoards, activeGuildWarBoardId, appMode]);
+  }, [
+    boards,
+    activeBoardId,
+    personnelPool,
+    customColors,
+    guildWarBoards,
+    activeGuildWarBoardId,
+    appMode,
+    isStorageHydrated,
+  ]);
 
   // Save boards to localStorage, IndexedDB and auto-snapshot
   useEffect(() => {
+    if (!isStorageHydrated) return;
     try {
-      localStorage.setItem(STORAGE_KEY_BOARDS, JSON.stringify(boards));
-      // Chỉ lưu sang IndexedDB khi đã hydrate xong hoặc board đã có thành viên
-      if (isStorageHydrated || countMembersWithData(boards) > 0) {
-        saveToIndexedDB('boards', boards);
-        saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
-      }
+      safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(boards));
+      saveToIndexedDB('boards', boards);
+      saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
     } catch (e) {
       console.error('Failed to save boards:', e);
     }
@@ -340,11 +399,10 @@ export default function App() {
 
   // Save active board id to localStorage
   useEffect(() => {
+    if (!isStorageHydrated) return;
     try {
-      localStorage.setItem(STORAGE_KEY_ACTIVE_BOARD, activeBoardId);
-      if (isStorageHydrated) {
-        saveToIndexedDB('activeBoardId', activeBoardId);
-      }
+      safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD, activeBoardId);
+      saveToIndexedDB('activeBoardId', activeBoardId);
     } catch (e) {
       console.error('Failed to save active board ID:', e);
     }
@@ -352,12 +410,11 @@ export default function App() {
 
   // Save personnel pool to localStorage and IndexedDB
   useEffect(() => {
+    if (!isStorageHydrated) return;
     try {
-      localStorage.setItem(STORAGE_KEY_PERSONNEL, JSON.stringify(personnelPool));
-      if (isStorageHydrated || personnelPool.length > 0) {
-        saveToIndexedDB('personnelPool', personnelPool);
-        saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
-      }
+      safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(personnelPool));
+      saveToIndexedDB('personnelPool', personnelPool);
+      saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
     } catch (e) {
       console.error('Failed to save personnel pool:', e);
     }
@@ -365,11 +422,10 @@ export default function App() {
 
   // Save custom colors to localStorage and IndexedDB
   useEffect(() => {
+    if (!isStorageHydrated) return;
     try {
-      localStorage.setItem(STORAGE_KEY_COLORS, JSON.stringify(customColors));
-      if (isStorageHydrated) {
-        saveToIndexedDB('customColors', customColors);
-      }
+      safeLocalStorageSet(STORAGE_KEY_COLORS, JSON.stringify(customColors));
+      saveToIndexedDB('customColors', customColors);
     } catch (e) {
       console.error('Failed to save custom colors:', e);
     }
@@ -377,22 +433,22 @@ export default function App() {
 
   // Save app mode to localStorage
   useEffect(() => {
+    if (!isStorageHydrated) return;
     try {
-      localStorage.setItem(STORAGE_KEY_APP_MODE, appMode);
+      safeLocalStorageSet(STORAGE_KEY_APP_MODE, appMode);
     } catch {}
-  }, [appMode]);
+  }, [appMode, isStorageHydrated]);
 
   // Save guild war boards to localStorage and IndexedDB
   useEffect(() => {
+    if (!isStorageHydrated) return;
     try {
-      localStorage.setItem(
+      safeLocalStorageSet(
         STORAGE_KEY_GUILDWAR_BOARDS,
         JSON.stringify(guildWarBoards)
       );
-      if (isStorageHydrated || countGuildWarMembers(guildWarBoards) > 0) {
-        saveToIndexedDB('guildWarBoards', guildWarBoards);
-        saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
-      }
+      saveToIndexedDB('guildWarBoards', guildWarBoards);
+      saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
     } catch (e) {
       console.error('Failed to save guild war boards:', e);
     }
@@ -400,11 +456,10 @@ export default function App() {
 
   // Save active guild war board id to localStorage
   useEffect(() => {
+    if (!isStorageHydrated) return;
     try {
-      localStorage.setItem(STORAGE_KEY_ACTIVE_GUILDWAR, activeGuildWarBoardId);
-      if (isStorageHydrated) {
-        saveToIndexedDB('activeGuildWarBoardId', activeGuildWarBoardId);
-      }
+      safeLocalStorageSet(STORAGE_KEY_ACTIVE_GUILDWAR, activeGuildWarBoardId);
+      saveToIndexedDB('activeGuildWarBoardId', activeGuildWarBoardId);
     } catch {}
   }, [activeGuildWarBoardId, isStorageHydrated]);
 
@@ -416,10 +471,30 @@ export default function App() {
     showToast(`Đã tạo bảng "${newBoard.title}" thành công!`);
   };
 
+  // Immediate synchronous & multi-layer persistent personnel pool updater
+  const handleUpdatePersonnelPool = useCallback(
+    (action: PersonnelMember[] | ((prev: PersonnelMember[]) => PersonnelMember[])) => {
+      setPersonnelPool((prev) => {
+        const next = typeof action === 'function' ? action(prev) : action;
+        try {
+          safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(next));
+        } catch (e) {
+          console.error('[Storage] Error persisting personnel to localStorage:', e);
+        }
+        saveToIndexedDB('personnelPool', next);
+        saveAutoSnapshot(boards, next, customColors, guildWarBoards);
+        return next;
+      });
+    },
+    [boards, customColors, guildWarBoards]
+  );
+
   const handleUpdateGuildWarBoard = (updated: GuildWarBoard) => {
-    setGuildWarBoards((prev) =>
-      prev.map((b) => (b.id === updated.id ? updated : b))
-    );
+    setGuildWarBoards((prev) => {
+      const next = prev.map((b) => (b.id === updated.id ? updated : b));
+      safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(next));
+      return next;
+    });
   };
 
   const handleDeleteGuildWarBoard = (boardId: string) => {
@@ -456,9 +531,11 @@ export default function App() {
 
   // Board Mutators
   const updateActiveBoard = (updates: Partial<RaidBoard>) => {
-    setBoards((prev) =>
-      prev.map((b) => (b.id === activeBoard.id ? { ...b, ...updates } : b))
-    );
+    setBoards((prev) => {
+      const next = prev.map((b) => (b.id === activeBoard.id ? { ...b, ...updates } : b));
+      safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(next));
+      return next;
+    });
   };
 
   const handleUpdateTitle = (titlePrefix: string, scheduleTime: string, bossName: string) => {
@@ -652,7 +729,7 @@ export default function App() {
     });
 
     if (toAdd.length > 0) {
-      setPersonnelPool((prev) => [...toAdd, ...prev]);
+      handleUpdatePersonnelPool((prev) => [...toAdd, ...prev]);
       showToast(`Đã lưu thêm ${toAdd.length} nhân sự mới từ bảng Raid vào Kho lưu trữ!`);
     } else {
       showToast('Tất cả nhân sự trong bảng Raid hiện tại đã có trong Kho lưu trữ.');
@@ -732,7 +809,7 @@ export default function App() {
       setActiveBoardId(restored.boards[0].id);
     }
     if (restored.personnelPool && restored.personnelPool.length > 0) {
-      setPersonnelPool(restored.personnelPool);
+      handleUpdatePersonnelPool(restored.personnelPool);
     }
     if (restored.customColors) {
       setCustomColors(restored.customColors);
@@ -817,6 +894,19 @@ export default function App() {
               {currentUser && (
                 <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block ml-0.5" />
               )}
+            </button>
+
+            {/* Donate / Cà phê Button */}
+            <button
+              type="button"
+              id="btn-open-donate-modal"
+              onClick={() => setIsDonateModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-amber-50 hover:bg-amber-100 dark:bg-slate-800 dark:hover:bg-slate-750 text-slate-800 dark:text-slate-100 border border-amber-300/80 dark:border-slate-700 rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
+              title="Mời ly cà phê ủng hộ tác giả"
+            >
+              <span className="text-amber-500 dark:text-amber-400 text-sm">☕</span>
+              <span className="hidden sm:inline font-bold">Cà phê</span>
+              <span className="sm:hidden font-bold text-[11px]">Cà phê</span>
             </button>
 
             {/* Backup & Restore Data Button */}
@@ -1250,7 +1340,7 @@ export default function App() {
                   <div className="lg:col-span-5 xl:col-span-5 sticky top-20">
                     <PersonnelStorage
                       personnelPool={personnelPool}
-                      onUpdatePersonnelPool={setPersonnelPool}
+                      onUpdatePersonnelPool={handleUpdatePersonnelPool}
                       activeRaidMembers={activeBoard.members}
                       allBoards={boards}
                       activeBoardId={activeBoard.id}
@@ -1258,8 +1348,9 @@ export default function App() {
                       onAssignToRaid={handleAssignPersonnelToRaid}
                       onRemoveFromRaid={handleRemoveFromRaid}
                       onSyncFromActiveRaid={handleSyncFromActiveRaid}
-                      onLoadSamplePersonnel={() => setPersonnelPool(INITIAL_PERSONNEL_POOL)}
+                      onLoadSamplePersonnel={() => handleUpdatePersonnelPool(INITIAL_PERSONNEL_POOL)}
                       customColors={customColors}
+                      onOpenColorCustomizer={() => setIsColorModalOpen(true)}
                       isCompact={true}
                     />
                   </div>
@@ -1272,7 +1363,7 @@ export default function App() {
               <div className="max-w-4xl mx-auto">
                 <PersonnelStorage
                   personnelPool={personnelPool}
-                  onUpdatePersonnelPool={setPersonnelPool}
+                  onUpdatePersonnelPool={handleUpdatePersonnelPool}
                   activeRaidMembers={activeBoard.members}
                   allBoards={boards}
                   activeBoardId={activeBoard.id}
@@ -1280,8 +1371,9 @@ export default function App() {
                   onAssignToRaid={handleAssignPersonnelToRaid}
                   onRemoveFromRaid={handleRemoveFromRaid}
                   onSyncFromActiveRaid={handleSyncFromActiveRaid}
-                  onLoadSamplePersonnel={() => setPersonnelPool(INITIAL_PERSONNEL_POOL)}
+                  onLoadSamplePersonnel={() => handleUpdatePersonnelPool(INITIAL_PERSONNEL_POOL)}
                   customColors={customColors}
+                  onOpenColorCustomizer={() => setIsColorModalOpen(true)}
                   isCompact={false}
                 />
               </div>
@@ -1443,6 +1535,12 @@ export default function App() {
         guildWarBoards={guildWarBoards}
         onRestoreData={handleRestoreData}
         onShowToast={showToast}
+      />
+
+      {/* Donate / Mời Cà Phê Modal */}
+      <DonateModal
+        isOpen={isDonateModalOpen}
+        onClose={() => setIsDonateModalOpen(false)}
       />
 
       {/* Create Board Modal */}

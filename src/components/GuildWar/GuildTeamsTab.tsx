@@ -1,4 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import html2canvas from 'html2canvas-pro';
 import {
   GuildMember,
   GuildTeam,
@@ -6,6 +8,7 @@ import {
   RaidClass,
 } from '../../types';
 import { getEffectiveClassMeta, CLASS_LIST } from '../../constants/classes';
+import { drawGuildTeamsToCanvas } from '../../utils/canvasRaidRenderer';
 import {
   Copy,
   Check,
@@ -14,6 +17,9 @@ import {
   Users,
   Sparkles,
   GripVertical,
+  Image as ImageIcon,
+  Download,
+  AlertCircle,
 } from 'lucide-react';
 
 interface GuildTeamsTabProps {
@@ -58,7 +64,12 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
   customColors,
   onUpdateMember,
 }) => {
+  const tableRef = useRef<HTMLDivElement | null>(null);
   const [copied, setCopied] = useState(false);
+  const [copyingImage, setCopyingImage] = useState(false);
+  const [copiedImage, setCopiedImage] = useState(false);
+  const [downloadingImage, setDownloadingImage] = useState(false);
+  const [previewModalUrl, setPreviewModalUrl] = useState<string | null>(null);
   const [draggedPayload, setDraggedPayload] = useState<DragPayload | null>(null);
   const [hoveredSlot, setHoveredSlot] = useState<string | null>(null);
   const [filterQuery, setFilterQuery] = useState('');
@@ -66,13 +77,14 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
   // Normalize string helper
   const normalize = (str: string) => str.trim().toLowerCase();
 
-  // Helper to map members of a team into a 3 Parties x 6 Slots grid
+  // Helper to map members of a team into a 4 Parties x 6 Slots grid
   const getTeamSlots = (teamId: GuildTeam) => {
     const teamMems = members.filter((m) => m.team === teamId);
     const grid: Record<number, Record<number, GuildMember | null>> = {
       1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
       2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
       3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+      4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
     };
 
     const unplaced: GuildMember[] = [];
@@ -82,7 +94,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
         m.party &&
         m.slot &&
         m.party >= 1 &&
-        m.party <= 3 &&
+        m.party <= 4 &&
         m.slot >= 1 &&
         m.slot <= 6 &&
         grid[m.party][m.slot] === null
@@ -97,7 +109,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     let currentParty = 1;
     let currentSlot = 1;
     unplaced.forEach((m) => {
-      while (currentParty <= 3) {
+      while (currentParty <= 4) {
         if (grid[currentParty][currentSlot] === null) {
           grid[currentParty][currentSlot] = m;
           currentSlot++;
@@ -250,7 +262,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
       text += `━━━━━━━━━━━━━━━━━━━━━\n`;
       text += `**${team.displayTitle} (${teamMems.length} người)**\n`;
 
-      for (let p = 1; p <= 3; p++) {
+      for (let p = 1; p <= 4; p++) {
         const ptMems: string[] = [];
         for (let s = 1; s <= 6; s++) {
           const m = grid[p][s];
@@ -275,6 +287,167 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  // Generate canvas using html2canvas with pure canvas fallback
+  const generateGuildTeamsCanvas = async (): Promise<HTMLCanvasElement> => {
+    const isDark = document.documentElement.classList.contains('dark');
+
+    const getPureFallbackCanvas = () => {
+      return drawGuildTeamsToCanvas({
+        members,
+        customColors,
+        isDark,
+      });
+    };
+
+    if (!tableRef.current || tableRef.current.offsetWidth === 0) {
+      return getPureFallbackCanvas();
+    }
+
+    try {
+      const originalTable = tableRef.current;
+      const bgColor = isDark ? '#0b1329' : '#ffffff';
+
+      const canvas = await html2canvas(originalTable, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: bgColor,
+        logging: false,
+        onclone: (clonedDoc: Document) => {
+          const table = clonedDoc.getElementById('guild-teams-table-capture');
+          if (!table) return;
+
+          // Expand to full width to ensure no columns are clipped
+          table.style.width = '1380px';
+          table.style.maxWidth = 'none';
+          table.style.overflow = 'visible';
+
+          // 1. Remove ignore elements (drag grips, delete buttons)
+          const ignored = table.querySelectorAll('[data-html2canvas-ignore="true"]');
+          ignored.forEach((el) => el.remove());
+
+          // 2. Replace all <select> elements with beautifully styled static badges
+          const selects = table.querySelectorAll('select');
+          selects.forEach((sel) => {
+            const val = sel.value;
+            const parent = sel.parentElement;
+            if (!parent) return;
+
+            const bg = sel.style.backgroundColor || '#64748b';
+            const color = sel.style.color || '#ffffff';
+
+            const badge = clonedDoc.createElement('div');
+            badge.textContent = val;
+            badge.setAttribute(
+              'style',
+              `display: inline-flex !important; align-items: center !important; justify-content: center !important; padding: 4px 14px !important; border-radius: 9999px !important; font-size: 12px !important; font-weight: 700 !important; font-family: 'Be Vietnam Pro', system-ui, sans-serif !important; background-color: ${bg} !important; color: ${color} !important; border: 1px solid rgba(0,0,0,0.18) !important; white-space: nowrap !important; line-height: 1.25 !important; box-shadow: 0 1px 2px rgba(0,0,0,0.08) !important;`
+            );
+
+            parent.innerHTML = '';
+            parent.appendChild(badge);
+          });
+        },
+      });
+
+      if (!canvas || canvas.width < 100 || canvas.height < 100) {
+        return getPureFallbackCanvas();
+      }
+
+      return canvas;
+    } catch (err) {
+      console.warn('html2canvas failed on guild teams table, falling back to pure canvas:', err);
+      return getPureFallbackCanvas();
+    }
+  };
+
+  const handleCopyTableImage = async () => {
+    setCopyingImage(true);
+    try {
+      const canvas = await generateGuildTeamsCanvas();
+      const isDark = document.documentElement.classList.contains('dark');
+      let dataUrl = canvas.toDataURL('image/png');
+      if (!dataUrl || dataUrl === 'data:,' || !dataUrl.startsWith('data:image/png;base64,')) {
+        const pure = drawGuildTeamsToCanvas({ members, customColors, isDark });
+        dataUrl = pure.toDataURL('image/png');
+      }
+
+      let blob = await new Promise<Blob | null>((resolve) => {
+        canvas.toBlob((b) => resolve(b), 'image/png');
+      });
+
+      if (!blob || blob.size === 0) {
+        const pure = drawGuildTeamsToCanvas({ members, customColors, isDark });
+        blob = await new Promise<Blob | null>((resolve) => {
+          pure.toBlob((b) => resolve(b), 'image/png');
+        });
+      }
+
+      let writeSuccess = false;
+      if (blob && navigator.clipboard && typeof ClipboardItem !== 'undefined') {
+        try {
+          const item = new ClipboardItem({ 'image/png': blob });
+          await navigator.clipboard.write([item]);
+          writeSuccess = true;
+        } catch (e1) {
+          try {
+            const item = new ClipboardItem({ 'image/png': Promise.resolve(blob) });
+            await navigator.clipboard.write([item]);
+            writeSuccess = true;
+          } catch (e2) {
+            console.warn('Direct clipboard.write failed (likely iframe restriction):', e2);
+          }
+        }
+      }
+
+      if (writeSuccess) {
+        setCopiedImage(true);
+        setTimeout(() => setCopiedImage(false), 2500);
+      } else {
+        setPreviewModalUrl(dataUrl);
+      }
+    } catch (err) {
+      console.error('Error copying table image:', err);
+      try {
+        const pure = drawGuildTeamsToCanvas({
+          members,
+          customColors,
+          isDark: document.documentElement.classList.contains('dark'),
+        });
+        setPreviewModalUrl(pure.toDataURL('image/png'));
+      } catch (e) {
+        console.error('Pure canvas fallback failed:', e);
+      }
+    } finally {
+      setCopyingImage(false);
+    }
+  };
+
+  const handleDownloadTableImage = async () => {
+    setDownloadingImage(true);
+    try {
+      const canvas = await generateGuildTeamsCanvas();
+      let dataUrl = canvas.toDataURL('image/png');
+      if (!dataUrl || dataUrl === 'data:,' || !dataUrl.startsWith('data:image/png;base64,')) {
+        const pure = drawGuildTeamsToCanvas({
+          members,
+          customColors,
+          isDark: document.documentElement.classList.contains('dark'),
+        });
+        dataUrl = pure.toDataURL('image/png');
+      }
+
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `Bang_Chien_${Date.now()}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      console.error('Error downloading table image:', err);
+    } finally {
+      setDownloadingImage(false);
+    }
   };
 
   // Unassigned pool members
@@ -311,8 +484,39 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
         <div className="flex items-center gap-2 flex-wrap shrink-0">
           <button
             type="button"
+            onClick={handleCopyTableImage}
+            disabled={copyingImage}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 active:bg-indigo-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer min-h-[34px]"
+            title="Chụp và copy ảnh bảng Bang Chiến vào bộ nhớ tạm để dán (Ctrl+V) ngay"
+          >
+            {copiedImage ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-300" />
+                <span>Đã copy ảnh!</span>
+              </>
+            ) : (
+              <>
+                <ImageIcon className="w-3.5 h-3.5" />
+                <span>{copyingImage ? 'Đang chụp...' : 'Chụp & Copy ảnh'}</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDownloadTableImage}
+            disabled={downloadingImage}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer min-h-[34px]"
+            title="Lưu file ảnh PNG của bảng Bang Chiến về máy"
+          >
+            <Download className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />
+            <span>{downloadingImage ? 'Đang tải...' : 'Tải ảnh PNG'}</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleCopyDiscordFormat}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-indigo-600 dark:hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer min-h-[34px]"
           >
             {copied ? (
               <>
@@ -330,7 +534,11 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
       </div>
 
       {/* Main Excel-style Table Container */}
-      <div className="bg-white dark:bg-slate-900 border-2 border-slate-800 dark:border-slate-500 rounded-xl overflow-x-auto shadow-md">
+      <div
+        ref={tableRef}
+        id="guild-teams-table-capture"
+        className="bg-white dark:bg-slate-900 border-2 border-slate-800 dark:border-slate-500 rounded-xl overflow-x-auto shadow-md"
+      >
         {/* Top Header: BANG CHIẾN */}
         <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-black text-sm sm:text-base tracking-widest text-center py-2 uppercase border-b-2 border-slate-800 dark:border-slate-500 select-none">
           BANG CHIẾN
@@ -368,9 +576,17 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                     {/* PT-3 Header */}
                     <th
                       colSpan={2}
-                      className="text-center py-1.5 font-bold tracking-wider text-xs"
+                      className="border-r border-slate-400 dark:border-slate-600 text-center py-1.5 font-bold tracking-wider text-xs"
                     >
                       PT-3
+                    </th>
+
+                    {/* PT-4 Header */}
+                    <th
+                      colSpan={2}
+                      className="text-center py-1.5 font-bold tracking-wider text-xs"
+                    >
+                      PT-4
                     </th>
                   </tr>
 
@@ -389,14 +605,14 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                           <div className="flex flex-col items-center justify-center gap-1">
                             <span>{team.displayTitle}</span>
                             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400">
-                              ({members.filter((m) => m.team === team.id).length}/18)
+                              ({members.filter((m) => m.team === team.id).length}/24)
                             </span>
                           </div>
                         </td>
                       )}
 
-                      {/* 3 Parties (PT-1, PT-2, PT-3) */}
-                      {[1, 2, 3].map((partyNum) => {
+                      {/* 4 Parties (PT-1, PT-2, PT-3, PT-4) */}
+                      {[1, 2, 3, 4].map((partyNum) => {
                         const member = grid[partyNum][slotNum];
                         const slotKey = `${team.id}-${partyNum}-${slotNum}`;
                         const isHovered = hoveredSlot === slotKey;
@@ -437,13 +653,17 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                                   title={`Kéo để di chuyển hoặc đổi chỗ (STT #${member.stt || slotNum})`}
                                 >
                                   <div className="flex items-center gap-1 min-w-0 flex-1">
-                                    <GripVertical className="w-3 h-3 text-slate-300 group-hover:text-slate-500 shrink-0" />
+                                    <GripVertical
+                                      data-html2canvas-ignore="true"
+                                      className="w-3 h-3 text-slate-300 group-hover:text-slate-500 shrink-0"
+                                    />
                                     <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
                                       {member.ingame}
                                     </span>
                                   </div>
                                   <button
                                     type="button"
+                                    data-html2canvas-ignore="true"
                                     onClick={() => handleUnassignMember(member.id)}
                                     title="Gỡ khỏi slot (về hàng dự bị)"
                                     className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition-opacity p-0.5"
@@ -461,7 +681,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                             {/* Subcolumn 2: Class Pill Dropdown Cell */}
                             <td
                               className={`w-[130px] sm:w-[150px] p-1.5 text-center ${
-                                partyNum < 3
+                                partyNum < 4
                                   ? 'border-r-2 border-slate-400 dark:border-slate-600'
                                   : ''
                               }`}
@@ -596,6 +816,85 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
           </div>
         )}
       </div>
+
+      {/* Preview Fallback Modal (When clipboard auto-write is restricted) */}
+      {previewModalUrl &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[120] bg-black/75 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl max-w-2xl w-full p-4 sm:p-5 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+              <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center">
+                    <ImageIcon className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-slate-900 dark:text-slate-100 text-sm sm:text-base">
+                      Ảnh Bảng Bang Chiến
+                    </h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Chuột phải sao chép hoặc tải file ảnh PNG về máy
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setPreviewModalUrl(null)}
+                  className="p-1.5 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 rounded-lg transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl text-xs text-amber-900 dark:text-amber-200 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong>Ảnh đã được tạo thành công!</strong> Do bảo mật trình duyệt hạn chế tự động lưu vào bộ nhớ tạm, bạn có thể:
+                  <ul className="list-disc pl-4 mt-1 space-y-0.5 text-[11px]">
+                    <li>Chuột phải vào ảnh &gt; Chọn <em>Sao chép hình ảnh (Copy image)</em></li>
+                    <li>Hoặc bấm nút <em>Tải file ảnh PNG</em> bên dưới</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="max-h-[60vh] overflow-auto rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-950 p-2 flex items-center justify-center">
+                <img
+                  src={previewModalUrl}
+                  alt="Bang Chien Preview"
+                  className="w-full h-auto object-contain cursor-pointer rounded"
+                  title="Chuột phải -> Sao chép hình ảnh"
+                />
+              </div>
+
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const link = document.createElement('a');
+                    link.href = previewModalUrl;
+                    link.download = `Bang_Chien_${Date.now()}.png`;
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
+                  }}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span>Tải file ảnh PNG</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setPreviewModalUrl(null)}
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl text-xs font-bold transition-colors cursor-pointer"
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 };
