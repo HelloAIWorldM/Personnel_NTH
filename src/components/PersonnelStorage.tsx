@@ -672,38 +672,31 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                       {/* Status Tag: Assigned status across all boards */}
                       {isAssigned && (
                         <span
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-lg text-[9px] font-bold bg-[#1C3322] text-[#86EFAC] border border-[#2B4E34] shrink-0 shadow-2xs"
-                          title={`Đã xếp ở: ${assignments.map((a) => `${a.boardTitle} (STT #${a.stt})`).join(', ')}`}
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-black bg-[#1C3322] text-[#86EFAC] border border-[#2B4E34] shrink-0 shadow-2xs"
+                          title={`Đã xếp ở: ${assignments.map((a) => `${a.boardTitle} (STT #${a.stt}${a.party ? ` - P${a.party}` : ''})`).join(', ')}`}
                         >
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
-                          {isAssignedInActiveBoard && activeAssignment ? (
-                            <span>
-                              {activeAssignment.boardTitle} • STT #{activeAssignment.stt}
-                              {activeAssignment.party ? ` • P${activeAssignment.party}` : ''}
-                            </span>
-                          ) : (
-                            <span>
-                              Đã xếp: {otherAssignments.map((a) => a.boardTitle).join(', ')}
-                            </span>
-                          )}
+                          <Check className="w-3 h-3 stroke-[3]" />
+                          <span>
+                            {assignments.map((a) => a.boardTitle).join(', ')}
+                          </span>
                         </span>
                       )}
 
                       {!isAssigned && person.checked && (
                         <span
-                          className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-lg text-[9px] font-bold bg-sky-950/70 text-sky-300 border border-sky-800/70 shrink-0 shadow-2xs"
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black bg-sky-950/70 text-sky-300 border border-sky-800/70 shrink-0 shadow-2xs"
                         >
-                          <Check className="w-2.5 h-2.5 stroke-[3]" />
+                          <Check className="w-3 h-3 stroke-[3]" />
                           <span>Có mặt</span>
                         </span>
                       )}
                     </div>
 
-                    <div className="text-[10px] truncate flex items-center gap-1 text-slate-400 mt-0.5">
-                      <span className="font-semibold text-slate-500">
+                    <div className="text-[11px] truncate flex items-center gap-1 text-slate-400 mt-0.5">
+                      <span className="font-semibold text-[#8DA692]">
                         Log:
                       </span>
-                      <span className="font-bold text-slate-300">
+                      <span className="font-bold text-slate-200">
                         {person.loggedBy || person.ingame}
                       </span>
                     </div>
