@@ -97,7 +97,7 @@ export const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => 
 
         {/* Thank You Note */}
         <p className="text-[11px] text-slate-300 leading-relaxed text-left mt-3 px-1">
-          Tool này mình làm miễn phí cho anh em scrim bang chiến. Nếu thấy hữu ích, mời mình ly cà phê để có động lực làm tiếp và duy trì nhé — cảm ơn anh em!
+          Tool này mình làm miễn phí cho anh/chị xếp raid và bang chiến. Nếu thấy hữu ích, mời mình ly cà phê để có động lực làm tiếp và duy trì nhé. Cảm ơn mọi người nhé!
         </p>
 
         {/* Footer Action Button */}
