@@ -1,0 +1,117 @@
+rules_version = '2';
+
+/**
+ * Cloud Firestore Security Rules for Project `sapxepnhansunth`
+ * Guild Personnel & Raid Management (Sắp Xếp Nhân Sự Bang NTH)
+ *
+ * Security Architecture & Invariants:
+ * 1. Default Deny: All paths are locked down by default at the root.
+ * 2. Room-based Collaboration: Reading & updating is allowed by valid guild room ID ({guildId})
+ *    without requiring mandatory Google Auth, supporting seamless guild member collaboration.
+ * 3. Validator Function Pattern: Exactly the same domain validator `isValidGuildDoc()` is
+ *    enforced on BOTH `create` and `update` operations to eliminate Update Bypass vulnerabilities.
+ * 4. Strict Type Safety: Every field is explicitly type-checked (list, string, map, timestamp/number).
+ * 5. Resource Exhaustion & DoS Prevention: Strict bounds on array lengths, string lengths, and map size.
+ * 6. Schema Whitelisting: Strict key enforcement using `hasAll` for required keys and `hasOnly`
+ *    to prevent property injection or arbitrary data pollution.
+ * 7. Deletion Protection: Deleting guild room documents is hard-denied to prevent malicious or accidental wiping.
+ */
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // =========================================================================
+    // DEFAULT DENY: Deny all reads and writes across all paths by default
+    // =========================================================================
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // =========================================================================
+    // HELPER FUNCTIONS & DOMAIN VALIDATORS
+    // =========================================================================
+
+    // Validate guild ID / room code format & length bounds
+    function isValidGuildId(guildId) {
+      return guildId is string
+        && guildId.size() >= 1
+        && guildId.size() <= 128
+        && guildId.matches('^[a-zA-Z0-9_.-]+$');
+    }
+
+    // Validate that document contains only permitted fields and all required fields
+    function hasValidGuildKeys(data) {
+      return data.keys().hasAll([
+        'boards',
+        'personnelPool',
+        'guildWarBoards',
+        'activeBoardId',
+        'activeGuildWarBoardId',
+        'customColors',
+        'updatedAt'
+      ]) && data.keys().hasOnly([
+        'boards',
+        'personnelPool',
+        'guildWarBoards',
+        'activeBoardId',
+        'activeGuildWarBoardId',
+        'customColors',
+        'updatedAt',
+        'title'
+      ]);
+    }
+
+    // Validate timestamp or positive epoch number for updatedAt
+    function isValidUpdatedAt(data) {
+      return (data.updatedAt is timestamp)
+        || ((data.updatedAt is int || data.updatedAt is float) && data.updatedAt >= 0);
+    }
+
+    // Validate optional title field if present
+    function isValidTitle(data) {
+      return !('title' in data)
+        || (data.title is string && data.title.size() <= 200);
+    }
+
+    // Master Domain Validator for Guild Room Documents
+    // Applied to BOTH create and update to prevent Update Bypass
+    function isValidGuildDoc(data, guildId) {
+      return isValidGuildId(guildId)
+        && hasValidGuildKeys(data)
+        // Array collections with bounds to prevent DoS / Resource Exhaustion
+        && data.boards is list
+        && data.boards.size() <= 100
+        && data.personnelPool is list
+        && data.personnelPool.size() <= 1000
+        && data.guildWarBoards is list
+        && data.guildWarBoards.size() <= 100
+        // Active board identifiers
+        && data.activeBoardId is string
+        && data.activeBoardId.size() <= 128
+        && data.activeGuildWarBoardId is string
+        && data.activeGuildWarBoardId.size() <= 128
+        // Custom colors map
+        && data.customColors is map
+        && data.customColors.keys().size() <= 50
+        // Update timestamp & title
+        && isValidUpdatedAt(data)
+        && isValidTitle(data);
+    }
+
+    // =========================================================================
+    // GUILD ROOMS COLLECTION: /guilds/{guildId}
+    // =========================================================================
+    match /guilds/{guildId} {
+      // Room-based collaboration: allow reading by valid room code
+      allow read: if isValidGuildId(guildId);
+
+      // Create and Update must satisfy the exact same domain validator
+      // to eliminate the Update Bypass vulnerability
+      allow create: if isValidGuildDoc(request.resource.data, guildId);
+      allow update: if isValidGuildDoc(request.resource.data, guildId);
+
+      // Hard-deny deletion to prevent malicious or accidental room destruction
+      allow delete: if false;
+    }
+  }
+}
