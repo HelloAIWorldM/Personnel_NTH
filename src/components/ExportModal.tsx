@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState } from 'react';
 import html2canvas from 'html2canvas-pro';
 import { CustomClassColors, RaidMember, RaidBoard } from '../types';
 import { getEffectiveClassMeta } from '../constants/classes';
@@ -103,7 +103,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   // Detect whether the raid table is in dark mode or light mode
-  const getIsTableDark = useCallback((): boolean => {
+  const getIsTableDark = (): boolean => {
     if (tableRef.current) {
       const themeAttr = tableRef.current.getAttribute('data-table-theme');
       if (themeAttr === 'dark') return true;
@@ -112,7 +112,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       if (tableRef.current.classList.contains('bg-white')) return false;
     }
     return false;
-  }, [tableRef]);
+  };
 
   // Helper to generate canvas: tries html2canvas if visible, but seamlessly falls back to drawRaidTableToCanvas
   const generateCanvas = async (): Promise<HTMLCanvasElement> => {
