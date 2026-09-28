@@ -25,7 +25,7 @@ export function drawRaidTableToCanvas({
   scheduleTime,
   bossName,
   parties,
-  showPartyDividers = true,
+  showPartyDividers = false,
 }: RenderOptions): HTMLCanvasElement {
   const canvas = document.createElement('canvas');
   const ctx = canvas.getContext('2d');
@@ -85,7 +85,7 @@ export function drawRaidTableToCanvas({
   ctx.strokeRect(1, 1, width - 2, totalHeight - 2);
 
   // 3. Banner Title (e.g. "RAID 1 - MON 20:30 NIÊN DU")
-  ctx.font = "bold 20px 'Be Vietnam Pro', system-ui, -apple-system, sans-serif";
+  ctx.font = "bold 20px 'Lexend', system-ui, -apple-system, sans-serif";
   ctx.textBaseline = 'middle';
 
   const titleY = bannerHeight / 2;
@@ -163,7 +163,7 @@ export function drawRaidTableToCanvas({
 
   // Header text & vertical borders
   ctx.fillStyle = textColor;
-  ctx.font = "bold 15px 'Be Vietnam Pro', system-ui, -apple-system, sans-serif";
+  ctx.font = "bold 15px 'Lexend', system-ui, -apple-system, sans-serif";
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
 
@@ -220,7 +220,7 @@ export function drawRaidTableToCanvas({
       ctx.fillRect(0, curY, width, dividerHeight);
 
       // Divider text (Party Name)
-      ctx.font = "bold 13px 'Be Vietnam Pro', system-ui, sans-serif";
+      ctx.font = "bold 13px 'Lexend', system-ui, sans-serif";
       ctx.fillStyle = isDark ? '#93c5fd' : '#1e3a8a';
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
@@ -228,7 +228,7 @@ export function drawRaidTableToCanvas({
       ctx.fillText(`🛡️ ${partyObj.name.toUpperCase()}`, 14, divMidY);
 
       // Party stats on the right
-      ctx.font = "bold 12px 'Be Vietnam Pro', system-ui, sans-serif";
+      ctx.font = "bold 12px 'Lexend', system-ui, sans-serif";
       ctx.fillStyle = isDark ? '#94a3b8' : '#475569';
       ctx.textAlign = 'right';
       ctx.fillText(
@@ -252,7 +252,7 @@ export function drawRaidTableToCanvas({
     const meta = getEffectiveClassMeta(member.className, customColors);
 
     // Column 0: STT
-    ctx.font = "bold 15px 'Be Vietnam Pro', system-ui, sans-serif";
+    ctx.font = "bold 15px 'Lexend', system-ui, sans-serif";
     ctx.fillStyle = textColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -272,7 +272,7 @@ export function drawRaidTableToCanvas({
     ctx.fillRect(classStartX, rowY, classWidth, rowHeight);
 
     ctx.fillStyle = meta.textColor;
-    ctx.font = "bold 15px 'Be Vietnam Pro', system-ui, sans-serif";
+    ctx.font = "bold 15px 'Lexend', system-ui, sans-serif";
     ctx.textAlign = 'center';
     ctx.fillText(meta.name, classStartX + classWidth / 2, midY);
 
@@ -428,7 +428,7 @@ export function drawGuildTeamsToCanvas({
   ctx.fillStyle = cardBg;
   ctx.fillRect(2, 2, width - 4, bannerHeight - 2);
 
-  ctx.font = "900 18px 'Be Vietnam Pro', system-ui, sans-serif";
+  ctx.font = "900 18px 'Lexend', system-ui, sans-serif";
   ctx.fillStyle = textColor;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -463,7 +463,7 @@ export function drawGuildTeamsToCanvas({
     // 4 PT Headers
     for (let p = 1; p <= 4; p++) {
       const ptStartX = teamColWidth + (p - 1) * ptWidth;
-      ctx.font = "bold 13px 'Be Vietnam Pro', system-ui, sans-serif";
+      ctx.font = "bold 13px 'Lexend', system-ui, sans-serif";
       ctx.fillStyle = textColor;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -497,13 +497,13 @@ export function drawGuildTeamsToCanvas({
     ctx.fillStyle = cardBg;
     ctx.fillRect(1, slotsStartY, teamColWidth - 1, teamBoxHeight);
 
-    ctx.font = "900 14px 'Be Vietnam Pro', system-ui, sans-serif";
+    ctx.font = "900 14px 'Lexend', system-ui, sans-serif";
     ctx.fillStyle = textColor;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(team.title, teamColWidth / 2, slotsStartY + teamBoxHeight / 2 - 10);
 
-    ctx.font = "bold 11px 'Be Vietnam Pro', system-ui, sans-serif";
+    ctx.font = "bold 11px 'Lexend', system-ui, sans-serif";
     ctx.fillStyle = subTextColor;
     ctx.fillText(`(${teamMems.length}/24)`, teamColWidth / 2, slotsStartY + teamBoxHeight / 2 + 12);
 
@@ -528,13 +528,13 @@ export function drawGuildTeamsToCanvas({
 
         // Subcolumn 1: Member Name
         if (mem && mem.ingame) {
-          ctx.font = "bold 13px 'Be Vietnam Pro', system-ui, sans-serif";
+          ctx.font = "bold 13px 'Lexend', system-ui, sans-serif";
           ctx.fillStyle = textColor;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
           ctx.fillText(mem.ingame, nameStartX + nameColWidth / 2, midY);
         } else {
-          ctx.font = "italic 11px 'Be Vietnam Pro', system-ui, sans-serif";
+          ctx.font = "italic 11px 'Lexend', system-ui, sans-serif";
           ctx.fillStyle = emptyTextColor;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';
@@ -568,7 +568,7 @@ export function drawGuildTeamsToCanvas({
           ctx.stroke();
 
           // Pill text
-          ctx.font = "bold 12px 'Be Vietnam Pro', system-ui, sans-serif";
+          ctx.font = "bold 12px 'Lexend', system-ui, sans-serif";
           ctx.fillStyle = meta.textColor;
           ctx.textAlign = 'center';
           ctx.textBaseline = 'middle';

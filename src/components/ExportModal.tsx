@@ -129,6 +129,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         scheduleTime: activeBoard?.scheduleTime,
         bossName: activeBoard?.bossName,
         parties: activeBoard?.parties,
+        showPartyDividers: false,
       });
     };
 
@@ -153,8 +154,10 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             clonedDoc.querySelector('#raid-capture-canvas') ||
             clonedDoc.body;
 
-          // 1. Remove all elements with data-html2canvas-ignore to avoid layout shift/interference
-          const ignored = table.querySelectorAll('[data-html2canvas-ignore="true"]');
+          // 1. Remove all elements with data-html2canvas-ignore and party dividers to avoid layout shift and exclude PT 1 / PT 2 rows
+          const ignored = table.querySelectorAll(
+            '[data-html2canvas-ignore="true"], [data-party-divider="true"]'
+          );
           ignored.forEach((el) => el.remove());
 
           // 2. Query original inputs from the live DOM before cloning to guarantee accurate values
@@ -223,7 +226,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             textDiv.textContent = textValue || '\u00A0';
             textDiv.setAttribute(
               'style',
-              `text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto !important; padding: 2px 0 !important; font-weight: 700 !important; font-size: 15px !important; line-height: 1.35 !important; color: ${textColor} !important; font-family: 'Be Vietnam Pro', system-ui, -apple-system, sans-serif !important; box-sizing: border-box !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;`
+              `text-align: center !important; width: 100% !important; display: block !important; margin: 0 auto !important; padding: 2px 0 !important; font-weight: 700 !important; font-size: 15px !important; line-height: 1.35 !important; color: ${textColor} !important; font-family: 'Lexend', system-ui, -apple-system, sans-serif !important; box-sizing: border-box !important; white-space: nowrap !important; overflow: hidden !important; text-overflow: ellipsis !important;`
             );
 
             parent.style.textAlign = 'center';
@@ -371,6 +374,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           scheduleTime: activeBoard?.scheduleTime,
           bossName: activeBoard?.bossName,
           parties: activeBoard?.parties,
+          showPartyDividers: false,
         });
         dataUrl = pure.toDataURL('image/png');
       }
@@ -392,6 +396,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           scheduleTime: activeBoard?.scheduleTime,
           bossName: activeBoard?.bossName,
           parties: activeBoard?.parties,
+          showPartyDividers: false,
         });
         blob = await new Promise<Blob | null>((resolve) => {
           pure.toBlob((b) => resolve(b), 'image/png');
@@ -442,6 +447,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           scheduleTime: activeBoard?.scheduleTime,
           bossName: activeBoard?.bossName,
           parties: activeBoard?.parties,
+          showPartyDividers: false,
         });
         setPreviewImageUrl(pure.toDataURL('image/png'));
       } catch (e) {
