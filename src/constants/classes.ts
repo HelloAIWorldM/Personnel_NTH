@@ -146,37 +146,21 @@ export const RAID1_STANDARD_CLASSES: RaidClass[] = [
   'Tố Vấn',
 ];
 
-// Sample data from the original raid photo roster:
-export const INITIAL_MEMBERS_FROM_IMAGE: RaidMember[] = [
-  { id: 'm1', stt: 1, ingame: 'Minos K', className: 'Toái Mộng', loggedBy: 'Nim K', party: 1 },
-  { id: 'm2', stt: 2, ingame: 'Bún Piu Piuu', className: 'Huyết Hà', loggedBy: 'Bún', party: 1 },
-  { id: 'm3', stt: 3, ingame: 'Ferrijit', className: 'Thiết Y', loggedBy: 'Back Code Thin', party: 1 },
-  { id: 'm4', stt: 4, ingame: 'Syk Yuuk', className: 'Thần Tương', loggedBy: 'Syk Yuuk', party: 1 },
-  { id: 'm5', stt: 5, ingame: 'Dạ Du', className: 'Cửu Linh', loggedBy: 'Vivy', party: 1 },
-  { id: 'm6', stt: 6, ingame: 'Tố Linhhh', className: 'Thiết Y', loggedBy: 'Souu', party: 1 },
-  { id: 'm7', stt: 7, ingame: 'Libra', className: 'Long Ngâm', loggedBy: 'Libra', party: 2 },
-  { id: 'm8', stt: 8, ingame: 'Cửu U Vương', className: 'Tố Vấn', loggedBy: 'Cửu U Vương', party: 2 },
-  { id: 'm9', stt: 9, ingame: 'Thỏbạolực', className: 'Thần Tương', loggedBy: 'HaneMeii', party: 2 },
-  { id: 'm10', stt: 10, ingame: 'Kuroba', className: 'Cửu Linh', loggedBy: 'Kuroba', party: 2 },
-  { id: 'm11', stt: 11, ingame: 'Băng Nhi', className: 'Tố Vấn', loggedBy: 'Gia Cát', party: 2 },
-  { id: 'm12', stt: 12, ingame: 'Quang Minh', className: 'Tố Vấn', loggedBy: 'Quang Minh', party: 2 },
-];
+// Clean empty 12-slot lineup for Raid 1 with standard class distribution
+export const RAID1_DEFAULT_EMPTY_MEMBERS: RaidMember[] = RAID1_STANDARD_CLASSES.map((className, i) => ({
+  id: `m_${i + 1}`,
+  stt: i + 1,
+  ingame: '',
+  className,
+  loggedBy: '',
+  party: i < 6 ? 1 : 2,
+}));
 
-// Full personnel pool data saved in Kho Nhân Sự
-export const INITIAL_PERSONNEL_POOL: PersonnelMember[] = [
-  { id: 'p1', ingame: 'Minos K', className: 'Toái Mộng', loggedBy: 'Nim K', createdAt: 1001 },
-  { id: 'p2', ingame: 'Bún Piu Piuu', className: 'Huyết Hà', loggedBy: 'Bún', createdAt: 1002 },
-  { id: 'p3', ingame: 'Ferrijit', className: 'Thiết Y', loggedBy: 'Back Code Thin', createdAt: 1003 },
-  { id: 'p4', ingame: 'Syk Yuuk', className: 'Thần Tương', loggedBy: 'Syk Yuuk', createdAt: 1004 },
-  { id: 'p5', ingame: 'Dạ Du', className: 'Cửu Linh', loggedBy: 'Vivy', createdAt: 1005 },
-  { id: 'p6', ingame: 'Tố Linhhh', className: 'Thiết Y', loggedBy: 'Souu', createdAt: 1006 },
-  { id: 'p7', ingame: 'Libra', className: 'Long Ngâm', loggedBy: 'Libra', createdAt: 1007 },
-  { id: 'p8', ingame: 'Cửu U Vương', className: 'Tố Vấn', loggedBy: 'Cửu U Vương', createdAt: 1008 },
-  { id: 'p9', ingame: 'Thỏbạolực', className: 'Thần Tương', loggedBy: 'HaneMeii', createdAt: 1009 },
-  { id: 'p10', ingame: 'Kuroba', className: 'Cửu Linh', loggedBy: 'Kuroba', createdAt: 1010 },
-  { id: 'p11', ingame: 'Băng Nhi', className: 'Tố Vấn', loggedBy: 'Gia Cát', createdAt: 1011 },
-  { id: 'p12', ingame: 'Quang Minh', className: 'Tố Vấn', loggedBy: 'Quang Minh', createdAt: 1012 },
-];
+// Backwards-compatible empty members template (no sample dummy names)
+export const INITIAL_MEMBERS_FROM_IMAGE: RaidMember[] = RAID1_DEFAULT_EMPTY_MEMBERS;
+
+// Personnel pool data starts completely clean (no sample dummy names)
+export const INITIAL_PERSONNEL_POOL: PersonnelMember[] = [];
 
 export function createEmptyBoard(
   boardNumber: number = 1,
@@ -222,23 +206,7 @@ export function createEmptyBoard(
 }
 
 export function createSampleBoardFromImage(boardNumber: number = 1): RaidBoard {
-  const timestamp = Date.now();
-  return {
-    id: `board_${timestamp}_${Math.random().toString(36).substring(2, 7)}`,
-    titlePrefix: `RAID ${boardNumber}`,
-    scheduleTime: 'MON 20:30',
-    bossName: 'NIÊN DU',
-    parties: [
-      { id: 1, name: 'PT 1' },
-      { id: 2, name: 'PT 2' },
-    ],
-    members: INITIAL_MEMBERS_FROM_IMAGE.map((m, idx) => ({
-      ...m,
-      id: `m_${timestamp}_${idx + 1}`,
-      stt: idx + 1,
-    })),
-    createdAt: timestamp,
-  };
+  return createEmptyBoard(boardNumber);
 }
 
 export function hexToRgb(hex: string): { r: number; g: number; b: number } {

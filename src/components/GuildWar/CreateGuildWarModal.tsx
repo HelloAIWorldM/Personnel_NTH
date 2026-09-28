@@ -4,7 +4,6 @@ import { GuildWarBoard, PersonnelMember, RaidMember } from '../../types';
 import {
   DEFAULT_GUILD_SESSIONS,
   createEmptyGuildWarBoard,
-  createSampleGuildWarBoard,
 } from '../../constants/guildWarDefaults';
 import { X, Swords, Users, ShieldAlert, Sparkles, Plus } from 'lucide-react';
 
@@ -28,7 +27,7 @@ export const CreateGuildWarModal: React.FC<CreateGuildWarModalProps> = ({
   const [title, setTitle] = useState(`BANG CHIẾN TUẦN ${nextBoardNumber}`);
   const [scheduleTime, setScheduleTime] = useState('T7 20:00 & CN 20:00');
   const [targetName, setTargetName] = useState('Chiếm Lãnh Địa / Đẩy Trụ');
-  const [templateType, setTemplateType] = useState<'sample' | 'from_personnel' | 'empty'>('sample');
+  const [templateType, setTemplateType] = useState<'from_personnel' | 'empty'>('empty');
   const [minAttendance, setMinAttendance] = useState<number>(4);
 
   useEffect(() => {
@@ -36,7 +35,7 @@ export const CreateGuildWarModal: React.FC<CreateGuildWarModalProps> = ({
       setTitle(`BANG CHIẾN TUẦN ${nextBoardNumber}`);
       setScheduleTime('T7 20:00 & CN 20:00');
       setTargetName('Chiếm Lãnh Địa / Đẩy Trụ');
-      setTemplateType('sample');
+      setTemplateType('empty');
       setMinAttendance(4);
     }
   }, [isOpen, nextBoardNumber]);
@@ -48,18 +47,6 @@ export const CreateGuildWarModal: React.FC<CreateGuildWarModalProps> = ({
     const finalTitle = title.trim() || `BANG CHIẾN TUẦN ${nextBoardNumber}`;
     const timestamp = Date.now();
     const uniqueId = `gw_board_${timestamp}_${Math.random().toString(36).substring(2, 7)}`;
-
-    if (templateType === 'sample') {
-      const sample = createSampleGuildWarBoard(nextBoardNumber);
-      sample.id = uniqueId;
-      sample.title = finalTitle;
-      sample.scheduleTime = scheduleTime;
-      sample.targetName = targetName;
-      sample.minAttendanceRequired = minAttendance;
-      onCreateBoard(sample);
-      onClose();
-      return;
-    }
 
     if (templateType === 'from_personnel') {
       // Gather unique personnel from personnelPool and raidMembers
@@ -212,22 +199,22 @@ export const CreateGuildWarModal: React.FC<CreateGuildWarModalProps> = ({
             <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
               Dữ liệu khởi tạo ban đầu:
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               <button
                 type="button"
-                onClick={() => setTemplateType('sample')}
+                onClick={() => setTemplateType('empty')}
                 className={`p-3 text-left rounded-xl border transition-all ${
-                  templateType === 'sample'
+                  templateType === 'empty'
                     ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 ring-2 ring-amber-500/20'
                     : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800'
                 }`}
               >
                 <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
-                  <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                  <span>Dữ liệu mẫu chuẩn</span>
+                  <Plus className="w-3.5 h-3.5 text-emerald-500" />
+                  <span>Bảng trống (Khuyến nghị)</span>
                 </div>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                  22 thành viên đầy đủ phái, chức vụ và 3 team như ảnh mẫu
+                  Tạo bảng sạch để tự phân công hoặc thêm thành viên mới
                 </p>
               </button>
 
@@ -246,24 +233,6 @@ export const CreateGuildWarModal: React.FC<CreateGuildWarModalProps> = ({
                 </div>
                 <p className="text-[10px] text-slate-500 dark:text-slate-400">
                   Lấy danh sách nhân sự hiện có trong kho Raid sang Bang Chiến
-                </p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setTemplateType('empty')}
-                className={`p-3 text-left rounded-xl border transition-all ${
-                  templateType === 'empty'
-                    ? 'border-amber-500 bg-amber-50 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 ring-2 ring-amber-500/20'
-                    : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600 bg-white dark:bg-slate-800'
-                }`}
-              >
-                <div className="flex items-center gap-1.5 font-bold text-xs mb-1">
-                  <Plus className="w-3.5 h-3.5 text-emerald-500" />
-                  <span>Bảng trống</span>
-                </div>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                  Tạo bảng trắng để tự nhập tay hoặc dán danh sách mới
                 </p>
               </button>
             </div>

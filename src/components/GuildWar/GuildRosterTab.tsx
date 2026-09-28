@@ -320,7 +320,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                 required
                 value={newIngame}
                 onChange={(e) => setNewIngame(e.target.value)}
-                placeholder="Ví dụ: Cửu U Vương"
+                placeholder="Ví dụ: Nhập tên ingame..."
                 className="w-full px-3 py-1.5 text-xs font-bold border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
             </div>
@@ -448,7 +448,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
             rows={5}
             value={batchText}
             onChange={(e) => setBatchText(e.target.value)}
-            placeholder={`Cửu U Vương - Cửu Linh - cuuuvuong#0001\nRannn - Huyết Hà\nViVy - Long Ngâm - vivy#8888\nLibra - Thần Tướng`}
+            placeholder={`Ingame1 - Cửu Linh - discord1#0001\nIngame2 - Huyết Hà\nIngame3 - Long Ngâm - discord3#8888\nIngame4 - Thần Tướng`}
             className="w-full p-3 text-xs font-mono border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
           />
           <div className="flex justify-end gap-2">

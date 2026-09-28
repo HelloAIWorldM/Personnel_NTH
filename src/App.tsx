@@ -4,8 +4,7 @@ import { User } from 'firebase/auth';
 import { initAuth } from './services/auth';
 import {
   createEmptyBoard,
-  createSampleBoardFromImage,
-  INITIAL_MEMBERS_FROM_IMAGE,
+  RAID1_DEFAULT_EMPTY_MEMBERS,
   INITIAL_PERSONNEL_POOL,
   CLASS_LIST,
   DEFAULT_RAID_PARTIES,
@@ -20,7 +19,7 @@ import {
   PersonnelMember,
   GuildWarBoard,
 } from './types';
-import { createSampleGuildWarBoard } from './constants/guildWarDefaults';
+import { createEmptyGuildWarBoard } from './constants/guildWarDefaults';
 import { CreateGuildWarModal } from './components/GuildWar/CreateGuildWarModal';
 import { GuildWarBoardView } from './components/GuildWar/GuildWarBoardView';
 import { normalizeName } from './utils/duplicates';
@@ -113,7 +112,7 @@ export default function App() {
 
   // Personnel Storage Pool (Ingame, Class, Logged by) - Multi-layer persistence
   const [personnelPool, setPersonnelPool] = useState<PersonnelMember[]>(() => {
-    return loadInitialPersonnel(INITIAL_PERSONNEL_POOL);
+    return loadInitialPersonnel([]);
   });
 
   const [customColors, setCustomColors] = useState<CustomClassColors>(() => {
@@ -178,7 +177,7 @@ export default function App() {
     return (
       guildWarBoards.find((b) => b.id === activeGuildWarBoardId) ||
       guildWarBoards[0] ||
-      createSampleGuildWarBoard(1)
+      createEmptyGuildWarBoard(1)
     );
   }, [guildWarBoards, activeGuildWarBoardId]);
 
@@ -263,18 +262,19 @@ export default function App() {
           let hasRestoredAny = false;
 
           // A. Phục hồi / Hợp nhất Kho Nhân Sự:
+          const currentCleanPersonnel = isSamplePersonnelPool(personnelPool) ? [] : personnelPool;
+          if (isSamplePersonnelPool(personnelPool)) {
+            setPersonnelPool([]);
+            safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify([]));
+          }
+
           if (recovered.personnelPool && recovered.personnelPool.length > 0) {
-            if (isSamplePersonnelPool(personnelPool)) {
-              console.info(
-                '[Storage] Tự động nạp Kho Nhân sự từ IndexedDB (thay cho mẫu):',
-                recovered.personnelPool.length
-              );
-              setPersonnelPool(recovered.personnelPool);
-              safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(recovered.personnelPool));
-              hasRestoredAny = true;
-            } else {
-              const merged = mergePersonnelPools(personnelPool, recovered.personnelPool);
-              if (merged.length !== personnelPool.length) {
+            const cleanRecovered = recovered.personnelPool.filter(
+              (p) => p && p.ingame && !isSamplePersonnelPool([p])
+            );
+            if (cleanRecovered.length > 0) {
+              const merged = mergePersonnelPools(currentCleanPersonnel, cleanRecovered);
+              if (merged.length !== currentCleanPersonnel.length) {
                 console.info(
                   '[Storage] Tự động hợp nhất Kho Nhân sự từ IndexedDB & LocalStorage:',
                   merged.length
@@ -558,7 +558,7 @@ export default function App() {
   // Add a clean empty Board keeping exact Raid 1 format
   const handleAddNewEmptyBoard = () => {
     const nextNumber = boards.length + 1;
-    const raid1Template = boards[0]?.members || INITIAL_MEMBERS_FROM_IMAGE;
+    const raid1Template = boards[0]?.members || RAID1_DEFAULT_EMPTY_MEMBERS;
     const newBoard = createEmptyBoard(nextNumber, raid1Template);
     setBoards((prev) => [...prev, newBoard]);
     setActiveBoardId(newBoard.id);
@@ -1348,7 +1348,6 @@ export default function App() {
                       onAssignToRaid={handleAssignPersonnelToRaid}
                       onRemoveFromRaid={handleRemoveFromRaid}
                       onSyncFromActiveRaid={handleSyncFromActiveRaid}
-                      onLoadSamplePersonnel={() => handleUpdatePersonnelPool(INITIAL_PERSONNEL_POOL)}
                       customColors={customColors}
                       onOpenColorCustomizer={() => setIsColorModalOpen(true)}
                       isCompact={true}
@@ -1371,7 +1370,6 @@ export default function App() {
                   onAssignToRaid={handleAssignPersonnelToRaid}
                   onRemoveFromRaid={handleRemoveFromRaid}
                   onSyncFromActiveRaid={handleSyncFromActiveRaid}
-                  onLoadSamplePersonnel={() => handleUpdatePersonnelPool(INITIAL_PERSONNEL_POOL)}
                   customColors={customColors}
                   onOpenColorCustomizer={() => setIsColorModalOpen(true)}
                   isCompact={false}
@@ -1550,7 +1548,7 @@ export default function App() {
         nextBoardNumber={boards.length + 1}
         currentBoardTitle={activeBoard.titlePrefix}
         currentBoardMembers={activeBoard.members}
-        raid1Members={boards[0]?.members || INITIAL_MEMBERS_FROM_IMAGE}
+        raid1Members={boards[0]?.members || RAID1_DEFAULT_EMPTY_MEMBERS}
         personnelPool={personnelPool}
         allBoards={boards}
         onCreateBoard={handleCreateCustomBoard}

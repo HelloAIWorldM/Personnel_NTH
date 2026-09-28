@@ -192,7 +192,71 @@ export interface AutoSnapshot {
 }
 
 /**
- * Chuẩn hóa một RaidBoard để tránh thiếu field
+ * Danh sách tên ingame mẫu cũ cần tự động thanh lọc khỏi bộ nhớ trình duyệt
+ */
+export const LEGACY_SAMPLE_NAMES = new Set([
+  'minos k',
+  'bún piu piuu',
+  'bun piu piuu',
+  'ferrijit',
+  'syk yuuk',
+  'dạ du',
+  'da du',
+  'tố linhhh',
+  'to linhhh',
+  'libra',
+  'cửu u vương',
+  'cuu u vuong',
+  'thỏbạolực',
+  'thobaoluc',
+  'thỏ bạo lực',
+  'kuroba',
+  'băng nhi',
+  'bang nhi',
+  'quang minh',
+  'vy lì',
+  'vy li',
+  'ninh rain',
+  'apple snow',
+  'rannn',
+  'dâm dâm công tử',
+  'dam dam cong tu',
+  'vivy',
+  'cừu béo',
+  'cuu beo',
+  'yên nguyệt cửu',
+  'yen nguyet cuu',
+  'xiao yu',
+  'khưu vĩ khanh',
+  'khuu vi khanh',
+  'akma',
+  'thần cẩn',
+  'than can',
+  'tiêu niên',
+  'tieu nien',
+  'loi nhoi',
+  'rainy',
+  'chiiyaki',
+  'lục phượng yen',
+  'luc phuong yen',
+  'shen',
+  'tiến mỹ',
+  'tien my',
+  'hồ uyển ly',
+  'ho uyen ly',
+  'hắc điệp',
+  'hac diep',
+  'bạch hồ',
+  'bach ho',
+  'lãnh phong',
+  'lanh phong',
+  'nam thần đbrr',
+  'nam than dbrr',
+  'trang candy',
+]);
+
+/**
+ * Chuẩn hóa một RaidBoard để tránh thiếu field và tự động loại bỏ tên dữ liệu mẫu
  */
 export function sanitizeRaidBoard(board: any, index: number = 1): RaidBoard {
   const timestamp = Date.now();
@@ -204,7 +268,7 @@ export function sanitizeRaidBoard(board: any, index: number = 1): RaidBoard {
     ? board.parties
     : [{ id: 1, name: 'PT 1' }, { id: 2, name: 'PT 2' }];
 
-  const members: RaidMember[] = Array.isArray(board?.members)
+  let members: RaidMember[] = Array.isArray(board?.members)
     ? board.members.map((m: any, mIdx: number) => ({
         id: typeof m?.id === 'string' && m.id ? m.id : `m_${timestamp}_${mIdx + 1}`,
         stt: typeof m?.stt === 'number' ? m.stt : mIdx + 1,
@@ -215,6 +279,22 @@ export function sanitizeRaidBoard(board: any, index: number = 1): RaidBoard {
         checked: Boolean(m?.checked),
       }))
     : [];
+
+  // Tự động làm sạch nếu tất cả thành viên trong bảng là danh sách mẫu cũ
+  // Giữ nguyên toàn bộ 12 vị trí môn phái và cơ cấu PT 1/PT 2 của Raid 1
+  const filledMembers = members.filter((m) => m.ingame && m.ingame.trim().length > 0);
+  const isAllSampleMembers =
+    filledMembers.length > 0 &&
+    filledMembers.every((m) => LEGACY_SAMPLE_NAMES.has(m.ingame.trim().toLowerCase()));
+
+  if (isAllSampleMembers) {
+    members = members.map((m) => ({
+      ...m,
+      ingame: '',
+      loggedBy: '',
+      checked: false,
+    }));
+  }
 
   return {
     id,
@@ -228,7 +308,7 @@ export function sanitizeRaidBoard(board: any, index: number = 1): RaidBoard {
 }
 
 /**
- * Chuẩn hóa một GuildWarBoard để tránh thiếu field
+ * Chuẩn hóa một GuildWarBoard để tránh thiếu field và tự động loại bỏ dữ liệu mẫu
  */
 export function sanitizeGuildWarBoard(board: any, index: number = 1): GuildWarBoard {
   const timestamp = Date.now();
@@ -243,7 +323,7 @@ export function sanitizeGuildWarBoard(board: any, index: number = 1): GuildWarBo
     ? board.sessions
     : DEFAULT_GUILD_SESSIONS.map((s) => ({ ...s }));
 
-  const members: GuildMember[] = Array.isArray(board?.members)
+  let members: GuildMember[] = Array.isArray(board?.members)
     ? board.members.map((m: any, mIdx: number) => ({
         id: typeof m?.id === 'string' && m.id ? m.id : `gw_m_${timestamp}_${mIdx + 1}`,
         stt: typeof m?.stt === 'number' ? m.stt : mIdx + 1,
@@ -260,6 +340,16 @@ export function sanitizeGuildWarBoard(board: any, index: number = 1): GuildWarBo
         updatedAt: m?.updatedAt,
       }))
     : [];
+
+  // Tự động làm sạch nếu tất cả thành viên trong bảng là danh sách mẫu cũ
+  const filledGwMembers = members.filter((m) => m.ingame && m.ingame.trim().length > 0);
+  const isAllSampleGw =
+    filledGwMembers.length > 0 &&
+    filledGwMembers.every((m) => LEGACY_SAMPLE_NAMES.has(m.ingame.trim().toLowerCase()));
+
+  if (isAllSampleGw) {
+    members = [];
+  }
 
   return {
     id,
@@ -389,16 +479,22 @@ export function loadInitialBoards(): { boards: RaidBoard[]; activeBoardId: strin
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
         loadedBoards = parsed.map((b, idx) => sanitizeRaidBoard(b, idx + 1));
+        // Ghi lại bản đã khử sạch dữ liệu mẫu vào localStorage
+        safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(loadedBoards));
       }
     }
   } catch (e) {
     console.error('[Storage] Error reading saved boards:', e);
   }
 
-  // 2. Nếu localStorage rỗng hoặc dữ liệu rỗng, thử khôi phục từ bản Auto Snapshot gần nhất
+  // 2. Nếu localStorage rỗng hoặc dữ liệu rỗng, thử khôi phục từ bản Auto Snapshot gần nhất (bỏ qua bản mẫu)
   if (!loadedBoards || loadedBoards.length === 0 || countMembersWithData(loadedBoards) === 0) {
     const snapshots = getAutoSnapshots();
-    const validSnap = snapshots.find((s) => s.boards && s.boards.length > 0 && s.totalMembersWithData > 0);
+    const validSnap = snapshots.find((s) => {
+      if (!s.boards || s.boards.length === 0 || s.totalMembersWithData === 0) return false;
+      const sanitized = s.boards.map((b, idx) => sanitizeRaidBoard(b, idx + 1));
+      return countMembersWithData(sanitized) > 0;
+    });
     if (validSnap) {
       console.info('[Storage] Tự động phục hồi bảng Raid từ bản sao lưu gần nhất:', validSnap.label);
       loadedBoards = validSnap.boards.map((b, idx) => sanitizeRaidBoard(b, idx + 1));
@@ -456,8 +552,8 @@ export function loadInitialBoards(): { boards: RaidBoard[]; activeBoardId: strin
 /**
  * Tải kho nhân sự với cơ chế phục hồi đa tầng:
  * 1. Đọc localStorage: Nếu có mảng hợp lệ (kể cả rỗng []), ưu tiên sử dụng
- * 2. Nếu localStorage key hoàn toàn không có (null), tự động phục hồi từ bản Auto Snapshot gần nhất
- * 3. Fallback cuối cùng mới dùng danh sách mẫu
+ * 2. Nếu localStorage chứa dữ liệu mẫu cũ, tự động thanh lọc về []
+ * 3. Nếu rỗng, chỉ phục hồi snapshot nếu snapshot chứa dữ liệu người dùng thật
  */
 export function loadInitialPersonnel(initialFallback: PersonnelMember[] = []): PersonnelMember[] {
   try {
@@ -465,6 +561,11 @@ export function loadInitialPersonnel(initialFallback: PersonnelMember[] = []): P
     if (saved !== null) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
+        if (isSamplePersonnelPool(parsed)) {
+          // Xóa bỏ hoàn toàn dữ liệu mẫu cũ trong localStorage
+          safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify([]));
+          return [];
+        }
         return parsed;
       }
     }
@@ -472,9 +573,14 @@ export function loadInitialPersonnel(initialFallback: PersonnelMember[] = []): P
     console.error('[Storage] Error loading personnel from localStorage:', e);
   }
 
-  // Thử khôi phục từ snapshot
+  // Thử khôi phục từ snapshot (bỏ qua nếu snapshot chỉ chứa dữ liệu mẫu)
   const snapshots = getAutoSnapshots();
-  const validSnap = snapshots.find((s) => s.personnelPool && s.personnelPool.length > 0);
+  const validSnap = snapshots.find(
+    (s) =>
+      s.personnelPool &&
+      s.personnelPool.length > 0 &&
+      !isSamplePersonnelPool(s.personnelPool)
+  );
   if (validSnap && Array.isArray(validSnap.personnelPool)) {
     console.info('[Storage] Tự động phục hồi Kho nhân sự từ Snapshot gần nhất:', validSnap.label);
     try {
@@ -491,10 +597,9 @@ export function loadInitialPersonnel(initialFallback: PersonnelMember[] = []): P
  */
 export function isSamplePersonnelPool(pool: PersonnelMember[]): boolean {
   if (!Array.isArray(pool) || pool.length === 0) return false;
-  const sampleNames = new Set(
-    INITIAL_PERSONNEL_POOL.map((p) => (p.ingame || '').trim().toLowerCase())
-  );
-  return pool.every((p) => p && sampleNames.has((p.ingame || '').trim().toLowerCase()));
+  const filled = pool.filter((p) => p && p.ingame && p.ingame.trim().length > 0);
+  if (filled.length === 0) return false;
+  return filled.every((p) => LEGACY_SAMPLE_NAMES.has(p.ingame.trim().toLowerCase()));
 }
 
 /**
@@ -546,15 +651,20 @@ export function loadInitialGuildWarBoards(): { boards: GuildWarBoard[]; activeBo
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
         loadedBoards = parsed.map((b, idx) => sanitizeGuildWarBoard(b, idx + 1));
+        safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(loadedBoards));
       }
     }
   } catch (e) {
     console.error('[Storage] Error loading guild war boards:', e);
   }
 
-  if (!loadedBoards || loadedBoards.length === 0) {
+  if (!loadedBoards || loadedBoards.length === 0 || countGuildWarMembers(loadedBoards) === 0) {
     const snapshots = getAutoSnapshots();
-    const validSnap = snapshots.find((s) => s.guildWarBoards && s.guildWarBoards.length > 0);
+    const validSnap = snapshots.find((s) => {
+      if (!s.guildWarBoards || s.guildWarBoards.length === 0) return false;
+      const sanitized = s.guildWarBoards.map((b, idx) => sanitizeGuildWarBoard(b, idx + 1));
+      return countGuildWarMembers(sanitized) > 0;
+    });
     if (validSnap && validSnap.guildWarBoards) {
       loadedBoards = validSnap.guildWarBoards.map((b, idx) => sanitizeGuildWarBoard(b, idx + 1));
     }
@@ -577,7 +687,7 @@ export function loadInitialGuildWarBoards(): { boards: GuildWarBoard[]; activeBo
 
 /**
  * Phục hồi bất đồng bộ từ IndexedDB nếu LocalStorage bị xóa hoặc thiếu dữ liệu
- * Gọi 1 lần duy nhất khi ứng dụng vừa mount để bảo vệ tuyệt đối.
+ * Tự động loại bỏ các dữ liệu mẫu cũ đã lưu trong IndexedDB.
  */
 export async function recoverAsyncFromIndexedDB(): Promise<{
   boards?: RaidBoard[];
@@ -600,9 +710,28 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
         getFromIndexedDB<string>('activeGuildWarBoardId'),
       ]);
 
-    const hasBoards = Array.isArray(dbBoards) && countMembersWithData(dbBoards) > 0;
-    const hasPersonnel = Array.isArray(dbPersonnel) && dbPersonnel.length > 0;
-    const hasGuildWar = Array.isArray(dbGuildWar) && countGuildWarMembers(dbGuildWar) > 0;
+    const sanitizedBoards = Array.isArray(dbBoards)
+      ? dbBoards.map((b, idx) => sanitizeRaidBoard(b, idx + 1))
+      : [];
+    const sanitizedGw = Array.isArray(dbGuildWar)
+      ? dbGuildWar.map((b, idx) => sanitizeGuildWarBoard(b, idx + 1))
+      : [];
+    const isDbSamplePersonnel = Array.isArray(dbPersonnel) && isSamplePersonnelPool(dbPersonnel);
+
+    // Dọn sạch dữ liệu mẫu trong IndexedDB nếu có
+    if (isDbSamplePersonnel) {
+      saveToIndexedDB('personnelPool', []);
+    }
+    if (Array.isArray(dbBoards) && countMembersWithData(dbBoards) > 0 && countMembersWithData(sanitizedBoards) === 0) {
+      saveToIndexedDB('boards', sanitizedBoards);
+    }
+    if (Array.isArray(dbGuildWar) && countGuildWarMembers(dbGuildWar) > 0 && countGuildWarMembers(sanitizedGw) === 0) {
+      saveToIndexedDB('guildWarBoards', sanitizedGw);
+    }
+
+    const hasBoards = sanitizedBoards.length > 0 && countMembersWithData(sanitizedBoards) > 0;
+    const hasPersonnel = Array.isArray(dbPersonnel) && dbPersonnel.length > 0 && !isDbSamplePersonnel;
+    const hasGuildWar = sanitizedGw.length > 0 && countGuildWarMembers(sanitizedGw) > 0;
     const hasSnapshots = Array.isArray(dbSnapshots) && dbSnapshots.length > 0;
 
     if (!hasBoards && !hasPersonnel && !hasGuildWar && !hasSnapshots) {
@@ -620,7 +749,7 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
     } = {};
 
     if (hasBoards) {
-      result.boards = dbBoards.map((b, idx) => sanitizeRaidBoard(b, idx + 1));
+      result.boards = sanitizedBoards;
       result.activeBoardId =
         dbActiveBoardId && result.boards.some((b) => b.id === dbActiveBoardId)
           ? dbActiveBoardId
@@ -637,7 +766,7 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
       safeLocalStorageSet(STORAGE_KEY_COLORS, JSON.stringify(result.customColors));
     }
     if (hasGuildWar) {
-      result.guildWarBoards = dbGuildWar.map((b, idx) => sanitizeGuildWarBoard(b, idx + 1));
+      result.guildWarBoards = sanitizedGw;
       result.activeGuildWarBoardId =
         dbActiveGwId && result.guildWarBoards.some((b) => b.id === dbActiveGwId)
           ? dbActiveGwId

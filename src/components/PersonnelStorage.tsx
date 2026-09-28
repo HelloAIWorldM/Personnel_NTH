@@ -42,7 +42,6 @@ interface PersonnelStorageProps {
   onAssignToRaid: (personnel: PersonnelMember, targetStt?: number) => void;
   onRemoveFromRaid: (ingame: string) => void;
   onSyncFromActiveRaid: () => void;
-  onLoadSamplePersonnel?: () => void;
   customColors?: CustomClassColors;
   onOpenColorCustomizer?: () => void;
   isCompact?: boolean; // For sidebar display
@@ -58,7 +57,6 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   onAssignToRaid,
   onRemoveFromRaid,
   onSyncFromActiveRaid,
-  onLoadSamplePersonnel,
   customColors,
   onOpenColorCustomizer,
   isCompact = false,
@@ -528,16 +526,6 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                 ? 'Thử xóa bớt bộ lọc để hiển thị nhiều hơn'
                 : 'Bấm "+ Thêm" hoặc "Lấy từ Raid" để nạp danh sách nhân sự'}
             </p>
-            {personnelPool.length === 0 && onLoadSamplePersonnel && (
-              <button
-                type="button"
-                onClick={onLoadSamplePersonnel}
-                className="mt-2.5 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 hover:bg-indigo-100 dark:hover:bg-indigo-900 transition-colors shadow-2xs"
-              >
-                <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
-                <span>Nạp danh sách mẫu 12 người</span>
-              </button>
-            )}
           </div>
         ) : (
           filteredPersonnel.map((person) => {
@@ -801,17 +789,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
           >
             Xoá toàn bộ kho
           </button>
-        ) : (
-          onLoadSamplePersonnel && (
-            <button
-              type="button"
-              onClick={onLoadSamplePersonnel}
-              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:underline font-bold text-[11px] transition-colors"
-            >
-              Nạp lại mẫu 12 người
-            </button>
-          )
-        )}
+        ) : null}
       </div>
 
       {/* Reset Confirmation Modal */}
