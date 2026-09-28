@@ -244,21 +244,24 @@ export function sanitizeGuildWarBoard(board: any, index: number = 1): GuildWarBo
     : DEFAULT_GUILD_SESSIONS.map((s) => ({ ...s }));
 
   let members: GuildMember[] = Array.isArray(board?.members)
-    ? board.members.map((m: any, mIdx: number) => ({
-        id: typeof m?.id === 'string' && m.id ? m.id : `gw_m_${timestamp}_${mIdx + 1}`,
-        stt: typeof m?.stt === 'number' ? m.stt : mIdx + 1,
-        ingame: typeof m?.ingame === 'string' ? m.ingame : '',
-        className: (m?.className || 'Cửu Linh') as RaidClass,
-        guildRole: (m?.guildRole || 'Thành Viên') as GuildRole,
-        participation: m?.participation || 'Cả hai',
-        discord: typeof m?.discord === 'string' ? m.discord : '',
-        team: (m?.team || 'Chưa xếp') as GuildTeam,
-        party: typeof m?.party === 'number' ? m.party : undefined,
-        slot: typeof m?.slot === 'number' ? m.slot : undefined,
-        attendance: typeof m?.attendance === 'object' && m.attendance ? { ...m.attendance } : {},
-        note: typeof m?.note === 'string' ? m.note : '',
-        updatedAt: m?.updatedAt,
-      }))
+    ? board.members.map((m: any, mIdx: number) => {
+        const mem: GuildMember = {
+          id: typeof m?.id === 'string' && m.id ? m.id : `gw_m_${timestamp}_${mIdx + 1}`,
+          stt: typeof m?.stt === 'number' ? m.stt : mIdx + 1,
+          ingame: typeof m?.ingame === 'string' ? m.ingame : '',
+          className: (m?.className || 'Cửu Linh') as RaidClass,
+          guildRole: (m?.guildRole || 'Thành Viên') as GuildRole,
+          participation: m?.participation || 'Cả hai',
+          discord: typeof m?.discord === 'string' ? m.discord : '',
+          team: (m?.team || 'Chưa xếp') as GuildTeam,
+          attendance: typeof m?.attendance === 'object' && m.attendance ? { ...m.attendance } : {},
+          note: typeof m?.note === 'string' ? m.note : '',
+        };
+        if (typeof m?.party === 'number') mem.party = m.party;
+        if (typeof m?.slot === 'number') mem.slot = m.slot;
+        if (typeof m?.updatedAt === 'string') mem.updatedAt = m.updatedAt;
+        return mem;
+      })
     : [];
 
   return {

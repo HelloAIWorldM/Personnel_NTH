@@ -80,9 +80,14 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
 
   // Member CRUD
   const handleUpdateMember = (id: string, updates: Partial<GuildMember>) => {
-    const updatedMembers = board.members.map((m) =>
-      m.id === id ? { ...m, ...updates, updatedAt: new Date().toISOString() } : m
-    );
+    const updatedMembers = board.members.map((m) => {
+      if (m.id !== id) return m;
+      const updated: GuildMember = { ...m, ...updates, updatedAt: new Date().toISOString() };
+      if (updates.party === undefined && 'party' in updates) delete updated.party;
+      if (updates.slot === undefined && 'slot' in updates) delete updated.slot;
+      if (updates.discord === undefined && 'discord' in updates) delete updated.discord;
+      return updated;
+    });
     onUpdateBoard({ ...board, members: updatedMembers });
   };
 

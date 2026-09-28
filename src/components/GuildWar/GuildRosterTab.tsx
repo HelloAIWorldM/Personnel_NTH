@@ -121,7 +121,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
       className: editClass,
       guildRole: editRole,
       participation: editParticipation,
-      discord: editDiscord.trim() || undefined,
+      discord: editDiscord.trim() || '',
       team: editTeam,
     });
     setEditingId(null);
@@ -136,7 +136,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
       className: newClass,
       guildRole: newRole,
       participation: newParticipation,
-      discord: newDiscord.trim() || undefined,
+      discord: newDiscord.trim() || '',
       team: newTeam,
       attendance: {},
     });
@@ -165,7 +165,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
           );
           if (found) matchedClass = found;
         }
-        const discord = parts[2] || undefined;
+        const discord = parts[2] ? parts[2].trim() : '';
         onAddMember({
           stt: members.length + added + 1,
           ingame,

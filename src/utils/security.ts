@@ -75,14 +75,18 @@ export function sanitizeRaidMember(raw: any, fallbackStt: number = 1): RaidMembe
 
   const party = typeof raw?.party === 'number' && raw.party > 0 && raw.party <= 10 ? raw.party : undefined;
 
-  return {
+  const result: RaidMember = {
     id,
     stt,
     ingame,
     className,
     loggedBy,
-    party,
   };
+  if (party !== undefined) {
+    result.party = party;
+  }
+
+  return result;
 }
 
 /**

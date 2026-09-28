@@ -61,6 +61,32 @@ export function setAutoCloudSyncEnabled(enabled: boolean): void {
 }
 
 /**
+ * Đệ quy làm sạch dữ liệu cho Cloud Firestore:
+ * - Loại bỏ hoàn toàn các key có giá trị `undefined` ở mọi cấp độ (Firestore nghiêm cấm undefined)
+ * - Lọc bỏ các phần tử undefined trong mảng
+ */
+export function cleanForFirestore<T>(input: T): T {
+  if (input === null || input === undefined) {
+    return null as unknown as T;
+  }
+  if (Array.isArray(input)) {
+    return input
+      .filter((item) => item !== undefined)
+      .map((item) => cleanForFirestore(item)) as unknown as T;
+  }
+  if (typeof input === 'object') {
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(input as Record<string, any>)) {
+      if (value !== undefined) {
+        result[key] = cleanForFirestore(value);
+      }
+    }
+    return result as T;
+  }
+  return input;
+}
+
+/**
  * Lưu dữ liệu lên Firestore an toàn tuân thủ chặt chẽ firestore.rules
  */
 export async function pushToCloud(
@@ -80,7 +106,7 @@ export async function pushToCloud(
     const docRef = doc(db, 'guilds', targetId);
 
     // Chuẩn hóa và giới hạn kích thước theo firestore.rules
-    const docData: CloudGuildData = {
+    const rawData = {
       boards: (payload.boards || []).slice(0, 100),
       personnelPool: (payload.personnelPool || []).slice(0, 1000),
       guildWarBoards: (payload.guildWarBoards || []).slice(0, 100),
@@ -90,6 +116,10 @@ export async function pushToCloud(
       updatedAt: Date.now(),
       title: payload.title ? String(payload.title).slice(0, 200) : 'Bang NTH',
     };
+
+    // Làm sạch 100% undefined ở mọi cấp độ trước khi gửi Firestore
+    const cleaned = cleanForFirestore(rawData);
+    const docData: CloudGuildData = JSON.parse(JSON.stringify(cleaned));
 
     await setDoc(docRef, docData, { merge: true });
     return { success: true };
