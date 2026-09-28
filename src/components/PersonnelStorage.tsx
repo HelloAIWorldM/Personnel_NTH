@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
 import { CustomClassColors, PersonnelMember, RaidBoard, RaidClass, RaidMember } from '../types';
 import { normalizeName } from '../utils/duplicates';
+import { PixelCat } from './PixelCat';
 import {
   Users,
   UserPlus,
@@ -396,11 +397,12 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
           </form>
         )}
 
-        {/* Search & Filter Controls */}
-        <div className="mt-2.5 space-y-2">
+        {/* Search & Filter Controls with Pixel Cat */}
+        <div className="mt-6.5 space-y-2">
           {/* Search bar */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <PixelCat isSearching={Boolean(searchQuery.trim())} />
+            <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
             <input
               type="text"
               value={searchQuery}
