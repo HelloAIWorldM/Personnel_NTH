@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Cloud, CloudUpload, CloudDownload, Check, AlertCircle, RefreshCw, X, ShieldCheck } from 'lucide-react';
+import { Cloud, CloudUpload, CloudDownload, Check, AlertCircle, RefreshCw, X } from 'lucide-react';
 import {
   getSavedGuildId,
   saveGuildId,
@@ -135,14 +135,6 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
             <div className="text-right text-[11px] text-slate-400">
               <div>Kho nhân sự: <strong className="text-amber-400">{personnelCount}</strong></div>
               <div>Bảng: <strong className="text-blue-400">{raidBoardsCount} Raid</strong> | <strong className="text-purple-400">{guildWarBoardsCount} Bang chiến</strong></div>
-            </div>
-          </div>
-
-          {/* Protection Note */}
-          <div className="p-3 rounded-xl bg-blue-950/40 border border-blue-800/40 flex items-start gap-2.5 text-xs text-blue-200/90 leading-relaxed">
-            <ShieldCheck className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
-            <div>
-              <strong>Bảo vệ vĩnh viễn:</strong> Khi đã lưu lên Cloud, dù bạn có bật tính năng xóa dữ liệu khi đóng tab của Brave, mở tab ẩn danh hay đổi sang máy tính khác, dữ liệu của bang bạn luôn được giữ an toàn trên máy chủ Google.
             </div>
           </div>
 
