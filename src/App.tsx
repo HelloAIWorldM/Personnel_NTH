@@ -262,58 +262,62 @@ export default function App() {
           let hasRestoredAny = false;
 
           // A. Phục hồi / Hợp nhất Kho Nhân Sự:
-          const currentCleanPersonnel = isSamplePersonnelPool(personnelPool) ? [] : personnelPool;
-          if (isSamplePersonnelPool(personnelPool)) {
-            setPersonnelPool([]);
-            safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify([]));
-          }
-
           if (recovered.personnelPool && recovered.personnelPool.length > 0) {
-            const cleanRecovered = recovered.personnelPool.filter(
-              (p) => p && p.ingame && !isSamplePersonnelPool([p])
-            );
-            if (cleanRecovered.length > 0) {
-              const merged = mergePersonnelPools(currentCleanPersonnel, cleanRecovered);
-              if (merged.length !== currentCleanPersonnel.length) {
+            setPersonnelPool((currentPool) => {
+              const merged = mergePersonnelPools(currentPool, recovered.personnelPool!);
+              if (merged.length !== currentPool.length) {
                 console.info(
                   '[Storage] Tự động hợp nhất Kho Nhân sự từ IndexedDB & LocalStorage:',
                   merged.length
                 );
-                setPersonnelPool(merged);
                 safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(merged));
                 hasRestoredAny = true;
+                return merged;
               }
-            }
+              return currentPool;
+            });
           }
 
           // B. Phục hồi Bảng Raid nếu LocalStorage hiện rỗng hoặc ít dữ liệu hơn IndexedDB:
-          const currentRaidCount = countMembersWithData(boards);
           if (recovered.boards && recovered.boards.length > 0) {
-            const idbCount = countMembersWithData(recovered.boards);
-            if (currentRaidCount === 0 && idbCount > 0) {
-              console.info('[Storage] Tự động phục hồi Bảng Raid từ IndexedDB:', idbCount, 'thành viên');
-              setBoards(recovered.boards);
-              if (recovered.activeBoardId) setActiveBoardId(recovered.activeBoardId);
-              hasRestoredAny = true;
-            }
+            setBoards((currentBoards) => {
+              const currentRaidCount = countMembersWithData(currentBoards);
+              const idbCount = countMembersWithData(recovered.boards!);
+              if (currentRaidCount === 0 && idbCount > 0) {
+                console.info('[Storage] Tự động phục hồi Bảng Raid từ IndexedDB:', idbCount, 'thành viên');
+                safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(recovered.boards!));
+                if (recovered.activeBoardId) {
+                  setActiveBoardId(recovered.activeBoardId);
+                  safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD, recovered.activeBoardId);
+                }
+                hasRestoredAny = true;
+                return recovered.boards!;
+              }
+              return currentBoards;
+            });
           }
 
           // C. Phục hồi Bảng Bang Chiến nếu LocalStorage hiện rỗng hoặc ít dữ liệu hơn:
-          const currentGwCount = countGuildWarMembers(guildWarBoards);
           if (recovered.guildWarBoards && recovered.guildWarBoards.length > 0) {
-            const idbGwCount = countGuildWarMembers(recovered.guildWarBoards);
-            if (currentGwCount === 0 && idbGwCount > 0) {
-              console.info(
-                '[Storage] Tự động phục hồi Bảng Bang Chiến từ IndexedDB:',
-                idbGwCount,
-                'thành viên'
-              );
-              setGuildWarBoards(recovered.guildWarBoards);
-              if (recovered.activeGuildWarBoardId) {
-                setActiveGuildWarBoardId(recovered.activeGuildWarBoardId);
+            setGuildWarBoards((currentGw) => {
+              const currentGwCount = countGuildWarMembers(currentGw);
+              const idbGwCount = countGuildWarMembers(recovered.guildWarBoards!);
+              if (currentGwCount === 0 && idbGwCount > 0) {
+                console.info(
+                  '[Storage] Tự động phục hồi Bảng Bang Chiến từ IndexedDB:',
+                  idbGwCount,
+                  'thành viên'
+                );
+                safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(recovered.guildWarBoards!));
+                if (recovered.activeGuildWarBoardId) {
+                  setActiveGuildWarBoardId(recovered.activeGuildWarBoardId);
+                  safeLocalStorageSet(STORAGE_KEY_ACTIVE_GUILDWAR, recovered.activeGuildWarBoardId);
+                }
+                hasRestoredAny = true;
+                return recovered.guildWarBoards!;
               }
-              hasRestoredAny = true;
-            }
+              return currentGw;
+            });
           }
 
           // D. Phục hồi Custom Colors:
@@ -493,6 +497,7 @@ export default function App() {
     setGuildWarBoards((prev) => {
       const next = prev.map((b) => (b.id === updated.id ? updated : b));
       safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(next));
+      saveToIndexedDB('guildWarBoards', next);
       return next;
     });
   };
@@ -504,8 +509,11 @@ export default function App() {
     }
     const remaining = guildWarBoards.filter((b) => b.id !== boardId);
     setGuildWarBoards(remaining);
+    safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(remaining));
+    saveToIndexedDB('guildWarBoards', remaining);
     if (activeGuildWarBoardId === boardId) {
       setActiveGuildWarBoardId(remaining[0].id);
+      safeLocalStorageSet(STORAGE_KEY_ACTIVE_GUILDWAR, remaining[0].id);
     }
     showToast('Đã xóa bảng Bang Chiến.');
   };
@@ -523,8 +531,12 @@ export default function App() {
         attendance: { ...(m.attendance || {}) },
       })),
     };
-    setGuildWarBoards((prev) => [...prev, newBoard]);
+    const nextList = [...guildWarBoards, newBoard];
+    setGuildWarBoards(nextList);
+    safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(nextList));
+    saveToIndexedDB('guildWarBoards', nextList);
     setActiveGuildWarBoardId(newBoard.id);
+    safeLocalStorageSet(STORAGE_KEY_ACTIVE_GUILDWAR, newBoard.id);
     setAppMode('GUILD_WAR');
     showToast(`Đã nhân bản thành "${newBoard.title}"`);
   };
@@ -534,6 +546,7 @@ export default function App() {
     setBoards((prev) => {
       const next = prev.map((b) => (b.id === activeBoard.id ? { ...b, ...updates } : b));
       safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(next));
+      saveToIndexedDB('boards', next);
       return next;
     });
   };
