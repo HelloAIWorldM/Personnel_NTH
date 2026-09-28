@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import html2canvas from 'html2canvas-pro';
 import { CustomClassColors, RaidMember, RaidBoard } from '../types';
 import { getEffectiveClassMeta } from '../constants/classes';
@@ -102,13 +102,21 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     }
   };
 
+  // Detect whether the raid table is in dark mode or light mode
+  const getIsTableDark = useCallback((): boolean => {
+    if (tableRef.current) {
+      const themeAttr = tableRef.current.getAttribute('data-table-theme');
+      if (themeAttr === 'dark') return true;
+      if (themeAttr === 'light') return false;
+      if (tableRef.current.classList.contains('bg-slate-900')) return true;
+      if (tableRef.current.classList.contains('bg-white')) return false;
+    }
+    return false;
+  }, [tableRef]);
+
   // Helper to generate canvas: tries html2canvas if visible, but seamlessly falls back to drawRaidTableToCanvas
   const generateCanvas = async (): Promise<HTMLCanvasElement> => {
-    const isDark =
-      (tableRef.current &&
-        (tableRef.current.getAttribute('data-table-theme') === 'dark' ||
-          tableRef.current.classList.contains('bg-slate-900'))) ||
-      document.documentElement.classList.contains('dark');
+    const isDark = getIsTableDark();
 
     const getPureCanvas = () => {
       return drawRaidTableToCanvas({
@@ -160,12 +168,35 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             if (!parent) return;
 
             const originalInput = originalInputs[index] as HTMLInputElement | undefined;
-            let textValue =
-              htmlInput.getAttribute('data-text-value') ||
-              originalInput?.value ||
-              htmlInput.value ||
-              htmlInput.getAttribute('value') ||
-              '';
+
+            // Direct data lookup from members state using memberId or STT
+            const memberId =
+              htmlInput.getAttribute('data-member-id') ||
+              originalInput?.getAttribute('data-member-id');
+            const field =
+              htmlInput.getAttribute('data-field') ||
+              originalInput?.getAttribute('data-field');
+            const memberObj = memberId ? members.find((m) => m.id === memberId) : null;
+
+            let textValue = '';
+            if (memberObj) {
+              if (field === 'ingame') {
+                textValue = memberObj.ingame || '';
+              } else if (field === 'loggedBy') {
+                textValue = memberObj.loggedBy || '';
+              }
+            }
+
+            // Fallback to DOM attributes & values
+            if (!textValue) {
+              textValue =
+                htmlInput.getAttribute('data-text-value') ||
+                originalInput?.getAttribute('data-text-value') ||
+                originalInput?.value ||
+                htmlInput.value ||
+                htmlInput.getAttribute('value') ||
+                '';
+            }
 
             textValue = textValue.trim();
 
@@ -207,17 +238,21 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           const tableContainer = table as HTMLElement;
           tableContainer.style.border = `2px solid ${borderColor}`;
           tableContainer.style.boxSizing = 'border-box';
+          tableContainer.style.backgroundColor = bgColor;
+          tableContainer.style.color = textColor;
 
           const titleDiv = table.querySelector('#raid-table-title') as HTMLElement | null;
           if (titleDiv) {
             titleDiv.style.border = 'none';
             titleDiv.style.borderBottom = `2px solid ${borderColor}`;
+            titleDiv.style.backgroundColor = bgColor;
           }
 
           const tableEl = table.querySelector('table') as HTMLTableElement | null;
           if (tableEl) {
             tableEl.style.borderCollapse = 'collapse';
             tableEl.style.width = '100%';
+            tableEl.style.backgroundColor = bgColor;
           }
 
           const thCells = table.querySelectorAll('thead th');
@@ -227,6 +262,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
             htmlTh.style.border = 'none';
             htmlTh.style.borderBottom = `2px solid ${borderColor}`;
             htmlTh.style.boxSizing = 'border-box';
+            htmlTh.style.backgroundColor = bgColor;
+            htmlTh.style.color = textColor;
 
             if (idx === 0) {
               htmlTh.style.borderRight = `2px solid ${borderColor}`;
@@ -240,6 +277,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           bodyRows.forEach((row) => {
             const htmlRow = row as HTMLElement;
             htmlRow.style.border = 'none';
+            htmlRow.style.backgroundColor = bgColor;
 
             const cells = htmlRow.querySelectorAll('td');
             if (cells.length === 1) {
@@ -255,6 +293,12 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               htmlCell.style.boxSizing = 'border-box';
               htmlCell.style.border = 'none';
               htmlCell.style.borderBottom = `2px solid ${borderColor}`;
+              htmlCell.style.color = textColor;
+
+              // Don't override class column (cellIdx === 2) background color
+              if (cellIdx !== 2) {
+                htmlCell.style.backgroundColor = bgColor;
+              }
 
               if (cellIdx === 0) {
                 htmlCell.style.borderRight = `2px solid ${borderColor}`;
@@ -321,7 +365,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           raidTitle,
           members,
           customColors,
-          isDark: document.documentElement.classList.contains('dark'),
+          isDark: getIsTableDark(),
           privacyMode,
           titlePrefix: activeBoard?.titlePrefix,
           scheduleTime: activeBoard?.scheduleTime,
@@ -342,7 +386,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           raidTitle,
           members,
           customColors,
-          isDark: document.documentElement.classList.contains('dark'),
+          isDark: getIsTableDark(),
           privacyMode,
           titlePrefix: activeBoard?.titlePrefix,
           scheduleTime: activeBoard?.scheduleTime,
@@ -392,7 +436,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           raidTitle,
           members,
           customColors,
-          isDark: document.documentElement.classList.contains('dark'),
+          isDark: getIsTableDark(),
           privacyMode,
           titlePrefix: activeBoard?.titlePrefix,
           scheduleTime: activeBoard?.scheduleTime,

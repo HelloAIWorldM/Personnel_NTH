@@ -852,6 +852,8 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           <input
                             type="text"
                             data-column-type="ingame"
+                            data-field="ingame"
+                            data-member-id={member.id}
                             value={member.ingame || ''}
                             data-text-value={member.ingame || ''}
                             style={{
@@ -1012,6 +1014,8 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           <input
                             type="text"
                             data-column-type="logged-by"
+                            data-field="loggedBy"
+                            data-member-id={member.id}
                             value={member.loggedBy || ''}
                             data-text-value={member.loggedBy || member.ingame || ''}
                             style={{
