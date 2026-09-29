@@ -200,20 +200,20 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
   return (
     <div className="space-y-5 animate-in fade-in duration-200">
       {/* Top Banner & Navigation Header */}
-      <div className="bg-[#101A24] border border-[#1F3347] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#101A24] border border-sky-300/80 dark:border-[#1F3347] rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2.5 flex-wrap">
             <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#38BDF8] to-[#88DCFA] text-slate-950 font-black flex items-center justify-center shadow-xs">
               <LayoutGrid className="w-5 h-5" />
             </div>
             <div>
-              <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+              <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
                 <span>Tổng Tình Trạng Tất Cả Bảng Raid</span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-[#88DCFA]/15 text-[#88DCFA] border border-[#88DCFA]/30">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-sky-100 dark:bg-[#88DCFA]/15 text-sky-800 dark:text-[#88DCFA] border border-sky-300 dark:border-[#88DCFA]/30">
                   {boards.length} Bảng Raid
                 </span>
               </h2>
-              <p className="text-xs text-[#CADEEA] mt-0.5">
+              <p className="text-xs text-slate-700 dark:text-[#CADEEA] mt-0.5">
                 Xem toàn cảnh slot nhân sự, đối chiếu vai trò Tank/Healer/DPS và kiểm tra trùng lặp nhân sự giữa các bảng
               </p>
             </div>
@@ -225,9 +225,9 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
           <button
             type="button"
             onClick={() => setShowClassMatrix(!showClassMatrix)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-[#1F3347] bg-[#162230] hover:bg-[#1F3347] text-slate-200 text-xs font-bold transition-all shadow-2xs"
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl border border-sky-300/80 dark:border-[#1F3347] bg-white dark:bg-[#162230] hover:bg-slate-50 dark:hover:bg-[#1F3347] text-slate-800 dark:text-slate-200 text-xs font-bold transition-all shadow-2xs"
           >
-            <Layers className="w-3.5 h-3.5 text-[#88DCFA]" />
+            <Layers className="w-3.5 h-3.5 text-sky-600 dark:text-[#88DCFA]" />
             <span>{showClassMatrix ? 'Ẩn Ma Trận Phái' : 'Ma Trận Môn Phái'}</span>
           </button>
 
@@ -243,9 +243,9 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
           <button
             type="button"
             onClick={onBackToTable}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-[#101A24] hover:bg-[#162230] active:bg-[#1F3347] text-slate-200 hover:text-white border border-[#1F3347] hover:border-[#88DCFA]/50 rounded-xl text-xs font-bold transition-all shadow-2xs"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white dark:bg-[#101A24] hover:bg-slate-50 dark:hover:bg-[#162230] active:bg-slate-100 dark:active:bg-[#1F3347] text-slate-800 dark:text-slate-200 hover:text-slate-950 dark:hover:text-white border border-sky-300/80 dark:border-[#1F3347] rounded-xl text-xs font-bold transition-all shadow-2xs"
           >
-            <ArrowRight className="w-4 h-4 rotate-180 text-[#8CA4B8]" />
+            <ArrowRight className="w-4 h-4 rotate-180 text-slate-500 dark:text-[#8CA4B8]" />
             <span>Về Bảng Xếp Chi Tiết</span>
           </button>
         </div>
@@ -254,22 +254,22 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
       {/* Global KPI Cards */}
       <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         {/* Card 1: Slot đã xếp */}
-        <div className="bg-[#101A24] border border-[#1F3347] rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[#8CA4B8] text-xs font-bold mb-2">
+        <div className="bg-white dark:bg-[#101A24] border border-sky-300/80 dark:border-[#1F3347] rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-600 dark:text-[#8CA4B8] text-xs font-bold mb-2">
             <span>Tiến Độ Lấp Slot</span>
-            <Users className="w-4 h-4 text-[#88DCFA]" />
+            <Users className="w-4 h-4 text-sky-600 dark:text-[#88DCFA]" />
           </div>
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="text-2xl sm:text-3xl font-black text-white">
+              <span className="text-2xl sm:text-3xl font-black text-slate-900 dark:text-white">
                 {globalStats.filledSlots}
               </span>
-              <span className="text-xs font-bold text-[#8CA4B8]">
+              <span className="text-xs font-bold text-slate-500 dark:text-[#8CA4B8]">
                 / {globalStats.totalSlots} slot ({globalStats.occupancyRate}%)
               </span>
             </div>
             {/* Progress bar */}
-            <div className="w-full h-1.5 bg-[#0B1219] rounded-full mt-2 overflow-hidden border border-[#1F3347]">
+            <div className="w-full h-1.5 bg-slate-100 dark:bg-[#0B1219] rounded-full mt-2 overflow-hidden border border-sky-200/80 dark:border-[#1F3347]">
               <div
                 className="h-full bg-gradient-to-r from-[#38BDF8] to-[#88DCFA] transition-all duration-500"
                 style={{ width: `${globalStats.occupancyRate}%` }}
@@ -279,62 +279,62 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
         </div>
 
         {/* Card 2: Vai trò toàn cục */}
-        <div className="bg-[#101A24] border border-[#1F3347] rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[#8CA4B8] text-xs font-bold mb-2">
+        <div className="bg-white dark:bg-[#101A24] border border-sky-300/80 dark:border-[#1F3347] rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-600 dark:text-[#8CA4B8] text-xs font-bold mb-2">
             <span>Cơ Cấu Vai Trò Tổng</span>
-            <ShieldAlert className="w-4 h-4 text-amber-400" />
+            <ShieldAlert className="w-4 h-4 text-amber-500 dark:text-amber-400" />
           </div>
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="px-2 py-1 rounded-lg text-xs font-black bg-amber-950/60 text-amber-300 border border-amber-800/60">
+            <span className="px-2 py-1 rounded-lg text-xs font-black bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60">
               {globalStats.totalTanks} Tank
             </span>
-            <span className="px-2 py-1 rounded-lg text-xs font-black bg-emerald-950/60 text-emerald-300 border border-emerald-800/60">
+            <span className="px-2 py-1 rounded-lg text-xs font-black bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800/60">
               {globalStats.totalHealers} Healer
             </span>
-            <span className="px-2 py-1 rounded-lg text-xs font-black bg-rose-950/60 text-rose-300 border border-rose-800/60">
+            <span className="px-2 py-1 rounded-lg text-xs font-black bg-rose-100 dark:bg-rose-950/60 text-rose-800 dark:text-rose-300 border border-rose-300 dark:border-rose-800/60">
               {globalStats.totalDps} DPS
             </span>
           </div>
         </div>
 
         {/* Card 3: Điểm danh có mặt */}
-        <div className="bg-[#101A24] border border-[#1F3347] rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[#8CA4B8] text-xs font-bold mb-2">
+        <div className="bg-white dark:bg-[#101A24] border border-sky-300/80 dark:border-[#1F3347] rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-600 dark:text-[#8CA4B8] text-xs font-bold mb-2">
             <span>Điểm Danh Có Mặt</span>
-            <UserCheck className="w-4 h-4 text-[#88DCFA]" />
+            <UserCheck className="w-4 h-4 text-sky-600 dark:text-[#88DCFA]" />
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-2xl sm:text-3xl font-black text-[#88DCFA]">
+            <span className="text-2xl sm:text-3xl font-black text-sky-600 dark:text-[#88DCFA]">
               {globalStats.checkedCount}
             </span>
-            <span className="text-xs font-bold text-[#8CA4B8]">
+            <span className="text-xs font-bold text-slate-500 dark:text-[#8CA4B8]">
               / {globalStats.filledSlots} đã xếp
             </span>
           </div>
         </div>
 
         {/* Card 4: Kiểm tra trùng lặp */}
-        <div className="bg-[#101A24] border border-[#1F3347] rounded-2xl p-4 shadow-sm flex flex-col justify-between">
-          <div className="flex items-center justify-between text-[#8CA4B8] text-xs font-bold mb-2">
+        <div className="bg-white dark:bg-[#101A24] border border-sky-300/80 dark:border-[#1F3347] rounded-2xl p-4 shadow-sm flex flex-col justify-between">
+          <div className="flex items-center justify-between text-slate-600 dark:text-[#8CA4B8] text-xs font-bold mb-2">
             <span>Trùng Lặp Nhân Sự</span>
             {globalStats.duplicates.length > 0 ? (
-              <AlertTriangle className="w-4 h-4 text-amber-400" />
+              <AlertTriangle className="w-4 h-4 text-amber-500 dark:text-amber-400" />
             ) : (
-              <CheckCircle2 className="w-4 h-4 text-[#88DCFA]" />
+              <CheckCircle2 className="w-4 h-4 text-sky-600 dark:text-[#88DCFA]" />
             )}
           </div>
           <div>
             {globalStats.duplicates.length > 0 ? (
               <div className="flex items-baseline gap-2">
-                <span className="text-2xl sm:text-3xl font-black text-amber-400">
+                <span className="text-2xl sm:text-3xl font-black text-amber-600 dark:text-amber-400">
                   {globalStats.duplicates.length}
                 </span>
-                <span className="text-xs font-bold text-amber-300">
+                <span className="text-xs font-bold text-amber-700 dark:text-amber-300">
                   người ở &gt;1 bảng
                 </span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 text-xs font-bold text-[#88DCFA]">
+              <div className="flex items-center gap-1.5 text-xs font-bold text-sky-700 dark:text-[#88DCFA]">
                 <CheckCircle2 className="w-4 h-4" />
                 <span>Không có nhân sự trùng lặp</span>
               </div>
@@ -345,10 +345,10 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
 
       {/* Cross-Board Duplicate Inspector */}
       {globalStats.duplicates.length > 0 && (
-        <div className="bg-amber-950/20 border border-amber-800/60 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-800/60 rounded-2xl p-4 sm:p-5 shadow-xs">
           <div className="flex items-center gap-2 mb-3">
-            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
-            <h3 className="text-xs sm:text-sm font-black text-amber-200 uppercase tracking-wide">
+            <AlertTriangle className="w-4 h-4 text-amber-500 dark:text-amber-400 shrink-0" />
+            <h3 className="text-xs sm:text-sm font-black text-amber-900 dark:text-amber-200 uppercase tracking-wide">
               Phát Hiện {globalStats.duplicates.length} Nhân Sự Được Xếp Vào Nhiều Hơn 1 Bảng Raid
             </h3>
           </div>
@@ -358,10 +358,10 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
               return (
                 <div
                   key={dup.ingame}
-                  className="bg-[#162230] border border-amber-900/60 rounded-xl p-3 shadow-2xs"
+                  className="bg-white dark:bg-[#162230] border border-amber-300 dark:border-amber-900/60 rounded-xl p-3 shadow-2xs"
                 >
                   <div className="flex items-center justify-between gap-2 mb-1.5">
-                    <span className="text-xs font-black text-white">
+                    <span className="text-xs font-black text-slate-900 dark:text-white">
                       {dup.ingame}
                     </span>
                     <span
@@ -374,16 +374,16 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                       {dup.className}
                     </span>
                   </div>
-                  <div className="text-[11px] space-y-1 text-[#8CA4B8]">
+                  <div className="text-[11px] space-y-1 text-slate-600 dark:text-[#8CA4B8]">
                     {dup.occurrences.map((occ, idx) => (
                       <div
                         key={idx}
-                        className="flex items-center justify-between p-1 bg-[#0B1219]/80 rounded-md"
+                        className="flex items-center justify-between p-1 bg-amber-50/60 dark:bg-[#0B1219]/80 rounded-md"
                       >
-                        <span className="font-bold text-amber-300">
+                        <span className="font-bold text-amber-800 dark:text-amber-300">
                           {occ.boardTitle}
                         </span>
-                        <span className="text-[10px] font-mono text-[#8CA4B8]">
+                        <span className="text-[10px] font-mono text-slate-500 dark:text-[#8CA4B8]">
                           STT #{occ.stt} {occ.party ? `(P${occ.party})` : ''}
                         </span>
                       </div>
@@ -398,19 +398,19 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
 
       {/* Global Search Bar */}
       <div className="relative">
-        <Search className="w-4 h-4 text-[#8CA4B8] absolute left-3.5 top-1/2 -translate-y-1/2" />
+        <Search className="w-4 h-4 text-slate-500 dark:text-[#8CA4B8] absolute left-3.5 top-1/2 -translate-y-1/2" />
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Tìm nhân sự trên toàn bộ các bảng Raid (theo Ingame, Logged by hoặc Môn phái)..."
-          className="w-full pl-10 pr-10 py-2.5 bg-[#101A24] border border-[#1F3347] rounded-2xl text-xs sm:text-sm font-semibold text-white placeholder:text-[#64748B] focus:outline-none focus:ring-2 focus:ring-[#88DCFA]/20 focus:border-[#88DCFA] shadow-2xs transition-all"
+          className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-[#101A24] border border-sky-300/80 dark:border-[#1F3347] rounded-2xl text-xs sm:text-sm font-semibold text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-[#64748B] focus:outline-none focus:ring-2 focus:ring-[#88DCFA]/40 focus:border-[#88DCFA] shadow-2xs transition-all"
         />
         {searchQuery && (
           <button
             type="button"
             onClick={() => setSearchQuery('')}
-            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#8CA4B8] hover:text-white"
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-800 dark:hover:text-white"
           >
             <X className="w-4 h-4" />
           </button>
@@ -419,21 +419,21 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
 
       {/* Search results banner if searching */}
       {searchResults && (
-        <div className="bg-[#101A24] border border-[#1F3347] rounded-2xl p-4">
+        <div className="bg-white dark:bg-[#101A24] border border-sky-300/80 dark:border-[#1F3347] rounded-2xl p-4">
           <div className="flex items-center justify-between gap-2 mb-2">
-            <span className="text-xs font-black text-[#88DCFA]">
+            <span className="text-xs font-black text-sky-800 dark:text-[#88DCFA]">
               Kết quả tìm kiếm cho "{searchQuery}": {searchResults.length} vị trí
             </span>
             <button
               type="button"
               onClick={() => setSearchQuery('')}
-              className="text-[11px] font-bold text-[#88DCFA] hover:underline"
+              className="text-[11px] font-bold text-sky-700 dark:text-[#88DCFA] hover:underline"
             >
               Đóng kết quả
             </button>
           </div>
           {searchResults.length === 0 ? (
-            <p className="text-xs text-[#8CA4B8] italic">
+            <p className="text-xs text-slate-500 dark:text-[#8CA4B8] italic">
               Không tìm thấy nhân sự nào khớp với từ khóa.
             </p>
           ) : (
@@ -444,11 +444,11 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                   <div
                     key={i}
                     onClick={() => onSelectBoard(res.boardId)}
-                    className="p-2.5 bg-[#162230] rounded-xl border border-[#1F3347] flex items-center justify-between gap-2 cursor-pointer hover:border-[#88DCFA] transition-all shadow-2xs"
+                    className="p-2.5 bg-slate-50 dark:bg-[#162230] rounded-xl border border-slate-200 dark:border-[#1F3347] flex items-center justify-between gap-2 cursor-pointer hover:border-sky-400 dark:hover:border-[#88DCFA] transition-all shadow-2xs"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-xs font-black text-white truncate">
+                        <span className="text-xs font-black text-slate-900 dark:text-white truncate">
                           {res.ingame}
                         </span>
                         <span
@@ -459,7 +459,7 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                         </span>
                       </div>
                       {res.loggedBy && (
-                        <p className="text-[10px] text-[#8CA4B8]">
+                        <p className="text-[10px] text-slate-500 dark:text-[#8CA4B8]">
                           Log: {res.loggedBy}
                         </p>
                       )}
@@ -468,7 +468,7 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                       <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-black bg-[#88DCFA] text-slate-950">
                         {res.boardTitle}
                       </span>
-                      <p className="text-[9px] font-mono text-[#8CA4B8] mt-0.5">
+                      <p className="text-[9px] font-mono text-slate-500 dark:text-[#8CA4B8] mt-0.5">
                         STT #{res.stt} {res.party ? `• P${res.party}` : ''}
                       </p>
                     </div>
@@ -482,19 +482,19 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
 
       {/* Class Matrix Table (Collapsible) */}
       {showClassMatrix && (
-        <div className="bg-[#101A24] border border-[#1F3347] rounded-2xl p-4 sm:p-5 shadow-xs overflow-x-auto">
+        <div className="bg-white dark:bg-[#101A24] border border-sky-300/80 dark:border-[#1F3347] rounded-2xl p-4 sm:p-5 shadow-xs overflow-x-auto">
           <div className="flex items-center justify-between gap-2 mb-3">
-            <h3 className="text-xs sm:text-sm font-black text-white flex items-center gap-2">
-              <Layers className="w-4 h-4 text-[#88DCFA]" />
+            <h3 className="text-xs sm:text-sm font-black text-slate-900 dark:text-white flex items-center gap-2">
+              <Layers className="w-4 h-4 text-sky-600 dark:text-[#88DCFA]" />
               <span>Bảng Phân Bổ Môn Phái Trên Tất Cả Các Bảng Raid</span>
             </h3>
-            <span className="text-[11px] text-[#CADEEA]">
+            <span className="text-[11px] text-slate-600 dark:text-[#CADEEA]">
               Đối chiếu số lượng phái để cân đối lực lượng
             </span>
           </div>
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="border-b border-[#1F3347] text-[#8CA4B8] font-bold">
+              <tr className="border-b border-slate-200 dark:border-[#1F3347] text-slate-600 dark:text-[#8CA4B8] font-bold">
                 <th className="py-2 px-3">Môn Phái</th>
                 <th className="py-2 px-3">Vai Trò</th>
                 {boards.map((b) => (
@@ -502,17 +502,17 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                     {b.titlePrefix}
                   </th>
                 ))}
-                <th className="py-2 px-3 text-center font-black text-white">
+                <th className="py-2 px-3 text-center font-black text-slate-900 dark:text-white">
                   Tổng Số
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#1F3347]/60 font-semibold">
+            <tbody className="divide-y divide-slate-100 dark:divide-[#1F3347]/60 font-semibold">
               {CLASS_LIST.map((cls) => {
                 const meta = getEffectiveClassMeta(cls, customColors);
                 let rowTotal = 0;
                 return (
-                  <tr key={cls} className="hover:bg-[#162230]">
+                  <tr key={cls} className="hover:bg-slate-50 dark:hover:bg-[#162230]">
                     <td className="py-2 px-3 flex items-center gap-2">
                       <span
                         className="px-2 py-0.5 rounded text-[10px] font-black shrink-0"
@@ -525,10 +525,10 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                       <span
                         className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
                           meta.role === 'Tank'
-                            ? 'bg-amber-950 text-amber-200'
+                            ? 'bg-amber-100 dark:bg-amber-950 text-amber-800 dark:text-amber-200'
                             : meta.role === 'Healer'
-                            ? 'bg-emerald-950 text-emerald-200'
-                            : 'bg-rose-950 text-rose-200'
+                            ? 'bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-200'
+                            : 'bg-rose-100 dark:bg-rose-950 text-rose-800 dark:text-rose-200'
                         }`}
                       >
                         {meta.role}
@@ -541,14 +541,14 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                         <td
                           key={b.id}
                           className={`py-2 px-3 text-center font-bold ${
-                            count > 0 ? 'text-[#88DCFA]' : 'text-slate-600'
+                            count > 0 ? 'text-sky-700 dark:text-[#88DCFA]' : 'text-slate-400 dark:text-slate-600'
                           }`}
                         >
                           {count > 0 ? count : '—'}
                         </td>
                       );
                     })}
-                    <td className="py-2 px-3 text-center font-black text-white">
+                    <td className="py-2 px-3 text-center font-black text-slate-900 dark:text-white">
                       {rowTotal}
                     </td>
                   </tr>
@@ -568,20 +568,20 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
           return (
             <div
               key={board.id}
-              className={`bg-[#101A24] border rounded-2xl flex flex-col shadow-sm transition-all ${
+              className={`bg-white dark:bg-[#101A24] border rounded-2xl flex flex-col shadow-sm transition-all ${
                 isActive
-                  ? 'border-[#88DCFA] ring-1 ring-[#88DCFA]/40 shadow-lg'
-                  : 'border-[#1F3347] hover:border-[#2C4863]'
+                  ? 'border-sky-500 dark:border-[#88DCFA] ring-2 ring-sky-400/30 dark:ring-[#88DCFA]/40 shadow-lg'
+                  : 'border-sky-300/80 dark:border-[#1F3347] hover:border-sky-400 dark:hover:border-[#2C4863]'
               }`}
             >
               {/* Board Card Header */}
-              <div className="p-3.5 sm:p-4 border-b border-[#1F3347] bg-[#162230] rounded-t-2xl">
+              <div className="p-3.5 sm:p-4 border-b border-sky-200/80 dark:border-[#1F3347] bg-slate-50/90 dark:bg-[#162230] rounded-t-2xl">
                 <div className="flex items-center justify-between gap-2 mb-2">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="w-6 h-6 rounded-lg bg-[#88DCFA] text-slate-950 font-black text-xs flex items-center justify-center shrink-0">
                       #{index + 1}
                     </span>
-                    <h3 className="text-sm sm:text-base font-black text-white truncate">
+                    <h3 className="text-sm sm:text-base font-black text-slate-900 dark:text-white truncate">
                       {board.titlePrefix}
                     </h3>
                     {isActive && (
@@ -595,8 +595,8 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                   <span
                     className={`px-2.5 py-0.5 rounded-full text-xs font-black shrink-0 border ${
                       stats.isFull
-                        ? 'bg-emerald-950/80 text-emerald-300 border-emerald-800/80'
-                        : 'bg-amber-950/80 text-amber-300 border-amber-800/80'
+                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800/80'
+                        : 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800/80'
                     }`}
                   >
                     {stats.assignedCount}/{stats.totalCount} Slot
@@ -604,9 +604,9 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                 </div>
 
                 {/* Subinfo: Schedule */}
-                <div className="flex items-center text-xs text-[#88DCFA] gap-2 flex-wrap">
+                <div className="flex items-center text-xs text-sky-700 dark:text-[#88DCFA] gap-2 flex-wrap">
                   <span className="flex items-center gap-1 font-semibold">
-                    <Clock className="w-3.5 h-3.5 text-[#88DCFA]" />
+                    <Clock className="w-3.5 h-3.5 text-sky-600 dark:text-[#88DCFA]" />
                     <span>
                       {board.scheduleTime || 'Chưa hẹn giờ'}
                     </span>
@@ -614,28 +614,28 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                 </div>
 
                 {/* Role Pill Breakdown & Warnings */}
-                <div className="mt-2.5 pt-2 border-t border-[#1F3347] flex items-center justify-between gap-2 flex-wrap text-[11px]">
+                <div className="mt-2.5 pt-2 border-t border-sky-200/60 dark:border-[#1F3347] flex items-center justify-between gap-2 flex-wrap text-[11px]">
                   <div className="flex items-center gap-1.5 font-bold">
-                    <span className="text-amber-300 bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-800/50">
+                    <span className="text-amber-800 dark:text-amber-300 bg-amber-100 dark:bg-amber-950/60 px-1.5 py-0.5 rounded border border-amber-300 dark:border-amber-800/50">
                       {stats.tankCount} Tank
                     </span>
-                    <span className="text-emerald-300 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/50">
+                    <span className="text-emerald-800 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-300 dark:border-emerald-800/50">
                       {stats.healerCount} Healer
                     </span>
-                    <span className="text-rose-300 bg-rose-950/60 px-1.5 py-0.5 rounded border border-rose-800/50">
+                    <span className="text-rose-800 dark:text-rose-300 bg-rose-100 dark:bg-rose-950/60 px-1.5 py-0.5 rounded border border-rose-300 dark:border-rose-800/50">
                       {stats.dpsCount} DPS
                     </span>
                   </div>
 
-                  <span className="text-[#88DCFA] font-bold">
+                  <span className="text-sky-700 dark:text-[#88DCFA] font-bold">
                     ✓ {stats.checkedCount} có mặt
                   </span>
                 </div>
 
                 {/* Warning notice if tank or healer is missing */}
                 {(stats.isMissingTank || stats.isMissingHealer || stats.missingCount > 0) && (
-                  <div className="mt-2 p-1.5 rounded-lg bg-amber-950/40 border border-amber-800/50 text-[10px] text-amber-300 flex items-center gap-1.5 font-bold">
-                    <AlertTriangle className="w-3 h-3 text-amber-400 shrink-0" />
+                  <div className="mt-2 p-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 text-[10px] text-amber-800 dark:text-amber-300 flex items-center gap-1.5 font-bold">
+                    <AlertTriangle className="w-3 h-3 text-amber-500 dark:text-amber-400 shrink-0" />
                     <span>
                       {stats.missingCount > 0 ? `Còn trống ${stats.missingCount} slot. ` : ''}
                       {stats.isMissingTank ? 'Chưa có Tank! ' : ''}
@@ -655,12 +655,12 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                       key={member.id}
                       className={`flex items-center justify-between gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs transition-colors ${
                         isAssigned
-                          ? 'bg-[#162230] border-[#1F3347] hover:border-[#2C4863] text-white'
-                          : 'border-dashed border-[#1F3347] text-[#64748B] bg-[#0B1219]/40'
+                          ? 'bg-slate-50 dark:bg-[#162230] border-slate-200 dark:border-[#1F3347] hover:border-sky-400 dark:hover:border-[#2C4863] text-slate-900 dark:text-white'
+                          : 'border-dashed border-slate-200 dark:border-[#1F3347] text-slate-400 dark:text-[#64748B] bg-slate-50/50 dark:bg-[#0B1219]/40'
                       }`}
                     >
                       <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <span className="w-5 text-[11px] font-mono font-bold text-[#8CA4B8] shrink-0">
+                        <span className="w-5 text-[11px] font-mono font-bold text-slate-500 dark:text-[#8CA4B8] shrink-0">
                           #{member.stt}
                         </span>
                         {isAssigned ? (
@@ -668,21 +668,21 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                             <span
                               className={`font-black truncate text-xs ${
                                 member.checked
-                                  ? 'text-white'
-                                  : 'text-slate-200'
+                                  ? 'text-slate-900 dark:text-white'
+                                  : 'text-slate-800 dark:text-slate-200'
                               }`}
                               title={member.ingame}
                             >
                               {member.ingame}
                             </span>
                             {member.loggedBy && member.loggedBy !== member.ingame && (
-                              <span className="text-[10px] text-[#8CA4B8] truncate">
+                              <span className="text-[10px] text-slate-500 dark:text-[#8CA4B8] truncate">
                                 (Log: {member.loggedBy})
                               </span>
                             )}
                           </div>
                         ) : (
-                          <span className="italic text-xs text-[#64748B]">Trống</span>
+                          <span className="italic text-xs text-slate-400 dark:text-[#64748B]">Trống</span>
                         )}
                       </div>
 
@@ -705,7 +705,7 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                               className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
                                 member.checked
                                   ? 'bg-[#88DCFA] text-slate-950 shadow-2xs'
-                                  : 'border border-[#1F3347] hover:border-[#88DCFA] bg-[#0B1219]'
+                                  : 'border border-slate-300 dark:border-[#1F3347] hover:border-[#88DCFA] bg-white dark:bg-[#0B1219]'
                               }`}
                             >
                               {member.checked && <CheckCircle2 className="w-3.5 h-3.5 stroke-[3]" />}
@@ -719,14 +719,14 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
               </div>
 
               {/* Board Card Footer: Actions */}
-              <div className="p-3 border-t border-[#1F3347] bg-[#162230] rounded-b-2xl flex items-center justify-between gap-2">
+              <div className="p-3 border-t border-sky-200/80 dark:border-[#1F3347] bg-slate-50/90 dark:bg-[#162230] rounded-b-2xl flex items-center justify-between gap-2">
                 <button
                   type="button"
                   onClick={() => onSelectBoard(board.id)}
                   className={`flex-1 py-1.5 px-3 rounded-xl text-xs font-bold transition-all shadow-2xs flex items-center justify-center gap-1 ${
                     isActive
                       ? 'bg-[#88DCFA] hover:bg-[#68CEF6] text-slate-950 font-black shadow-[0_0_12px_rgba(136,220,250,0.3)]'
-                      : 'bg-[#101A24] hover:bg-[#1F3347] border border-[#1F3347] text-slate-200 hover:text-white'
+                      : 'bg-white hover:bg-slate-100 dark:bg-[#101A24] dark:hover:bg-[#1F3347] border border-slate-300 dark:border-[#1F3347] text-slate-800 hover:text-slate-950 dark:text-slate-200 dark:hover:text-white'
                   }`}
                 >
                   <ExternalLink className="w-3.5 h-3.5" />
@@ -738,7 +738,7 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                     type="button"
                     onClick={() => onDuplicateBoard(board.id)}
                     title="Nhân bản bảng Raid này"
-                    className="p-1.5 text-[#8CA4B8] hover:text-white bg-[#101A24] hover:bg-[#1F3347] border border-[#1F3347] rounded-lg transition-colors shadow-2xs"
+                    className="p-1.5 text-slate-600 hover:text-slate-950 dark:text-[#8CA4B8] dark:hover:text-white bg-white hover:bg-slate-100 dark:bg-[#101A24] dark:hover:bg-[#1F3347] border border-slate-300 dark:border-[#1F3347] rounded-lg transition-colors shadow-2xs"
                   >
                     <Copy className="w-3.5 h-3.5" />
                   </button>
@@ -747,7 +747,7 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                       type="button"
                       onClick={() => onDeleteBoard(board.id)}
                       title="Xóa bảng này"
-                      className="p-1.5 text-[#8CA4B8] hover:text-rose-400 bg-[#101A24] hover:bg-[#1F3347] border border-[#1F3347] rounded-lg transition-colors shadow-2xs"
+                      className="p-1.5 text-slate-600 hover:text-rose-600 dark:text-[#8CA4B8] dark:hover:text-rose-400 bg-white hover:bg-slate-100 dark:bg-[#101A24] dark:hover:bg-[#1F3347] border border-slate-300 dark:border-[#1F3347] rounded-lg transition-colors shadow-2xs"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>

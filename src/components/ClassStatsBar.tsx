@@ -35,9 +35,9 @@ export const ClassStatsBar: React.FC<ClassStatsBarProps> = ({
   return (
     <div
       id="raid-composition-stats"
-      className="bg-white dark:bg-[#101A24] border border-sky-900/10 dark:border-[#1F3347] rounded-2xl p-3 sm:p-4 shadow-2xs mb-4 sm:mb-6 transition-colors"
+      className="bg-white dark:bg-[#101A24] border border-sky-300/80 dark:border-[#1F3347] rounded-2xl p-3 sm:p-4 shadow-2xs mb-4 sm:mb-6 transition-colors"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 mb-3 pb-3 border-b border-sky-900/10 dark:border-[#1F3347]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 mb-3 pb-3 border-b border-sky-200/80 dark:border-[#1F3347]">
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 sm:w-5 sm:h-5 text-sky-600 dark:text-[#88DCFA] shrink-0" />
           <span className="font-extrabold text-slate-800 dark:text-[#E6F1F8] text-xs sm:text-sm uppercase tracking-wide">

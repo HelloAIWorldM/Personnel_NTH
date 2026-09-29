@@ -95,14 +95,15 @@ import {
 } from './utils/storageBackup';
 
 export default function App() {
-  // Dark Mode State - Default to true (Dark mode) for gaming theme
+  // Dark Mode State - Default to false (#88DCFA Pastel theme)
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_THEME);
+      if (saved === 'dark') return true;
       if (saved === 'light') return false;
-      return true;
+      return false; // Default to pastel #88DCFA theme
     } catch {
-      return true;
+      return false;
     }
   });
 
@@ -1013,12 +1014,12 @@ export default function App() {
   const customizedCount = Object.keys(customColors).length;
 
   return (
-    <div className="min-h-screen bg-[#F2F8FC] dark:bg-[#0B1219] text-slate-800 dark:text-[#E6F1F8] transition-colors pb-16 relative">
+    <div className="min-h-screen bg-[#88DCFA] dark:bg-[#0B1219] text-slate-900 dark:text-[#E6F1F8] transition-colors pb-16 relative">
       {/* Animated Floating Tilted Mini Ice Cups Background */}
       <MatchaBackground />
 
       {/* Top Header Navbar - Tactical Cyan Style */}
-      <header className="bg-white/95 dark:bg-[#101A24]/95 backdrop-blur-md border-b border-sky-900/10 dark:border-[#1F3347] sticky top-0 z-30 transition-colors">
+      <header className="bg-white/95 dark:bg-[#101A24]/95 backdrop-blur-md border-b border-sky-300/80 dark:border-[#1F3347] sticky top-0 z-30 transition-colors shadow-xs">
         <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4 relative z-10">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#38BDF8] to-[#88DCFA] text-slate-950 flex items-center justify-center font-black text-xs sm:text-sm shadow-[0_0_14px_rgba(136,220,250,0.45)] shrink-0 tracking-wider">
@@ -1163,7 +1164,7 @@ export default function App() {
       {/* Main Container */}
       <main className="max-w-7xl mx-auto px-3 sm:px-6 pt-3 sm:pt-5 relative z-10">
         {/* Board Selector Bar (Raid & Bang Chiến) */}
-        <section className="mb-4 bg-white dark:bg-[#101A24] border border-sky-900/10 dark:border-[#1F3347] rounded-2xl p-2.5 sm:p-3 shadow-2xs transition-colors">
+        <section className="mb-4 bg-white dark:bg-[#101A24] border border-sky-300/80 dark:border-[#1F3347] rounded-2xl p-2.5 sm:p-3 shadow-2xs transition-colors">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             {/* Mode Switcher + Boards Tabs */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar flex-1">
@@ -1423,7 +1424,7 @@ export default function App() {
             )}
 
             {/* Navigation Tab Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-sky-900/10 dark:border-[#1F3347] pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-sky-400/50 dark:border-[#1F3347] pb-3">
               <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto overflow-x-auto">
                 <button
                   type="button"
@@ -1431,8 +1432,8 @@ export default function App() {
                   onClick={() => setActiveTab('table')}
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
                     activeTab === 'table'
-                      ? 'bg-[#88DCFA] text-slate-950 shadow-[0_0_12px_rgba(136,220,250,0.35)] font-black'
-                      : 'bg-white dark:bg-[#162230] text-slate-700 dark:text-[#CADEEA] hover:bg-slate-50 dark:hover:bg-[#1D2D40] border border-slate-300 dark:border-[#1F3347]'
+                      ? 'bg-slate-950 text-white dark:bg-[#88DCFA] dark:text-slate-950 shadow-md font-black'
+                      : 'bg-white/80 hover:bg-white dark:bg-[#162230] text-slate-800 dark:text-[#CADEEA] hover:bg-slate-50 dark:hover:bg-[#1D2D40] border border-sky-300/80 dark:border-[#1F3347] shadow-2xs'
                   }`}
                 >
                   <TableIcon className="w-4 h-4 shrink-0" />
@@ -1445,8 +1446,8 @@ export default function App() {
                   onClick={() => setActiveTab('all-boards')}
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
                     activeTab === 'all-boards'
-                      ? 'bg-[#88DCFA] text-slate-950 shadow-[0_0_12px_rgba(136,220,250,0.35)] font-black'
-                      : 'bg-white dark:bg-[#162230] text-slate-700 dark:text-[#CADEEA] hover:bg-slate-50 dark:hover:bg-[#1D2D40] border border-slate-300 dark:border-[#1F3347]'
+                      ? 'bg-slate-950 text-white dark:bg-[#88DCFA] dark:text-slate-950 shadow-md font-black'
+                      : 'bg-white/80 hover:bg-white dark:bg-[#162230] text-slate-800 dark:text-[#CADEEA] hover:bg-slate-50 dark:hover:bg-[#1D2D40] border border-sky-300/80 dark:border-[#1F3347] shadow-2xs'
                   }`}
                 >
                   <LayoutGrid className="w-4 h-4 shrink-0" />
@@ -1454,7 +1455,7 @@ export default function App() {
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                       activeTab === 'all-boards'
-                        ? 'bg-slate-950/20 text-slate-950'
+                        ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-slate-950'
                         : 'bg-sky-100 dark:bg-[#1B2A3B] text-sky-800 dark:text-[#88DCFA]'
                     }`}
                   >
@@ -1468,8 +1469,8 @@ export default function App() {
                   onClick={() => setActiveTab('personnel')}
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
                     activeTab === 'personnel'
-                      ? 'bg-[#88DCFA] text-slate-950 shadow-[0_0_12px_rgba(136,220,250,0.35)] font-black'
-                      : 'bg-white dark:bg-[#162230] text-slate-700 dark:text-[#CADEEA] hover:bg-slate-50 dark:hover:bg-[#1D2D40] border border-slate-300 dark:border-[#1F3347]'
+                      ? 'bg-slate-950 text-white dark:bg-[#88DCFA] dark:text-slate-950 shadow-md font-black'
+                      : 'bg-white/80 hover:bg-white dark:bg-[#162230] text-slate-800 dark:text-[#CADEEA] hover:bg-slate-50 dark:hover:bg-[#1D2D40] border border-sky-300/80 dark:border-[#1F3347] shadow-2xs'
                   }`}
                 >
                   <Users className="w-4 h-4 shrink-0" />
@@ -1477,7 +1478,7 @@ export default function App() {
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                       activeTab === 'personnel'
-                        ? 'bg-slate-950/20 text-slate-950'
+                        ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-slate-950'
                         : 'bg-sky-100 dark:bg-[#1B2A3B] text-sky-800 dark:text-[#88DCFA]'
                     }`}
                   >
@@ -1491,8 +1492,8 @@ export default function App() {
                   onClick={() => setActiveTab('parties')}
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
                     activeTab === 'parties'
-                      ? 'bg-[#88DCFA] text-slate-950 shadow-[0_0_12px_rgba(136,220,250,0.35)] font-black'
-                      : 'bg-white dark:bg-[#162230] text-slate-700 dark:text-[#CADEEA] hover:bg-slate-50 dark:hover:bg-[#1D2D40] border border-slate-300 dark:border-[#1F3347]'
+                      ? 'bg-slate-950 text-white dark:bg-[#88DCFA] dark:text-slate-950 shadow-md font-black'
+                      : 'bg-white/80 hover:bg-white dark:bg-[#162230] text-slate-800 dark:text-[#CADEEA] hover:bg-slate-50 dark:hover:bg-[#1D2D40] border border-sky-300/80 dark:border-[#1F3347] shadow-2xs'
                   }`}
                 >
                   <Users className="w-4 h-4 shrink-0" />
@@ -1500,7 +1501,7 @@ export default function App() {
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                       activeTab === 'parties'
-                        ? 'bg-slate-950/20 text-slate-950'
+                        ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-slate-950'
                         : 'bg-sky-100 dark:bg-[#1B2A3B] text-sky-800 dark:text-[#88DCFA]'
                     }`}
                   >
