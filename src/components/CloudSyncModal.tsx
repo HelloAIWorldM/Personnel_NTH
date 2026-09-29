@@ -100,7 +100,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
                 Đồng Bộ Đám Mây (Cloud Sync)
-                <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-full">
+                <span className="px-2 py-0.5 text-xs font-semibold bg-[#88DCFA]/20 text-[#88DCFA] border border-[#88DCFA]/30 rounded-full">
                   Firebase
                 </span>
               </h2>
@@ -122,7 +122,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
           {/* Status Card */}
           <div className="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className={`w-3 h-3 rounded-full ${isSyncing || isProcessing ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.6)]'}`} />
+              <div className={`w-3 h-3 rounded-full ${isSyncing || isProcessing ? 'bg-amber-400 animate-ping' : 'bg-[#88DCFA] shadow-[0_0_8px_rgba(136,220,250,0.6)]'}`} />
               <div>
                 <div className="text-xs font-semibold text-slate-200">
                   {isSyncing || isProcessing ? 'Đang kết nối & xử lý Cloud...' : 'Trạng thái: Sẵn sàng kết nối'}

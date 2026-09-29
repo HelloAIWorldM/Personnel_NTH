@@ -162,7 +162,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
 
         {/* Modal Header */}
         <div className="flex items-center gap-3 mb-5">
-          <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950 text-emerald-600 dark:text-emerald-400 flex items-center justify-center border border-emerald-200 dark:border-emerald-800">
+          <div className="w-10 h-10 rounded-xl bg-[#88DCFA]/15 text-[#88DCFA] flex items-center justify-center border border-[#88DCFA]/30">
             <FileSpreadsheet className="w-5 h-5" />
           </div>
           <div>
@@ -185,19 +185,19 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
 
         {/* Success notification */}
         {successSheetUrl && (
-          <div className="mb-4 p-3.5 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl">
-            <div className="flex items-center gap-2 text-emerald-800 dark:text-emerald-200 text-xs font-bold mb-1">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+          <div className="mb-4 p-3.5 bg-[#88DCFA]/10 border border-[#88DCFA]/30 rounded-xl">
+            <div className="flex items-center gap-2 text-[#88DCFA] text-xs font-bold mb-1">
+              <CheckCircle2 className="w-4 h-4 text-[#88DCFA]" />
               <span>Đã tạo Google Sheet thành công!</span>
             </div>
-            <p className="text-xs text-emerald-700 dark:text-emerald-300 mb-2.5">
+            <p className="text-xs text-slate-300 mb-2.5">
               Bảng tính đã được format đầy đủ màu sắc từng môn phái và đường viền chuẩn.
             </p>
             <a
               href={successSheetUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-lg shadow-sm"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-[#88DCFA] hover:bg-[#68CEF6] text-slate-950 text-xs font-black rounded-lg shadow-sm"
             >
               <span>Mở Google Sheet ngay</span>
               <ExternalLink className="w-3.5 h-3.5" />
@@ -262,7 +262,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
                     referrerPolicy="no-referrer"
                   />
                 ) : (
-                  <div className="w-8 h-8 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">
+                  <div className="w-8 h-8 rounded-full bg-[#88DCFA] text-slate-950 font-black flex items-center justify-center text-xs">
                     {currentUser.email?.[0]?.toUpperCase() || 'U'}
                   </div>
                 )}
@@ -288,7 +288,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
             </div>
 
             {/* Action 1: Export New Sheet */}
-            <div className="p-3.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-emerald-300 dark:hover:border-emerald-500 transition-colors bg-white dark:bg-slate-800/40">
+            <div className="p-3.5 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-[#88DCFA] transition-colors bg-white dark:bg-slate-800/40">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-bold text-slate-900 dark:text-slate-100 mb-0.5">
@@ -304,7 +304,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
                   id="btn-export-new-sheet"
                   onClick={handleExportToNewSheet}
                   disabled={loading}
-                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white text-xs font-bold rounded-xl shadow-xs transition-colors shrink-0 disabled:opacity-50 min-h-[42px]"
+                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2.5 sm:py-2 bg-[#88DCFA] hover:bg-[#68CEF6] active:bg-[#48BBF0] text-slate-950 text-xs font-black rounded-xl shadow-xs transition-colors shrink-0 disabled:opacity-50 min-h-[42px]"
                 >
                   {loading ? (
                     <Loader2 className="w-4 h-4 animate-spin" />
@@ -330,7 +330,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
                   value={sheetInputUrl}
                   onChange={(e) => setSheetInputUrl(e.target.value)}
                   placeholder="https://docs.google.com/spreadsheets/d/..."
-                  className="flex-1 px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-emerald-500 min-h-[42px]"
+                  className="flex-1 px-3 py-2 text-xs border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-[#88DCFA] focus:border-[#88DCFA] min-h-[42px]"
                 />
                 <button
                   type="button"

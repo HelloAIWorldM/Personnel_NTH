@@ -697,7 +697,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
 
               <div className="sm:shrink-0 flex justify-end">
                 {copiedImageSuccess ? (
-                  <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-lg border border-emerald-200 dark:border-emerald-800">
+                  <span className="flex items-center gap-1 text-[#88DCFA] text-xs font-bold bg-[#88DCFA]/10 px-3 py-1.5 rounded-lg border border-[#88DCFA]/30">
                     <Check className="w-4 h-4" />
                     <span>Đã copy ảnh!</span>
                   </span>
@@ -791,13 +791,13 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           <div className="bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl p-3 sm:p-3.5">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-xl bg-[#88DCFA]/15 text-[#88DCFA] flex items-center justify-center shrink-0">
                   <FileSpreadsheet className="w-4 h-4" />
                 </div>
                 <div>
                   <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
                     <span>Tải bảng tính Excel (Có màu & Khung)</span>
-                    <span className="text-[10px] font-bold bg-emerald-600 text-white px-1.5 py-0.2 rounded">
+                    <span className="text-[10px] font-black bg-[#88DCFA] text-slate-950 px-1.5 py-0.2 rounded">
                       Chuẩn ảnh
                     </span>
                   </div>
@@ -811,7 +811,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 type="button"
                 id="btn-download-excel-styled"
                 onClick={handleExportStyledExcel}
-                className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-lg shadow-2xs transition-colors shrink-0 min-h-[40px]"
+                className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-black bg-[#88DCFA] hover:bg-[#68CEF6] active:bg-[#48BBF0] text-slate-950 rounded-lg shadow-2xs transition-colors shrink-0 min-h-[40px]"
               >
                 {downloadExcelSuccess ? (
                   <>
@@ -865,7 +865,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
               </div>
             </div>
             {copiedTextSuccess ? (
-              <span className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 text-xs font-bold shrink-0">
+              <span className="flex items-center gap-1 text-[#88DCFA] text-xs font-bold shrink-0">
                 <Check className="w-4 h-4" />
                 <span>Đã copy!</span>
               </span>

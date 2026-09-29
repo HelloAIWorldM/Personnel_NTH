@@ -137,7 +137,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
           <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 space-y-3">
             <div className="flex items-center justify-between">
               <span className="font-bold text-slate-900 dark:text-white text-sm flex items-center gap-1.5">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                <ShieldCheck className="w-4 h-4 text-[#88DCFA]" />
                 Sao lưu thủ công về máy tính
               </span>
             </div>
@@ -202,7 +202,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
                       <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-0.5 flex-wrap">
                         <span>{snap.boardCount} bảng Raid</span>
                         <span>•</span>
-                        <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        <span className="text-[#88DCFA] font-medium">
                           {snap.totalMembersWithData} thành viên Raid có tên
                         </span>
                         <span>•</span>
