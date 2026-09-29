@@ -317,13 +317,13 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
   return (
     <div className="w-full">
       {/* Top Controls Toolbar */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-[#1F3524]">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-[#1F3347]">
         <div>
           <h3 className="font-bold text-white text-sm sm:text-base flex items-center gap-2">
-            <Users className="w-4 h-4 text-[#4ADE80]" />
+            <Users className="w-4 h-4 text-[#88DCFA]" />
             <span>Phân Bổ Nhóm Đội Hình ({parties.length} nhóm PT)</span>
           </h3>
-          <p className="text-[11px] text-[#A1B8A5] mt-0.5">
+          <p className="text-[11px] text-[#CADEEA] mt-0.5">
             Kéo thả hoặc dùng nút mũi tên / menu chọn để đổi nhóm và cân bằng vai trò
           </p>
         </div>
@@ -334,10 +334,10 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
             type="button"
             id="btn-split-two-parties"
             onClick={handleAutoSplitTwoParties}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-[#121E15] hover:bg-[#17271B] active:bg-[#1F3524] text-[#4ADE80] hover:text-[#86EFAC] border border-[#1F3524] hover:border-[#4ADE80]/50 rounded-xl shadow-2xs transition-colors min-h-[40px]"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-[#101A24] hover:bg-[#162230] active:bg-[#1F3347] text-[#88DCFA] hover:text-[#BAE6FD] border border-[#1F3347] hover:border-[#88DCFA]/50 rounded-xl shadow-2xs transition-colors min-h-[40px]"
             title="Tự động chia đôi danh sách thành 2 nhóm 6/6"
           >
-            <ArrowRightLeft className="w-3.5 h-3.5 text-[#4ADE80]" />
+            <ArrowRightLeft className="w-3.5 h-3.5 text-[#88DCFA]" />
             <span>Chia đều 2 PT</span>
           </button>
 
@@ -345,7 +345,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
             type="button"
             id="btn-balance-roles"
             onClick={handleAutoBalanceRoles}
-            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-[#121E15] hover:bg-[#17271B] active:bg-[#1F3524] text-amber-400 hover:text-amber-300 border border-[#1F3524] hover:border-amber-700/60 rounded-xl shadow-2xs transition-colors min-h-[40px]"
+            className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold bg-[#101A24] hover:bg-[#162230] active:bg-[#1F3347] text-amber-400 hover:text-amber-300 border border-[#1F3347] hover:border-amber-700/60 rounded-xl shadow-2xs transition-colors min-h-[40px]"
             title="Tự động cân bằng Tank và Healer giữa các nhóm"
           >
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -356,9 +356,9 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
             type="button"
             id="btn-add-party"
             onClick={handleAddParty}
-            className="col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold bg-[#22C55E] hover:bg-[#16A34A] active:bg-[#15803D] text-white rounded-xl shadow-[0_0_12px_rgba(34,197,94,0.3)] transition-all min-h-[40px]"
+            className="col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5 px-3.5 py-2 text-xs font-bold bg-[#88DCFA] hover:bg-[#68CEF6] active:bg-[#48BBF0] text-slate-950 font-black rounded-xl shadow-[0_0_12px_rgba(136,220,250,0.3)] transition-all min-h-[40px]"
           >
-            <Plus className="w-3.5 h-3.5" />
+            <Plus className="w-4 h-4" />
             <span>Thêm nhóm PT</span>
           </button>
         </div>
@@ -394,16 +394,16 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
               onDragOver={(e) => handlePartyDragOver(e, party.id)}
               onDragLeave={() => setDragOverPartyId(null)}
               onDrop={(e) => handlePartyDrop(e, party.id)}
-              className={`flex flex-col bg-[#121E15] rounded-2xl border transition-all duration-200 overflow-hidden shadow-sm ${
+              className={`flex flex-col bg-[#101A24] rounded-2xl border transition-all duration-200 overflow-hidden shadow-sm ${
                 isDragOver
-                  ? 'border-[#4ADE80] ring-2 ring-[#4ADE80]/30 bg-[#17271B]'
-                  : 'border-[#1F3524] hover:border-[#2E4D37]'
+                  ? 'border-[#88DCFA] ring-2 ring-[#88DCFA]/30 bg-[#162230]'
+                  : 'border-[#1F3347] hover:border-[#2C4863]'
               }`}
             >
               {/* Party Header */}
-              <div className="p-3 bg-[#17271B] text-white flex items-center justify-between border-b border-[#1F3524]">
+              <div className="p-3 bg-[#162230] text-white flex items-center justify-between border-b border-[#1F3347]">
                 <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="w-6 h-6 rounded-full bg-[#22C55E]/15 border border-[#22C55E]/30 text-[#4ADE80] text-xs font-black flex items-center justify-center shrink-0">
+                  <span className="w-6 h-6 rounded-full bg-[#88DCFA]/15 border border-[#88DCFA]/30 text-[#88DCFA] text-xs font-black flex items-center justify-center shrink-0">
                     {pIndex + 1}
                   </span>
 
@@ -418,7 +418,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                           if (e.key === 'Escape') setEditingPartyId(null);
                         }}
                         autoFocus
-                        className="bg-[#0C140E] text-white text-xs px-2 py-1 rounded border border-[#22C55E] focus:outline-none w-28"
+                        className="bg-[#0B1219] text-white text-xs px-2 py-1 rounded border border-[#88DCFA] focus:outline-none w-28"
                       />
                       <button
                         type="button"
@@ -444,7 +444,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                         type="button"
                         onClick={() => handleStartRename(party)}
                         title="Đổi tên nhóm"
-                        className="p-1 text-[#8DA692] hover:text-white transition-colors"
+                        className="p-1 text-[#8CA4B8] hover:text-white transition-colors"
                       >
                         <Edit2 className="w-3.5 h-3.5" />
                       </button>
@@ -453,7 +453,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                 </div>
 
                 <div className="flex items-center gap-2">
-                  <span className="px-2 py-0.5 rounded-full bg-[#0C140E]/80 text-[#86EFAC] text-xs font-bold border border-[#1F3524]">
+                  <span className="px-2 py-0.5 rounded-full bg-[#0B1219]/80 text-[#88DCFA] text-xs font-bold border border-[#1F3347]">
                     {partyMembers.length} người
                   </span>
 
@@ -471,7 +471,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
               </div>
 
               {/* Role Balance Summary Bar */}
-              <div className="px-3 py-1.5 bg-[#0C140E]/80 border-b border-[#1F3524] flex flex-wrap items-center justify-between gap-1 text-xs font-semibold text-[#A1B8A5]">
+              <div className="px-3 py-1.5 bg-[#0B1219]/80 border-b border-[#1F3347] flex flex-wrap items-center justify-between gap-1 text-xs font-semibold text-[#8CA4B8]">
                 <div className="flex items-center gap-2.5">
                   <span className="flex items-center gap-1" title="Số lượng Tank">
                     <Shield className="w-3.5 h-3.5 text-amber-400" />
@@ -498,12 +498,12 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
               {/* Members List (Droppable Target) */}
               <div className="p-2 flex-1 min-h-[200px] sm:min-h-[260px] space-y-2">
                 {partyMembers.length === 0 ? (
-                  <div className="h-full min-h-[160px] sm:min-h-[220px] flex flex-col items-center justify-center p-4 border border-dashed border-[#1F3524] bg-[#0C140E]/40 rounded-xl text-center text-[#8DA692]">
-                    <Users className="w-7 h-7 sm:w-8 sm:h-8 text-[#3A5640] mb-2" />
+                  <div className="h-full min-h-[160px] sm:min-h-[220px] flex flex-col items-center justify-center p-4 border border-dashed border-[#1F3347] bg-[#0B1219]/40 rounded-xl text-center text-[#8CA4B8]">
+                    <Users className="w-7 h-7 sm:w-8 sm:h-8 text-[#1F3347] mb-2" />
                     <span className="text-xs font-semibold text-slate-300">
                       Chưa có thành viên nào
                     </span>
-                    <span className="text-[11px] text-[#7D9882] mt-0.5">
+                    <span className="text-[11px] text-[#64748B] mt-0.5">
                       Kéo thả hoặc chuyển người chơi từ nhóm khác vào đây
                     </span>
                   </div>
@@ -534,17 +534,17 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                         onDrop={(e) => handleMemberDrop(e, member.id, party.id)}
                         className={`group relative flex items-center justify-between p-2 rounded-xl border transition-all ${
                           isBeingDragged
-                            ? 'opacity-40 border-[#4ADE80] shadow-md scale-95'
+                            ? 'opacity-40 border-[#88DCFA] shadow-md scale-95'
                             : isDragOverThis
-                            ? 'border-[#4ADE80] bg-[#22C55E]/15 shadow-md scale-[1.02]'
+                            ? 'border-[#88DCFA] bg-[#88DCFA]/15 shadow-md scale-[1.02]'
                             : isIngameDup || isLoggedByDup
                             ? 'bg-amber-950/20 border-amber-800/80 hover:shadow-xs'
-                            : 'bg-[#17271B] border-[#1F3524] hover:border-[#2E4D37] hover:shadow-xs'
+                            : 'bg-[#162230] border-[#1F3347] hover:border-[#2C4863] hover:shadow-xs'
                         }`}
                       >
                         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                           {/* Desktop Drag Handle */}
-                          <div className="text-[#55755D] group-hover:text-[#A1B8A5] transition-colors cursor-grab hidden sm:block">
+                          <div className="text-slate-500 group-hover:text-[#CADEEA] transition-colors cursor-grab hidden sm:block">
                             <GripVertical className="w-4 h-4" />
                           </div>
 
@@ -554,7 +554,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                               type="button"
                               onClick={() => handleMoveMemberInsideParty(member.id, 'up')}
                               disabled={idxInParty === 0}
-                              className="p-1 text-[#55755D] hover:text-white disabled:opacity-20"
+                              className="p-1 text-slate-500 hover:text-white disabled:opacity-20"
                               title="Lên trên"
                             >
                               <ChevronUp className="w-3.5 h-3.5" />
@@ -563,7 +563,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                               type="button"
                               onClick={() => handleMoveMemberInsideParty(member.id, 'down')}
                               disabled={idxInParty === partyMembers.length - 1}
-                              className="p-1 text-[#55755D] hover:text-white disabled:opacity-20"
+                              className="p-1 text-slate-500 hover:text-white disabled:opacity-20"
                               title="Xuống dưới"
                             >
                               <ChevronDown className="w-3.5 h-3.5" />
@@ -571,7 +571,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                           </div>
 
                           {/* STT badge */}
-                          <span className="w-6 h-6 rounded-md bg-[#0C140E] border border-[#1F3524] text-[#86EFAC] font-black text-xs flex items-center justify-center shrink-0">
+                          <span className="w-6 h-6 rounded-md bg-[#0B1219] border border-[#1F3347] text-[#88DCFA] font-black text-xs flex items-center justify-center shrink-0">
                             {member.stt}
                           </span>
 
@@ -595,7 +595,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                               )}
                             </div>
                             <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
-                              <span className="text-[10px] text-[#A1B8A5] font-semibold truncate max-w-[110px]">
+                              <span className="text-[10px] text-[#8CA4B8] font-semibold truncate max-w-[110px]">
                                 {member.loggedBy ? `by: ${member.loggedBy}` : 'Tự log'}
                               </span>
                               {isLoggedByDup && (
@@ -636,10 +636,10 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                                 )
                               }
                               title="Chuyển sang nhóm khác"
-                              className="text-xs font-bold bg-[#0C140E] hover:bg-[#17271B] text-slate-200 border border-[#1F3524] hover:border-[#2E4D37] rounded-lg px-2 py-1 cursor-pointer focus:outline-none min-h-[36px] transition-colors"
+                              className="text-xs font-bold bg-[#0B1219] hover:bg-[#162230] text-slate-200 border border-[#1F3347] hover:border-[#2C4863] rounded-lg px-2 py-1 cursor-pointer focus:outline-none min-h-[36px] transition-colors"
                             >
                               {parties.map((p) => (
-                                <option key={p.id} value={p.id} className="bg-[#121E15] text-white">
+                                <option key={p.id} value={p.id} className="bg-[#101A24] text-white">
                                   {p.name}
                                 </option>
                               ))}
@@ -653,7 +653,7 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
               </div>
 
               {/* Quick Drop Zone Hint */}
-              <div className="p-2 border-t border-[#1F3524] text-center text-[10px] text-[#7D9882] bg-[#0C140E]/60">
+              <div className="p-2 border-t border-[#1F3347] text-center text-[10px] text-[#64748B] bg-[#0B1219]/60">
                 Thả hoặc chọn chuyển người chơi vào {party.name}
               </div>
             </div>

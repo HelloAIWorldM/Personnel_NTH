@@ -8,20 +8,20 @@
   }
 }
 
-/* Custom Matcha scrollbar */
+/* Custom Cyan #88DCFA scrollbar */
 .dark ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 .dark ::-webkit-scrollbar-track {
-  background: #0c140e;
+  background: #0b1219;
 }
 .dark ::-webkit-scrollbar-thumb {
-  background: #223828;
+  background: #1f3347;
   border-radius: 9999px;
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #2e4d37;
+  background: #2c4863;
 }
 
 ::-webkit-scrollbar {
@@ -29,12 +29,12 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f4f8f5;
+  background: #f2f8fc;
 }
 ::-webkit-scrollbar-thumb {
-  background: #c3d9c8;
+  background: #c8dfef;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #9ebb96;
+  background: #97c4e6;
 }

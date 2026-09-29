@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 
-// Cute mini matcha cup SVG icons (tilted, with foam, straw, or latte art)
+// Cute mini ice cup SVG icons (tilted, with foam, straw, or latte art)
 const MatchaIcedCup: React.FC<{ className?: string }> = ({ className = 'w-7 h-7' }) => (
   <svg
     viewBox="0 0 64 64"
@@ -11,7 +11,7 @@ const MatchaIcedCup: React.FC<{ className?: string }> = ({ className = 'w-7 h-7'
     {/* Straw */}
     <path
       d="M36 4L42 18"
-      stroke="#A3E635"
+      stroke="#88DCFA"
       strokeWidth="4"
       strokeLinecap="round"
     />
@@ -30,7 +30,7 @@ const MatchaIcedCup: React.FC<{ className?: string }> = ({ className = 'w-7 h-7'
       stroke="#94A3B8"
       strokeWidth="2"
     />
-    {/* Matcha Tea Liquid (Bottom 60%) */}
+    {/* Ice Drink Liquid (Bottom 60%) */}
     <path
       d="M19.2 32L21 54C21.5 57 24 58.5 32 58.5C40 58.5 42.5 57 43 54L44.8 32C41 33.5 36 34 32 34C28 34 23 33.5 19.2 32Z"
       fill="url(#matcha-liquid-grad)"
@@ -38,17 +38,17 @@ const MatchaIcedCup: React.FC<{ className?: string }> = ({ className = 'w-7 h-7'
     {/* Froth / Milk Layer */}
     <path
       d="M18 24L19.2 32C23 33.5 28 34 32 34C36 34 41 33.5 44.8 32L46 24C42 25.5 37 26 32 26C27 26 22 25.5 18 24Z"
-      fill="#F1F8F4"
+      fill="#F0F9FF"
       opacity="0.92"
     />
-    {/* Little Tea Leaf on Cup */}
+    {/* Little Ice Crystal Icon on Cup */}
     <path
       d="M32 40C30 36 33 33 36 35C38 37 36 41 32 40Z"
-      fill="#22C55E"
+      fill="#88DCFA"
     />
     <path
       d="M32 40C34 43 37 43 36 40"
-      stroke="#15803D"
+      stroke="#0284C7"
       strokeWidth="1"
       strokeLinecap="round"
     />
@@ -59,9 +59,9 @@ const MatchaIcedCup: React.FC<{ className?: string }> = ({ className = 'w-7 h-7'
         <stop offset="1" stopColor="#E2E8F0" stopOpacity="0.15" />
       </linearGradient>
       <linearGradient id="matcha-liquid-grad" x1="21" y1="32" x2="43" y2="58" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#4ADE80" />
-        <stop offset="0.6" stopColor="#22C55E" />
-        <stop offset="1" stopColor="#15803D" />
+        <stop stopColor="#BAE6FD" />
+        <stop offset="0.6" stopColor="#88DCFA" />
+        <stop offset="1" stopColor="#38BDF8" />
       </linearGradient>
     </defs>
   </svg>
@@ -77,51 +77,51 @@ const MatchaBowlChawan: React.FC<{ className?: string }> = ({ className = 'w-7 h
     {/* Steam / Aroma swirls */}
     <path
       d="M26 12C25 8 28 6 27 2"
-      stroke="#86EFAC"
+      stroke="#BAE6FD"
       strokeWidth="2"
       strokeLinecap="round"
       opacity="0.75"
     />
     <path
       d="M36 10C35 7 38 5 37 1"
-      stroke="#86EFAC"
+      stroke="#BAE6FD"
       strokeWidth="2"
       strokeLinecap="round"
       opacity="0.75"
     />
     {/* Bowl Rim Oval */}
-    <ellipse cx="32" cy="24" rx="22" ry="7" fill="#1C3826" stroke="#4ADE80" strokeWidth="2" />
-    {/* Whisked Matcha Foam inside bowl */}
+    <ellipse cx="32" cy="24" rx="22" ry="7" fill="#101A24" stroke="#88DCFA" strokeWidth="2" />
+    {/* Whisked Foam inside bowl */}
     <ellipse cx="32" cy="24" rx="19" ry="5.5" fill="url(#chawan-foam-grad)" />
-    {/* Whisk Bubbles */}
-    <circle cx="28" cy="23" r="1.5" fill="#DCFCE7" />
-    <circle cx="34" cy="25" r="1.2" fill="#DCFCE7" />
-    <circle cx="37" cy="22.5" r="1" fill="#DCFCE7" />
-    <circle cx="25" cy="25" r="1" fill="#DCFCE7" />
+    {/* Bubbles */}
+    <circle cx="28" cy="23" r="1.5" fill="#F0F9FF" />
+    <circle cx="34" cy="25" r="1.2" fill="#F0F9FF" />
+    <circle cx="37" cy="22.5" r="1" fill="#F0F9FF" />
+    <circle cx="25" cy="25" r="1" fill="#F0F9FF" />
     {/* Ceramic Bowl Body */}
     <path
       d="M10 24C10 40 18 52 32 52C46 52 54 40 54 24"
       fill="url(#chawan-body-grad)"
-      stroke="#3B6946"
+      stroke="#1F3347"
       strokeWidth="2.5"
     />
     {/* Bowl Foot Ring */}
     <path
       d="M24 52L23 57C23 58 27 59 32 59C37 59 41 58 41 57L40 52"
-      fill="#1A2D20"
-      stroke="#3B6946"
+      fill="#0B1219"
+      stroke="#1F3347"
       strokeWidth="2"
     />
     <defs>
       <linearGradient id="chawan-foam-grad" x1="13" y1="24" x2="51" y2="24" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#86EFAC" />
-        <stop offset="0.5" stopColor="#4ADE80" />
-        <stop offset="1" stopColor="#22C55E" />
+        <stop stopColor="#E0F2FE" />
+        <stop offset="0.5" stopColor="#88DCFA" />
+        <stop offset="1" stopColor="#38BDF8" />
       </linearGradient>
       <linearGradient id="chawan-body-grad" x1="10" y1="24" x2="54" y2="52" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#223D2B" />
-        <stop offset="0.6" stopColor="#192E20" />
-        <stop offset="1" stopColor="#122117" />
+        <stop stopColor="#162230" />
+        <stop offset="0.6" stopColor="#101A24" />
+        <stop offset="1" stopColor="#0B1219" />
       </linearGradient>
     </defs>
   </svg>
@@ -135,13 +135,13 @@ const MatchaLatteArtCup: React.FC<{ className?: string }> = ({ className = 'w-7 
     className={className}
   >
     {/* Saucer */}
-    <ellipse cx="32" cy="52" rx="26" ry="6" fill="#1C3023" stroke="#33593D" strokeWidth="2" />
-    <ellipse cx="32" cy="51" rx="18" ry="3.5" fill="#25422E" />
+    <ellipse cx="32" cy="52" rx="26" ry="6" fill="#101A24" stroke="#1F3347" strokeWidth="2" />
+    <ellipse cx="32" cy="51" rx="18" ry="3.5" fill="#162230" />
     {/* Handle */}
     <path
       d="M45 28C52 28 55 36 50 42C47 44 43 44 41 42"
       fill="none"
-      stroke="#3B6946"
+      stroke="#1F3347"
       strokeWidth="3.5"
       strokeLinecap="round"
     />
@@ -149,21 +149,21 @@ const MatchaLatteArtCup: React.FC<{ className?: string }> = ({ className = 'w-7 
     <path
       d="M15 24C15 42 22 48 32 48C42 48 49 42 49 24H15Z"
       fill="url(#cup-body-grad)"
-      stroke="#3B6946"
+      stroke="#1F3347"
       strokeWidth="2.5"
     />
     {/* Cup Rim */}
-    <ellipse cx="32" cy="24" rx="17" ry="5.5" fill="#22C55E" stroke="#4ADE80" strokeWidth="1.5" />
+    <ellipse cx="32" cy="24" rx="17" ry="5.5" fill="#88DCFA" stroke="#BAE6FD" strokeWidth="1.5" />
     {/* White Foam Heart Latte Art */}
     <path
       d="M32 27.5C30.5 25.5 27 24 27 22.5C27 21 28.5 20 30 20C31 20 31.8 20.8 32 21.5C32.2 20.8 33 20 34 20C35.5 20 37 21 37 22.5C37 24 33.5 25.5 32 27.5Z"
-      fill="#F0FDF4"
+      fill="#F0F9FF"
       opacity="0.95"
     />
     <defs>
       <linearGradient id="cup-body-grad" x1="15" y1="24" x2="49" y2="48" gradientUnits="userSpaceOnUse">
-        <stop stopColor="#274630" />
-        <stop offset="1" stopColor="#172C1E" />
+        <stop stopColor="#162230" />
+        <stop offset="1" stopColor="#0B1219" />
       </linearGradient>
     </defs>
   </svg>
@@ -243,7 +243,7 @@ export const MatchaBackground: React.FC = () => {
         return (
           <div
             key={p.id}
-            className="absolute will-change-transform drop-shadow-[0_2px_8px_rgba(34,197,94,0.15)]"
+            className="absolute will-change-transform drop-shadow-[0_2px_8px_rgba(136,220,250,0.2)]"
             style={
               {
                 left: `${p.startX}%`,
@@ -264,9 +264,9 @@ export const MatchaBackground: React.FC = () => {
         );
       })}
 
-      {/* Gentle ambient matcha gradient glow in corners */}
-      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-500/5 dark:bg-[#22C55E]/5 blur-3xl pointer-events-none" />
-      <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-emerald-600/5 dark:bg-[#15803D]/8 blur-3xl pointer-events-none" />
+      {/* Gentle ambient cyan gradient glow in corners */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-sky-500/5 dark:bg-[#88DCFA]/5 blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 rounded-full bg-cyan-600/5 dark:bg-[#38BDF8]/8 blur-3xl pointer-events-none" />
     </div>
   );
 };

@@ -192,7 +192,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
   return (
     <div className="space-y-4">
       {/* Board Header Card */}
-      <section className="bg-[#121E15] border border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-sm">
+      <section className="bg-[#101A24] border border-amber-500/30 rounded-2xl p-4 sm:p-5 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           {/* Title & Info */}
           <div className="flex items-start sm:items-center gap-3">
@@ -207,21 +207,21 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
                     type="text"
                     value={tempTitle}
                     onChange={(e) => setTempTitle(e.target.value)}
-                    className="px-2.5 py-1 text-base font-black border border-[#1F3524] focus:border-amber-500 rounded-lg bg-[#0C140E] text-white"
+                    className="px-2.5 py-1 text-base font-black border border-[#1F3347] focus:border-amber-500 rounded-lg bg-[#0B1219] text-white"
                     placeholder="Tên bảng..."
                   />
                   <input
                     type="text"
                     value={tempSchedule}
                     onChange={(e) => setTempSchedule(e.target.value)}
-                    className="px-2 py-1 text-xs font-bold border border-[#1F3524] focus:border-amber-500 rounded-lg bg-[#0C140E] text-white"
+                    className="px-2 py-1 text-xs font-bold border border-[#1F3347] focus:border-amber-500 rounded-lg bg-[#0B1219] text-white"
                     placeholder="Lịch chiến..."
                   />
                   <input
                     type="text"
                     value={tempTarget}
                     onChange={(e) => setTempTarget(e.target.value)}
-                    className="px-2 py-1 text-xs font-bold border border-[#1F3524] focus:border-amber-500 rounded-lg bg-[#0C140E] text-white"
+                    className="px-2 py-1 text-xs font-bold border border-[#1F3347] focus:border-amber-500 rounded-lg bg-[#0B1219] text-white"
                     placeholder="Mục tiêu..."
                   />
                   <button
@@ -244,14 +244,14 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
                     <button
                       type="button"
                       onClick={() => setIsEditingHeader(true)}
-                      className="text-[#8DA692] hover:text-white p-1 transition-colors"
+                      className="text-[#8CA4B8] hover:text-white p-1 transition-colors"
                       title="Sửa tên bảng và thông tin"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
                     </button>
                   </div>
 
-                  <div className="flex items-center gap-3 text-xs text-[#A1B8A5] mt-1 flex-wrap">
+                  <div className="flex items-center gap-3 text-xs text-[#CADEEA] mt-1 flex-wrap">
                     <span className="flex items-center gap-1 font-bold text-red-400">
                       <Calendar className="w-3.5 h-3.5" />
                       {board.scheduleTime}
@@ -259,7 +259,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
                     <span>•</span>
                     <span className="font-semibold text-slate-300">Mục tiêu: {board.targetName}</span>
                     <span>•</span>
-                    <span className="font-bold text-[#86EFAC]">
+                    <span className="font-bold text-[#88DCFA]">
                       Quân số: {board.members.length} người
                     </span>
                   </div>
@@ -270,7 +270,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
 
           {/* Quick Team Counts & Actions */}
           <div className="flex items-center gap-2 flex-wrap shrink-0">
-            <div className="flex items-center gap-1.5 text-xs font-bold bg-[#0C140E] px-3 py-1.5 rounded-xl border border-[#1F3524] shadow-xs flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs font-bold bg-[#0B1219] px-3 py-1.5 rounded-xl border border-[#1F3347] shadow-xs flex-wrap">
               <span className="text-rose-400">{midCount} Mid</span>
               <span className="text-slate-600">•</span>
               <span className="text-sky-400">{coDongCount} Cơ động</span>
@@ -279,7 +279,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
               {unassignedCount > 0 && (
                 <>
                   <span className="text-slate-600">•</span>
-                  <span className="text-[#8DA692]">{unassignedCount} Dự bị</span>
+                  <span className="text-[#8CA4B8]">{unassignedCount} Dự bị</span>
                 </>
               )}
             </div>
@@ -298,7 +298,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
             <button
               type="button"
               onClick={() => onDuplicateBoard(board)}
-              className="p-2 bg-[#17271B] hover:bg-[#1F3524] border border-[#1F3524] rounded-xl text-slate-300 hover:text-white transition-colors shadow-2xs cursor-pointer"
+              className="p-2 bg-[#162230] hover:bg-[#1F3347] border border-[#1F3347] rounded-xl text-slate-300 hover:text-white transition-colors shadow-2xs cursor-pointer"
               title="Nhân bản bảng Bang Chiến này"
             >
               <Copy className="w-4 h-4" />
@@ -307,7 +307,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
             <button
               type="button"
               onClick={() => setShowDeleteConfirm(true)}
-              className="p-2 bg-[#17271B] hover:bg-rose-950/40 border border-[#1F3524] hover:border-rose-900/50 text-rose-400 rounded-xl transition-colors shadow-2xs cursor-pointer"
+              className="p-2 bg-[#162230] hover:bg-rose-950/40 border border-[#1F3347] hover:border-rose-900/50 text-rose-400 rounded-xl transition-colors shadow-2xs cursor-pointer"
               title="Xóa bảng Bang Chiến này"
             >
               <Trash2 className="w-4 h-4" />
@@ -316,14 +316,14 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
         </div>
 
         {/* 3 Main Navigation Tabs */}
-        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[#1F3524] overflow-x-auto no-scrollbar">
+        <div className="flex items-center gap-2 mt-4 pt-4 border-t border-[#1F3347] overflow-x-auto no-scrollbar">
           <button
             type="button"
             onClick={() => setActiveTab('roster')}
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 ${
               activeTab === 'roster'
                 ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-[0_0_12px_rgba(245,158,11,0.35)] scale-102'
-                : 'bg-[#17271B] text-slate-300 hover:text-white hover:bg-[#1F3524] border border-[#1F3524]'
+                : 'bg-[#162230] text-slate-300 hover:text-white hover:bg-[#1F3347] border border-[#1F3347]'
             }`}
           >
             <Users className="w-4 h-4" />
@@ -336,7 +336,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 ${
               activeTab === 'teams'
                 ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-[0_0_12px_rgba(245,158,11,0.35)] scale-102'
-                : 'bg-[#17271B] text-slate-300 hover:text-white hover:bg-[#1F3524] border border-[#1F3524]'
+                : 'bg-[#162230] text-slate-300 hover:text-white hover:bg-[#1F3347] border border-[#1F3347]'
             }`}
           >
             <Shield className="w-4 h-4" />
@@ -349,7 +349,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
             className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-black transition-all shrink-0 ${
               activeTab === 'attendance'
                 ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-[0_0_12px_rgba(245,158,11,0.35)] scale-102'
-                : 'bg-[#17271B] text-slate-300 hover:text-white hover:bg-[#1F3524] border border-[#1F3524]'
+                : 'bg-[#162230] text-slate-300 hover:text-white hover:bg-[#1F3347] border border-[#1F3347]'
             }`}
           >
             <ClipboardCheck className="w-4 h-4" />

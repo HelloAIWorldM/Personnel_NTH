@@ -264,18 +264,18 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   };
 
   return (
-    <div className="w-full flex flex-col h-full bg-[#121E15] border border-[#1F3524] rounded-2xl shadow-sm overflow-hidden transition-colors">
-      {/* Header bar - Matcha Tactical Operations Console */}
-      <div className="p-3 sm:p-3.5 border-b border-[#1F3524] bg-[#17271B]">
+    <div className="w-full flex flex-col h-full bg-[#101A24] border border-[#1F3347] rounded-2xl shadow-sm overflow-hidden transition-colors">
+      {/* Header bar - Tactical Operations Console */}
+      <div className="p-3 sm:p-3.5 border-b border-[#1F3347] bg-[#162230]">
         <div className="flex items-center justify-between gap-2 mb-2">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-[#22C55E]/15 border border-[#22C55E]/40 text-[#4ADE80] flex items-center justify-center font-bold text-xs shadow-xs">
+            <div className="w-7 h-7 rounded-xl bg-[#88DCFA]/15 border border-[#88DCFA]/40 text-[#88DCFA] flex items-center justify-center font-bold text-xs shadow-xs">
               <Users className="w-4 h-4" />
             </div>
             <div>
               <h3 className="font-black text-xs sm:text-sm flex items-center gap-2">
                 <span className="text-white tracking-tight">Kho Nhân Sự</span>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#22C55E]/15 text-[#4ADE80] border border-[#22C55E]/30 shadow-2xs">
+                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-[#88DCFA]/15 text-[#88DCFA] border border-[#88DCFA]/30 shadow-2xs">
                   {assignedCount}/{totalCount} đã xếp
                 </span>
               </h3>
@@ -287,9 +287,9 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               type="button"
               onClick={onSyncFromActiveRaid}
               title="Thêm các thành viên trong bảng Raid hiện tại vào Kho Nhân Sự (nếu chưa có)"
-              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-slate-300 hover:text-white bg-[#121E15] hover:bg-[#1E3324] border border-[#1F3524] rounded-lg shadow-2xs transition-all active:scale-95"
+              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-slate-300 hover:text-white bg-[#101A24] hover:bg-[#1D2D40] border border-[#1F3347] rounded-lg shadow-2xs transition-all active:scale-95"
             >
-              <RefreshCw className="w-3 h-3 text-[#4ADE80]" />
+              <RefreshCw className="w-3 h-3 text-[#88DCFA]" />
               <span className="hidden sm:inline">Lấy từ Raid</span>
             </button>
 
@@ -297,7 +297,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               type="button"
               id="btn-add-personnel-open"
               onClick={() => setIsAddingNew(!isAddingNew)}
-              className="flex items-center gap-1 px-3 py-1 text-[11px] font-bold text-slate-950 bg-[#22C55E] hover:bg-[#16A34A] rounded-lg shadow-[0_0_12px_rgba(34,197,94,0.3)] transition-all active:scale-95"
+              className="flex items-center gap-1 px-3 py-1 text-[11px] font-bold text-slate-950 bg-[#88DCFA] hover:bg-[#68CEF6] rounded-lg shadow-[0_0_12px_rgba(136,220,250,0.3)] transition-all active:scale-95 font-black"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>{isAddingNew ? 'Đóng' : '+ Thêm'}</span>
@@ -309,16 +309,16 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
         {isAddingNew && (
           <form
             onSubmit={handleAddNew}
-            className="mt-3 p-3 bg-[#121E15] rounded-xl border border-[#1F3524] shadow-sm animate-in fade-in space-y-2.5"
+            className="mt-3 p-3 bg-[#101A24] rounded-xl border border-[#1F3347] shadow-sm animate-in fade-in space-y-2.5"
           >
             <div className="font-bold text-xs text-white flex items-center gap-1">
-              <Sparkles className="w-3.5 h-3.5 text-[#4ADE80]" />
+              <Sparkles className="w-3.5 h-3.5 text-[#88DCFA]" />
               <span>Lưu thông tin nhân sự mới</span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <div>
-                <label className="block text-[10px] font-bold text-[#8FAF96] mb-1">
+                <label className="block text-[10px] font-bold text-[#8CA4B8] mb-1">
                   Tên Ingame *
                 </label>
                 <input
@@ -332,21 +332,21 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     }
                   }}
                   placeholder="Ví dụ: Hiệp Sĩ 01"
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-[#1F3524] bg-[#0C140E] text-white focus:outline-none focus:border-[#4ADE80]"
+                  className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-[#1F3347] bg-[#0B1219] text-white focus:outline-none focus:border-[#88DCFA]"
                 />
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-[#8FAF96] mb-1">
+                <label className="block text-[10px] font-bold text-[#8CA4B8] mb-1">
                   Class (Môn phái) *
                 </label>
                 <select
                   value={newClass}
                   onChange={(e) => setNewClass(e.target.value as RaidClass)}
-                  className="w-full px-2.5 py-1.5 text-xs font-bold rounded-lg border border-[#1F3524] bg-[#0C140E] text-white focus:outline-none focus:border-[#4ADE80]"
+                  className="w-full px-2.5 py-1.5 text-xs font-bold rounded-lg border border-[#1F3347] bg-[#0B1219] text-white focus:outline-none focus:border-[#88DCFA]"
                 >
                   {CLASS_LIST.map((cls) => (
-                    <option key={cls} value={cls} className="bg-[#121E15] text-white">
+                    <option key={cls} value={cls} className="bg-[#101A24] text-white">
                       {cls}
                     </option>
                   ))}
@@ -355,14 +355,14 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="block text-[10px] font-bold text-[#8FAF96]">
+                  <label className="block text-[10px] font-bold text-[#8CA4B8]">
                     Logged by
                   </label>
                   {newIngame && (
                     <button
                       type="button"
                       onClick={() => setNewLoggedBy(newIngame)}
-                      className="text-[9px] font-bold text-[#4ADE80] hover:underline"
+                      className="text-[9px] font-bold text-[#88DCFA] hover:underline"
                     >
                       = Ingame
                     </button>
@@ -373,7 +373,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                   value={newLoggedBy}
                   onChange={(e) => setNewLoggedBy(e.target.value)}
                   placeholder="Người log acc..."
-                  className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-[#1F3524] bg-[#0C140E] text-white focus:outline-none focus:border-[#4ADE80]"
+                  className="w-full px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-[#1F3347] bg-[#0B1219] text-white focus:outline-none focus:border-[#88DCFA]"
                 />
               </div>
             </div>
@@ -388,7 +388,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               </button>
               <button
                 type="submit"
-                className="flex items-center gap-1 px-3 py-1.5 text-xs font-bold text-slate-950 bg-[#22C55E] hover:bg-[#16A34A] rounded-lg shadow-[0_0_12px_rgba(34,197,94,0.3)]"
+                className="flex items-center gap-1 px-3 py-1.5 text-xs font-black text-slate-950 bg-[#88DCFA] hover:bg-[#68CEF6] rounded-lg shadow-[0_0_12px_rgba(136,220,250,0.3)]"
               >
                 <Check className="w-3.5 h-3.5" />
                 <span>Lưu nhân sự</span>
@@ -408,7 +408,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm theo Ingame, Logged by hoặc Class..."
-              className="w-full pl-8 pr-7 py-1.5 text-xs font-bold bg-[#0C140E] border border-[#1F3524] focus:border-[#4ADE80] rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[#4ADE80] shadow-2xs transition-all"
+              className="w-full pl-8 pr-7 py-1.5 text-xs font-bold bg-[#0B1219] border border-[#1F3347] focus:border-[#88DCFA] rounded-xl text-white placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-[#88DCFA] shadow-2xs transition-all"
             />
             {searchQuery && (
               <button
@@ -423,13 +423,13 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
 
           {/* Status filter tabs */}
           <div className="flex items-center justify-between gap-1 text-[11px] font-bold">
-            <div className="flex items-center gap-1 bg-[#0C140E] p-0.5 rounded-xl w-full border border-[#1F3524]">
+            <div className="flex items-center gap-1 bg-[#0B1219] p-0.5 rounded-xl w-full border border-[#1F3347]">
               <button
                 type="button"
                 onClick={() => setStatusFilter('ALL')}
                 className={`flex-1 py-1 rounded-lg transition-all text-center ${
                   statusFilter === 'ALL'
-                    ? 'bg-[#17271B] text-white shadow-xs font-black border border-[#1F3524]'
+                    ? 'bg-[#162230] text-white shadow-xs font-black border border-[#1F3347]'
                     : 'text-slate-400 hover:text-white font-bold'
                 }`}
               >
@@ -441,7 +441,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                 title="Các nhân sự chưa được xếp vào bất kỳ bảng Raid nào"
                 className={`flex-1 py-1 rounded-lg transition-all text-center ${
                   statusFilter === 'UNASSIGNED'
-                    ? 'bg-[#17271B] text-[#4ADE80] shadow-xs font-black border border-[#1F3524]'
+                    ? 'bg-[#162230] text-[#88DCFA] shadow-xs font-black border border-[#1F3347]'
                     : 'text-slate-400 hover:text-white font-bold'
                 }`}
               >
@@ -453,7 +453,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                 title="Tất cả nhân sự đã được xếp vào các bảng Raid (giữ nguyên khi thêm bảng mới)"
                 className={`flex-1 py-1 rounded-lg transition-all text-center ${
                   statusFilter === 'ASSIGNED'
-                    ? 'bg-[#17271B] text-slate-200 shadow-xs font-black border border-[#1F3524]'
+                    ? 'bg-[#162230] text-slate-200 shadow-xs font-black border border-[#1F3347]'
                     : 'text-slate-400 hover:text-white font-bold'
                 }`}
               >
@@ -466,8 +466,8 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                   title={`Nhân sự chưa có trong bảng ${activeBoardTitle || 'hiện tại'}`}
                   className={`flex-1 py-1 rounded-lg transition-all text-center text-[10px] ${
                     statusFilter === 'UNASSIGNED_IN_ACTIVE'
-                      ? 'bg-[#22C55E] text-slate-950 shadow-xs font-black'
-                      : 'text-[#4ADE80] hover:text-white font-bold'
+                      ? 'bg-[#88DCFA] text-slate-950 shadow-xs font-black'
+                      : 'text-[#88DCFA] hover:text-white font-bold'
                   }`}
                 >
                   Chưa vào bảng này ({unassignedInActiveCount})
@@ -510,9 +510,9 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
       </div>
 
       {/* Guide note */}
-      <div className="px-3.5 py-1.5 bg-[#0C140E]/80 border-b border-[#1F3524] text-xs text-slate-300 flex items-center justify-between font-medium">
+      <div className="px-3.5 py-1.5 bg-[#0B1219]/80 border-b border-[#1F3347] text-xs text-slate-300 flex items-center justify-between font-medium">
         <span className="flex items-center gap-1.5">
-          <GripVertical className="w-3.5 h-3.5 text-[#4ADE80]" />
+          <GripVertical className="w-3.5 h-3.5 text-[#88DCFA]" />
           <span>Kéo thả thẻ nhân sự vào hàng bảng Raid hoặc bấm <strong>+ Xếp</strong></span>
         </span>
       </div>
@@ -611,10 +611,10 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                 onDragEnd={handleDragEnd}
                 className={`group flex items-center justify-between gap-2 p-2.5 rounded-xl border transition-all ${
                   isDragging
-                    ? 'opacity-40 border-[#4ADE80] bg-[#22C55E]/15'
+                    ? 'opacity-40 border-[#88DCFA] bg-[#88DCFA]/15'
                     : isAssigned
-                    ? 'bg-[#142017] border-[#1C3224] opacity-80'
-                    : 'bg-[#17271B] border-[#1F3524] hover:border-[#2E4D37] shadow-2xs hover:shadow-xs cursor-grab active:cursor-grabbing'
+                    ? 'bg-[#121B24] border-[#1A2A38] opacity-80'
+                    : 'bg-[#162230] border-[#1F3347] hover:border-[#2C4863] shadow-2xs hover:shadow-xs cursor-grab active:cursor-grabbing'
                 }`}
               >
                 {/* Left side: Grip handle, Checkbox, Name, LoggedBy */}
@@ -624,7 +624,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     className={`shrink-0 ${
                       isAssignedInActiveBoard
                         ? 'text-slate-600 cursor-not-allowed'
-                        : 'cursor-grab text-slate-500 hover:text-[#4ADE80]'
+                        : 'cursor-grab text-slate-500 hover:text-[#88DCFA]'
                     }`}
                     title={
                       isAssignedInActiveBoard
@@ -648,8 +648,8 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     }
                     className={`w-4 h-4 rounded shrink-0 flex items-center justify-center border transition-colors ${
                       person.checked
-                        ? 'bg-[#22C55E] border-[#22C55E] text-slate-950 shadow-xs'
-                        : 'border-[#1F3524] hover:border-[#4ADE80] bg-[#0C140E]'
+                        ? 'bg-[#88DCFA] border-[#88DCFA] text-slate-950 shadow-xs'
+                        : 'border-[#1F3347] hover:border-[#88DCFA] bg-[#0B1219]'
                     }`}
                   >
                     {person.checked && <Check className="w-3 h-3 stroke-[3]" />}
@@ -672,7 +672,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                       {/* Status Tag: Assigned status across all boards */}
                       {isAssigned && (
                         <span
-                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-black bg-[#1C3322] text-[#86EFAC] border border-[#2B4E34] shrink-0 shadow-2xs"
+                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-black bg-[#152B3B] text-[#88DCFA] border border-[#1E435E] shrink-0 shadow-2xs"
                           title={`Đã xếp ở: ${assignments.map((a) => `${a.boardTitle} (STT #${a.stt}${a.party ? ` - P${a.party}` : ''})`).join(', ')}`}
                         >
                           <Check className="w-3 h-3 stroke-[3]" />
@@ -693,7 +693,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     </div>
 
                     <div className="text-[11px] truncate flex items-center gap-1 text-slate-400 mt-0.5">
-                      <span className="font-semibold text-[#8DA692]">
+                      <span className="font-semibold text-[#8CA4B8]">
                         Log:
                       </span>
                       <span className="font-bold text-slate-200">
@@ -735,7 +735,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                           ? `Đã có ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Click để xếp vào bảng này`
                           : 'Xếp vào ô trống kế tiếp hoặc thêm slot mới trong Raid'
                       }
-                      className="flex items-center gap-0.5 px-2.5 py-1 text-[11px] font-black rounded-lg bg-[#22C55E] hover:bg-[#16A34A] active:bg-[#15803D] text-slate-950 shadow-[0_0_10px_rgba(34,197,94,0.3)] transition-all hover:scale-105 active:scale-95"
+                      className="flex items-center gap-0.5 px-2.5 py-1 text-[11px] font-black rounded-lg bg-[#88DCFA] hover:bg-[#68CEF6] active:bg-[#48bbf0] text-slate-950 shadow-[0_0_10px_rgba(136,220,250,0.3)] transition-all hover:scale-105 active:scale-95"
                     >
                       <Plus className="w-3 h-3 stroke-[2.5]" />
                       <span>{isAssigned ? 'Xếp tiếp' : 'Xếp'}</span>
@@ -769,10 +769,10 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
       </div>
 
       {/* Storage Footer */}
-      <div className="p-3 px-4 border-t border-[#1F3524] bg-[#121E15] text-xs text-slate-300 flex items-center justify-between">
+      <div className="p-3 px-4 border-t border-[#1F3347] bg-[#101A24] text-xs text-slate-300 flex items-center justify-between">
         <span className="font-bold flex items-center gap-1.5">
-          <span className="text-[#8FAF96]">Đã xếp / gạch tên:</span>
-          <strong className="px-2 py-0.5 rounded-md bg-[#1F3625] text-[#86EFAC] font-black text-[11px]">
+          <span className="text-[#8CA4B8]">Đã xếp / gạch tên:</span>
+          <strong className="px-2 py-0.5 rounded-md bg-[#1B2A3B] text-[#88DCFA] font-black text-[11px]">
             {assignedCount}
           </strong>
         </span>
