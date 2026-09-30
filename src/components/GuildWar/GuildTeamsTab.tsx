@@ -76,7 +76,6 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
   const [draggedPayload, setDraggedPayload] = useState<DragPayload | null>(null);
   const [hoveredSlot, setHoveredSlot] = useState<string | null>(null);
   const [filterQuery, setFilterQuery] = useState('');
-  const [showSortMenu, setShowSortMenu] = useState(false);
   const [benchSortByClass, setBenchSortByClass] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
@@ -120,101 +119,6 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     setTimeout(() => {
       setToastMessage((cur) => (cur === msg ? null : cur));
     }, 2800);
-  };
-
-  // Sort single team by class and re-assign party (1..4) and slot (1..6)
-  const handleSortTeamByClass = (teamId: GuildTeam) => {
-    const teamMems = members.filter((m) => m.team === teamId);
-    if (teamMems.length === 0) {
-      showToast(`Team ${teamId} hiện chưa có thành viên nào để sắp xếp!`);
-      return;
-    }
-
-    const sortedMems = sortMemberListByClass(teamMems);
-    const updatedMap = new Map<string, { party?: number; slot?: number }>();
-    sortedMems.forEach((m, idx) => {
-      const party = Math.floor(idx / 6) + 1;
-      const slot = (idx % 6) + 1;
-      updatedMap.set(m.id, {
-        party: party <= 4 ? party : undefined,
-        slot: party <= 4 ? slot : undefined,
-      });
-    });
-
-    const newMembers = members.map((m) => {
-      if (m.team === teamId) {
-        const update = updatedMap.get(m.id);
-        if (update) {
-          const updated = { ...m, ...update, updatedAt: new Date().toISOString() };
-          if (update.party === undefined) delete updated.party;
-          if (update.slot === undefined) delete updated.slot;
-          return updated;
-        }
-      }
-      return m;
-    });
-
-    if (onUpdateMembers) {
-      onUpdateMembers(newMembers);
-    } else {
-      updatedMap.forEach((update, id) => {
-        onUpdateMember(id, update);
-      });
-    }
-
-    const teamTitle = EXCEL_TEAMS.find((t) => t.id === teamId)?.displayTitle || teamId;
-    showToast(`Đã sắp xếp ${teamTitle} theo môn phái thành công!`);
-  };
-
-  // Sort all 3 teams by class
-  const handleSortAllTeamsByClass = () => {
-    let hasAnySorted = false;
-    let newMembers = [...members];
-
-    EXCEL_TEAMS.forEach((team) => {
-      const teamMems = newMembers.filter((m) => m.team === team.id);
-      if (teamMems.length === 0) return;
-
-      hasAnySorted = true;
-      const sortedMems = sortMemberListByClass(teamMems);
-      const updatedMap = new Map<string, { party?: number; slot?: number }>();
-      sortedMems.forEach((m, idx) => {
-        const party = Math.floor(idx / 6) + 1;
-        const slot = (idx % 6) + 1;
-        updatedMap.set(m.id, {
-          party: party <= 4 ? party : undefined,
-          slot: party <= 4 ? slot : undefined,
-        });
-      });
-
-      newMembers = newMembers.map((m) => {
-        if (m.team === team.id) {
-          const update = updatedMap.get(m.id);
-          if (update) {
-            const updated = { ...m, ...update, updatedAt: new Date().toISOString() };
-            if (update.party === undefined) delete updated.party;
-            if (update.slot === undefined) delete updated.slot;
-            return updated;
-          }
-        }
-        return m;
-      });
-    });
-
-    if (!hasAnySorted) {
-      showToast('Chưa có nhân sự nào trong các team để sắp xếp!');
-      return;
-    }
-
-    if (onUpdateMembers) {
-      onUpdateMembers(newMembers);
-    } else {
-      newMembers.forEach((m) => {
-        onUpdateMember(m.id, { party: m.party, slot: m.slot });
-      });
-    }
-
-    showToast('Đã sắp xếp tất cả các Team theo môn phái thành công!');
   };
 
   // Helper to map members of a team into a 4 Parties x 6 Slots grid
@@ -626,90 +530,6 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap shrink-0">
-          {/* Dropdown: Sắp xếp theo môn phái */}
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowSortMenu(!showSortMenu)}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer min-h-[34px]"
-              title="Sắp xếp gom các thành viên cùng môn phái lại với nhau"
-            >
-              <ArrowUpDown className="w-3.5 h-3.5" />
-              <span>Sắp xếp theo môn phái</span>
-              <ChevronDown className="w-3 h-3 opacity-80" />
-            </button>
-
-            {showSortMenu && (
-              <>
-                <div
-                  className="fixed inset-0 z-40"
-                  onClick={() => setShowSortMenu(false)}
-                />
-                <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 py-1.5 animate-in fade-in zoom-in-95">
-                  <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                    <span>Tự động gom cùng môn phái</span>
-                    <Sparkles className="w-3 h-3 text-amber-500" />
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleSortAllTeamsByClass();
-                      setShowSortMenu(false);
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 flex items-center justify-between transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-3.5 h-3.5 text-emerald-500" />
-                      <span>⚡ Sắp xếp tất cả Team</span>
-                    </div>
-                    <span className="text-[10px] text-slate-400 font-normal">3 team</span>
-                  </button>
-
-                  <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
-
-                  {EXCEL_TEAMS.map((t) => {
-                    const count = members.filter((m) => m.team === t.id).length;
-                    return (
-                      <button
-                        key={t.id}
-                        type="button"
-                        onClick={() => {
-                          handleSortTeamByClass(t.id);
-                          setShowSortMenu(false);
-                        }}
-                        className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between transition-colors cursor-pointer"
-                      >
-                        <span>Gom {t.displayTitle}</span>
-                        <span className="text-[10px] text-slate-400 font-bold">({count}/24)</span>
-                      </button>
-                    );
-                  })}
-
-                  <div className="h-px bg-slate-100 dark:bg-slate-800 my-1" />
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const nextState = !benchSortByClass;
-                      setBenchSortByClass(nextState);
-                      setShowSortMenu(false);
-                      showToast(
-                        nextState
-                          ? 'Đã bật gom môn phái ở Hàng ghế dự bị!'
-                          : 'Đã tắt gom môn phái ở Hàng ghế dự bị'
-                      );
-                    }}
-                    className="w-full text-left px-3 py-2 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 flex items-center justify-between transition-colors cursor-pointer"
-                  >
-                    <span>👥 Hàng ghế Dự bị ({benchSortByClass ? 'Đang bật' : 'Chưa bật'})</span>
-                    <span className="text-[10px] text-slate-400 font-bold">({unassignedMembers.length})</span>
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
-
           <button
             type="button"
             onClick={handleCopyTableImage}
@@ -830,21 +650,11 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                           rowSpan={6}
                           className="border-r-2 border-slate-800 dark:border-slate-500 bg-white dark:bg-slate-900 text-center p-2 align-middle font-black text-xs sm:text-sm text-slate-900 dark:text-white uppercase tracking-wider"
                         >
-                          <div className="flex flex-col items-center justify-center gap-1.5">
+                          <div className="flex flex-col items-center justify-center gap-1">
                             <span>{team.displayTitle}</span>
                             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400">
                               ({members.filter((m) => m.team === team.id).length}/24)
                             </span>
-                            <button
-                              type="button"
-                              data-html2canvas-ignore="true"
-                              onClick={() => handleSortTeamByClass(team.id)}
-                              title={`Gom và sắp xếp ${team.displayTitle} theo cùng môn phái`}
-                              className="mt-0.5 flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold rounded-lg bg-emerald-50 dark:bg-emerald-950/60 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 transition-all active:scale-95 cursor-pointer shadow-2xs"
-                            >
-                              <ArrowUpDown className="w-2.5 h-2.5" />
-                              <span>Gom phái</span>
-                            </button>
                           </div>
                         </td>
                       )}
