@@ -383,8 +383,8 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                         <span className="font-bold text-amber-800 dark:text-amber-300">
                           {occ.boardTitle}
                         </span>
-                        <span className="text-[10px] font-mono text-slate-500 dark:text-[#8CA4B8]">
-                          STT #{occ.stt} {occ.party ? `(P${occ.party})` : ''}
+                        <span className="text-[11px] font-semibold text-slate-600 dark:text-[#CADEEA]">
+                          STT {occ.stt} {occ.party ? `(PT ${occ.party})` : ''}
                         </span>
                       </div>
                     ))}
@@ -468,8 +468,8 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                       <span className="inline-block px-2 py-0.5 rounded-md text-[10px] font-black bg-[#88DCFA] text-slate-950">
                         {res.boardTitle}
                       </span>
-                      <p className="text-[9px] font-mono text-slate-500 dark:text-[#8CA4B8] mt-0.5">
-                        STT #{res.stt} {res.party ? `• P${res.party}` : ''}
+                      <p className="text-[11px] font-semibold text-slate-600 dark:text-[#CADEEA] mt-0.5">
+                        STT {res.stt} {res.party ? `(PT ${res.party})` : ''}
                       </p>
                     </div>
                   </div>

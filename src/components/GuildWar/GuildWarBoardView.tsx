@@ -91,6 +91,10 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
     onUpdateBoard({ ...board, members: updatedMembers });
   };
 
+  const handleUpdateMembers = (updatedMembers: GuildMember[]) => {
+    onUpdateBoard({ ...board, members: updatedMembers });
+  };
+
   const handleAddMember = (newMemData: Omit<GuildMember, 'id'>) => {
     const timestamp = Date.now();
     const newMember: GuildMember = {
@@ -377,6 +381,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
           members={board.members}
           customColors={customColors}
           onUpdateMember={handleUpdateMember}
+          onUpdateMembers={handleUpdateMembers}
         />
       )}
 

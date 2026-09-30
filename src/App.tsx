@@ -54,11 +54,9 @@ import {
   Check,
   Calendar,
   Swords,
-  Database,
   Coffee,
   Cloud,
 } from 'lucide-react';
-import { BackupRestoreModal } from './components/BackupRestoreModal';
 import { CloudSyncModal } from './components/CloudSyncModal';
 import { DonateModal } from './components/DonateModal';
 import {
@@ -145,7 +143,6 @@ export default function App() {
   const [isColorModalOpen, setIsColorModalOpen] = useState(false);
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
   const [isCreateGuildWarModalOpen, setIsCreateGuildWarModalOpen] = useState(false);
-  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<number | null>(null);
@@ -988,28 +985,6 @@ export default function App() {
     }
   };
 
-  const handleRestoreData = (restored: {
-    boards?: RaidBoard[];
-    personnelPool?: PersonnelMember[];
-    customColors?: CustomClassColors;
-    guildWarBoards?: GuildWarBoard[];
-  }) => {
-    if (restored.boards && restored.boards.length > 0) {
-      setBoards(restored.boards);
-      setActiveBoardId(restored.boards[0].id);
-    }
-    if (restored.personnelPool && restored.personnelPool.length > 0) {
-      handleUpdatePersonnelPool(restored.personnelPool);
-    }
-    if (restored.customColors) {
-      setCustomColors(restored.customColors);
-    }
-    if (restored.guildWarBoards && restored.guildWarBoards.length > 0) {
-      setGuildWarBoards(restored.guildWarBoards);
-      setActiveGuildWarBoardId(restored.guildWarBoards[0].id);
-    }
-  };
-
   const fullRaidTitle = `${activeBoard.titlePrefix} - ${activeBoard.scheduleTime} ${activeBoard.bossName}`;
   const customizedCount = Object.keys(customColors).length;
 
@@ -1132,18 +1107,6 @@ export default function App() {
               ) : (
                 <span className="w-2 h-2 rounded-full bg-[#88DCFA] inline-block" />
               )}
-            </button>
-
-            {/* Backup & Restore Data Button */}
-            <button
-              type="button"
-              id="btn-open-backup-modal"
-              onClick={() => setIsBackupModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-sky-50 dark:bg-[#162230] hover:bg-sky-100 dark:hover:bg-[#1D2D40] text-sky-800 dark:text-[#88DCFA] border border-sky-200 dark:border-[#1F3347] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
-              title="Sao lưu và khôi phục dữ liệu Raid & Bang chiến"
-            >
-              <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-sky-600 dark:text-[#88DCFA]" />
-              <span className="hidden sm:inline">Sao lưu</span>
             </button>
 
             {/* Export / Share Modal Button */}
@@ -1746,18 +1709,6 @@ export default function App() {
         members={activeBoard.members}
         customColors={customColors}
         activeBoard={activeBoard}
-      />
-
-      {/* Backup & Restore Modal */}
-      <BackupRestoreModal
-        isOpen={isBackupModalOpen}
-        onClose={() => setIsBackupModalOpen(false)}
-        boards={boards}
-        personnelPool={personnelPool}
-        customColors={customColors}
-        guildWarBoards={guildWarBoards}
-        onRestoreData={handleRestoreData}
-        onShowToast={showToast}
       />
 
       {/* Cloud Sync Modal */}
