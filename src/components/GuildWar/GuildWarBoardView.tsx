@@ -114,7 +114,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
 
   // Move member to team
   const handleMoveToTeam = (id: string, team: GuildTeam) => {
-    handleUpdateMember(id, { team });
+    handleUpdateMember(id, { team, party: undefined, slot: undefined });
   };
 
   // Import from Raid personnel

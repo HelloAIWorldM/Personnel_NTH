@@ -347,7 +347,6 @@ export function drawGuildTeamsToCanvas({
       3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
       4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
     };
-    const unplaced: GuildMember[] = [];
     teamMems.forEach((m) => {
       if (
         m.party &&
@@ -359,28 +358,6 @@ export function drawGuildTeamsToCanvas({
         grid[m.party][m.slot] === null
       ) {
         grid[m.party][m.slot] = m;
-      } else {
-        unplaced.push(m);
-      }
-    });
-    let curP = 1;
-    let curS = 1;
-    unplaced.forEach((m) => {
-      while (curP <= 4) {
-        if (grid[curP][curS] === null) {
-          grid[curP][curS] = m;
-          curS++;
-          if (curS > 6) {
-            curS = 1;
-            curP++;
-          }
-          break;
-        }
-        curS++;
-        if (curS > 6) {
-          curS = 1;
-          curP++;
-        }
       }
     });
     return grid;
@@ -446,7 +423,12 @@ export function drawGuildTeamsToCanvas({
 
   TEAMS.forEach((team, teamIdx) => {
     const grid = getGrid(team.id);
-    const teamMems = members.filter((m) => m.team === team.id);
+    let placedCount = 0;
+    for (let p = 1; p <= 4; p++) {
+      for (let s = 1; s <= 6; s++) {
+        if (grid[p][s]) placedCount++;
+      }
+    }
 
     // PT Header Row
     ctx.fillStyle = headerBg;
@@ -505,7 +487,7 @@ export function drawGuildTeamsToCanvas({
 
     ctx.font = "bold 11px 'Lexend', system-ui, sans-serif";
     ctx.fillStyle = subTextColor;
-    ctx.fillText(`(${teamMems.length}/24)`, teamColWidth / 2, slotsStartY + teamBoxHeight / 2 + 12);
+    ctx.fillText(`(${placedCount}/24)`, teamColWidth / 2, slotsStartY + teamBoxHeight / 2 + 12);
 
     // Left team box right vertical border (2px)
     ctx.strokeStyle = darkBorder;

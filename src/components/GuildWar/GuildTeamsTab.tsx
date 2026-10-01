@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import html2canvas from 'html2canvas-pro';
 import {
@@ -121,58 +121,97 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     }, 2800);
   };
 
-  // Helper to map members of a team into a 4 Parties x 6 Slots grid
-  const getTeamSlots = (teamId: GuildTeam) => {
-    const teamMems = members.filter((m) => m.team === teamId);
-    const grid: Record<number, Record<number, GuildMember | null>> = {
-      1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
-      2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
-      3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
-      4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+  // Helper to map members of teams into 4 Parties x 6 Slots grids
+  const teamGrids = useMemo(() => {
+    const result: Record<GuildTeam, Record<number, Record<number, GuildMember | null>>> = {
+      'Cơ động': {
+        1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+      },
+      'Mid': {
+        1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+      },
+      'Đẩy trụ': {
+        1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+      },
+      'Chưa xếp': {
+        1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+      },
+      'Top': {
+        1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+      },
+      'Bot': {
+        1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+      },
     };
 
-    const unplaced: GuildMember[] = [];
-
-    teamMems.forEach((m) => {
+    members.forEach((m) => {
       if (
+        (m.team === 'Cơ động' || m.team === 'Mid' || m.team === 'Đẩy trụ') &&
         m.party &&
         m.slot &&
         m.party >= 1 &&
         m.party <= 4 &&
         m.slot >= 1 &&
         m.slot <= 6 &&
-        grid[m.party][m.slot] === null
+        result[m.team][m.party][m.slot] === null
       ) {
-        grid[m.party][m.slot] = m;
-      } else {
-        unplaced.push(m);
+        result[m.team][m.party][m.slot] = m;
       }
     });
 
-    // Place remaining members in next available slots sequentially
-    let currentParty = 1;
-    let currentSlot = 1;
-    unplaced.forEach((m) => {
-      while (currentParty <= 4) {
-        if (grid[currentParty][currentSlot] === null) {
-          grid[currentParty][currentSlot] = m;
-          currentSlot++;
-          if (currentSlot > 6) {
-            currentSlot = 1;
-            currentParty++;
-          }
-          break;
-        }
-        currentSlot++;
-        if (currentSlot > 6) {
-          currentSlot = 1;
-          currentParty++;
-        }
-      }
-    });
+    return result;
+  }, [members]);
 
-    return grid;
+  const getTeamSlots = (teamId: GuildTeam) => {
+    return (
+      teamGrids[teamId] || {
+        1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+      }
+    );
   };
+
+  // Set of member IDs currently placed in any slot in the 3 teams
+  const placedMemberIds = useMemo(() => {
+    const ids = new Set<string>();
+    EXCEL_TEAMS.forEach((team) => {
+      const grid = teamGrids[team.id];
+      if (grid) {
+        for (let p = 1; p <= 4; p++) {
+          for (let s = 1; s <= 6; s++) {
+            const mem = grid[p][s];
+            if (mem) ids.add(mem.id);
+          }
+        }
+      }
+    });
+    return ids;
+  }, [teamGrids]);
+
+  // Unassigned pool members: anyone not occupying a valid grid slot
+  const unassignedMembers = useMemo(() => {
+    return members.filter((m) => !placedMemberIds.has(m.id));
+  }, [members, placedMemberIds]);
 
   // Drag handlers
   const handleDragStart = (
@@ -234,31 +273,88 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
       return;
     }
 
-    // If target slot is occupied, swap them!
-    if (currentOccupant && currentOccupant.id !== sourceMember.id) {
-      if (payload.sourceTeam && payload.sourceParty && payload.sourceSlot) {
-        // Swap: existing occupant takes source's position
-        onUpdateMember(currentOccupant.id, {
-          team: payload.sourceTeam,
-          party: payload.sourceParty,
-          slot: payload.sourceSlot,
-        });
-      } else {
-        // Source came from bench -> occupant moves to bench
-        onUpdateMember(currentOccupant.id, {
-          team: 'Chưa xếp',
-          party: undefined,
-          slot: undefined,
-        });
-      }
-    }
+    const now = new Date().toISOString();
 
-    // Move dragged member to target slot
-    onUpdateMember(sourceMember.id, {
-      team: targetTeam,
-      party: targetParty,
-      slot: targetSlot,
-    });
+    if (onUpdateMembers) {
+      const updatedMembers = members.map((m) => {
+        // Dragged member moves to target slot
+        if (m.id === sourceMember.id) {
+          return {
+            ...m,
+            team: targetTeam,
+            party: targetParty,
+            slot: targetSlot,
+            updatedAt: now,
+          };
+        }
+
+        // Target slot occupant
+        if (currentOccupant && m.id === currentOccupant.id) {
+          if (payload!.sourceTeam && payload!.sourceParty && payload!.sourceSlot) {
+            // Swap: occupant takes source's previous position
+            return {
+              ...m,
+              team: payload!.sourceTeam,
+              party: payload!.sourceParty,
+              slot: payload!.sourceSlot,
+              updatedAt: now,
+            };
+          } else {
+            // Source came from bench -> occupant moves to bench
+            const cleared: GuildMember = {
+              ...m,
+              team: 'Chưa xếp',
+              updatedAt: now,
+            };
+            delete cleared.party;
+            delete cleared.slot;
+            return cleared;
+          }
+        }
+
+        // Heal any duplicate occupant that might have had the target slot
+        if (
+          m.team === targetTeam &&
+          m.party === targetParty &&
+          m.slot === targetSlot
+        ) {
+          const cleared: GuildMember = {
+            ...m,
+            team: 'Chưa xếp',
+            updatedAt: now,
+          };
+          delete cleared.party;
+          delete cleared.slot;
+          return cleared;
+        }
+
+        return m;
+      });
+
+      onUpdateMembers(updatedMembers);
+    } else {
+      // Fallback
+      if (currentOccupant && currentOccupant.id !== sourceMember.id) {
+        if (payload.sourceTeam && payload.sourceParty && payload.sourceSlot) {
+          onUpdateMember(currentOccupant.id, {
+            team: payload.sourceTeam,
+            party: payload.sourceParty,
+            slot: payload.sourceSlot,
+          });
+        } else {
+          onUpdateMember(currentOccupant.id, {
+            team: 'Chưa xếp',
+            party: undefined,
+            slot: undefined,
+          });
+        }
+      }
+      onUpdateMember(sourceMember.id, {
+        team: targetTeam,
+        party: targetParty,
+        slot: targetSlot,
+      });
+    }
 
     setDraggedPayload(null);
   };
@@ -278,22 +374,64 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
 
     if (!payload || !payload.memberId) return;
 
-    onUpdateMember(payload.memberId, {
-      team: 'Chưa xếp',
-      party: undefined,
-      slot: undefined,
-    });
+    if (onUpdateMembers) {
+      const now = new Date().toISOString();
+      const updatedMembers = members.map((m) => {
+        if (m.id !== payload!.memberId) return m;
+        const cleared: GuildMember = {
+          ...m,
+          team: 'Chưa xếp',
+          updatedAt: now,
+        };
+        delete cleared.party;
+        delete cleared.slot;
+        return cleared;
+      });
+      onUpdateMembers(updatedMembers);
+    } else {
+      onUpdateMember(payload.memberId, {
+        team: 'Chưa xếp',
+        party: undefined,
+        slot: undefined,
+      });
+    }
 
     setDraggedPayload(null);
   };
 
   // Unassign member directly via button click
-  const handleUnassignMember = (memberId: string) => {
-    onUpdateMember(memberId, {
-      team: 'Chưa xếp',
-      party: undefined,
-      slot: undefined,
-    });
+  const handleUnassignMember = (
+    memberId: string,
+    team?: GuildTeam,
+    party?: number,
+    slot?: number
+  ) => {
+    const now = new Date().toISOString();
+    if (onUpdateMembers) {
+      const updatedMembers = members.map((m) => {
+        if (
+          m.id === memberId ||
+          (team && party && slot && m.team === team && m.party === party && m.slot === slot)
+        ) {
+          const cleared: GuildMember = {
+            ...m,
+            team: 'Chưa xếp',
+            updatedAt: now,
+          };
+          delete cleared.party;
+          delete cleared.slot;
+          return cleared;
+        }
+        return m;
+      });
+      onUpdateMembers(updatedMembers);
+    } else {
+      onUpdateMember(memberId, {
+        team: 'Chưa xếp',
+        party: undefined,
+        slot: undefined,
+      });
+    }
   };
 
   // Copy Discord format
@@ -302,9 +440,14 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
 
     EXCEL_TEAMS.forEach((team) => {
       const grid = getTeamSlots(team.id);
-      const teamMems = members.filter((m) => m.team === team.id);
+      let placedCount = 0;
+      for (let p = 1; p <= 4; p++) {
+        for (let s = 1; s <= 6; s++) {
+          if (grid[p][s]) placedCount++;
+        }
+      }
       text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-      text += `**${team.displayTitle} (${teamMems.length} người)**\n`;
+      text += `**${team.displayTitle} (${placedCount}/24 người)**\n`;
 
       for (let p = 1; p <= 4; p++) {
         const ptMems: string[] = [];
@@ -319,13 +462,10 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
       text += `\n`;
     });
 
-    const unassigned = members.filter(
-      (m) => !m.team || m.team === 'Chưa xếp' || !['Mid', 'Cơ động', 'Đẩy trụ'].includes(m.team)
-    );
-    if (unassigned.length > 0) {
+    if (unassignedMembers.length > 0) {
       text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-      text += `**DỰ BỊ / CHƯA XẾP (${unassigned.length} người)**:\n`;
-      text += unassigned.map((m) => `${m.ingame} [${m.className}]`).join(', ') + '\n';
+      text += `**DỰ BỊ / CHƯA XẾP (${unassignedMembers.length} người)**:\n`;
+      text += unassignedMembers.map((m) => `${m.ingame} [${m.className}]`).join(', ') + '\n';
     }
 
     navigator.clipboard.writeText(text);
@@ -494,13 +634,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     }
   };
 
-  // Unassigned pool members
-  const unassignedMembers = members.filter(
-    (m) =>
-      !m.team ||
-      m.team === 'Chưa xếp' ||
-      !['Mid', 'Cơ động', 'Đẩy trụ'].includes(m.team)
-  );
+
 
   let filteredBenchMembers = unassignedMembers.filter((m) => {
     if (!filterQuery.trim()) return true;
@@ -597,6 +731,9 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
           <tbody>
             {EXCEL_TEAMS.map((team, teamIdx) => {
               const grid = getTeamSlots(team.id);
+              const placedCount = [1, 2, 3, 4].reduce((acc, p) => {
+                return acc + [1, 2, 3, 4, 5, 6].filter((s) => grid[p][s] !== null).length;
+              }, 0);
 
               return (
                 <React.Fragment key={team.id}>
@@ -653,7 +790,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                           <div className="flex flex-col items-center justify-center gap-1">
                             <span>{team.displayTitle}</span>
                             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400">
-                              ({members.filter((m) => m.team === team.id).length}/24)
+                              ({placedCount}/24)
                             </span>
                           </div>
                         </td>
@@ -712,7 +849,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                                   <button
                                     type="button"
                                     data-html2canvas-ignore="true"
-                                    onClick={() => handleUnassignMember(member.id)}
+                                    onClick={() => handleUnassignMember(member.id, team.id, partyNum, slotNum)}
                                     title="Gỡ khỏi slot (về hàng dự bị)"
                                     className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition-opacity p-0.5"
                                   >

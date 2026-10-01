@@ -170,6 +170,8 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
 
   const handleSaveEdit = (id: string) => {
     if (!editIngame.trim()) return;
+    const currentMember = members.find((m) => m.id === id);
+    const teamChanged = currentMember && currentMember.team !== editTeam;
     onUpdateMember(id, {
       ingame: editIngame.trim(),
       className: editClass,
@@ -177,6 +179,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
       participation: editParticipation,
       discord: editDiscord.trim() || '',
       team: editTeam,
+      ...(teamChanged ? { party: undefined, slot: undefined } : {}),
     });
     setEditingId(null);
   };
@@ -773,11 +776,13 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                       <td className="py-2.5 px-3 text-center">
                         <select
                           value={['Mid', 'Cơ động', 'Đẩy trụ'].includes(member.team) ? member.team : 'Chưa xếp'}
-                          onChange={(e) =>
+                          onChange={(e) => {
+                            const newTeam = e.target.value as GuildTeam;
                             onUpdateMember(member.id, {
-                              team: e.target.value as GuildTeam,
-                            })
-                          }
+                              team: newTeam,
+                              ...(member.team !== newTeam ? { party: undefined, slot: undefined } : {}),
+                            });
+                          }}
                           title="Chọn Team trực tiếp cho nhân sự này"
                           className={`text-xs font-black px-2.5 py-1 rounded-xl border cursor-pointer transition-all shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-500 ${
                             member.team === 'Mid'
