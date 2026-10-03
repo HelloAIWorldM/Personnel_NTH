@@ -36,6 +36,7 @@ import { CreateBoardModal } from './components/CreateBoardModal';
 import { AllBoardsOverview } from './components/AllBoardsOverview';
 import { CopyPersonnelToUpdateModal } from './components/CopyPersonnelToUpdateModal';
 import { VerticalBoardList } from './components/VerticalBoardList';
+import { DiBuiStorage } from './components/DiBuiStorage';
 import {
   FileSpreadsheet,
   Share2,
@@ -84,11 +85,13 @@ import {
   STORAGE_KEY_BOARDS_UPDATE,
   STORAGE_KEY_ACTIVE_BOARD_UPDATE,
   STORAGE_KEY_PERSONNEL_UPDATE,
+  STORAGE_KEY_PERSONNEL_DI_BUI,
   loadInitialBoards,
   loadInitialPersonnel,
   loadInitialGuildWarBoards,
   loadInitialUpdateBoards,
   loadInitialUpdatePersonnel,
+  loadInitialDiBuiPersonnel,
   saveAutoSnapshot,
   flushAllStorageSync,
   parseShareHash,
@@ -201,6 +204,11 @@ export default function App() {
   // Separate Personnel Pool for Raid Update (tách riêng từ kho nhân sự Raid và Bang chiến)
   const [updatePersonnelPool, setUpdatePersonnelPool] = useState<PersonnelMember[]>(() => {
     return loadInitialUpdatePersonnel([]);
+  });
+
+  // Separate Personnel Pool for Kho Đi Bụi (chứa nhân sự tạm nghỉ / chờ quay lại game)
+  const [diBuiPersonnelPool, setDiBuiPersonnelPool] = useState<PersonnelMember[]>(() => {
+    return loadInitialDiBuiPersonnel([]);
   });
 
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
@@ -431,6 +439,18 @@ export default function App() {
               return currentPool;
             });
           }
+          if (recovered.diBuiPersonnelPool && recovered.diBuiPersonnelPool.length > 0) {
+            setDiBuiPersonnelPool((currentPool) => {
+              const merged = mergePersonnelPools(currentPool, recovered.diBuiPersonnelPool!);
+              if (merged.length !== currentPool.length) {
+                console.info('[Storage] Tự động phục hồi Kho Đi Bụi từ IndexedDB:', merged.length);
+                safeLocalStorageSet(STORAGE_KEY_PERSONNEL_DI_BUI, JSON.stringify(merged));
+                hasRestoredAny = true;
+                return merged;
+              }
+              return currentPool;
+            });
+          }
 
           if (hasRestoredAny) {
             showToast('Đã tự động bảo toàn & phục hồi dữ liệu an toàn từ IndexedDB!');
@@ -527,6 +547,7 @@ export default function App() {
         updateBoards,
         activeUpdateBoardId,
         updatePersonnelPool,
+        diBuiPersonnelPool,
         appMode,
       });
     };
@@ -556,6 +577,7 @@ export default function App() {
     updateBoards,
     activeUpdateBoardId,
     updatePersonnelPool,
+    diBuiPersonnelPool,
     appMode,
     isStorageHydrated,
   ]);
@@ -670,6 +692,17 @@ export default function App() {
       console.error('Failed to save update personnel pool:', e);
     }
   }, [updatePersonnelPool, isStorageHydrated]);
+
+  // Save Di Bui personnel pool to localStorage and IndexedDB
+  useEffect(() => {
+    if (!isStorageHydrated) return;
+    try {
+      safeLocalStorageSet(STORAGE_KEY_PERSONNEL_DI_BUI, JSON.stringify(diBuiPersonnelPool));
+      saveToIndexedDB('diBuiPersonnelPool', diBuiPersonnelPool);
+    } catch (e) {
+      console.error('Failed to save di bui personnel pool:', e);
+    }
+  }, [diBuiPersonnelPool, isStorageHydrated]);
 
   // Debounced Auto-sync to Firebase Firestore Cloud
   useEffect(() => {
@@ -1159,6 +1192,100 @@ export default function App() {
       showToast('Tất cả nhân sự trong bảng hiện tại đã có trong Kho lưu trữ.');
     }
   };
+
+  // Immediate updater for Kho Đi Bụi
+  const handleUpdateDiBuiPersonnelPool = useCallback(
+    (action: PersonnelMember[] | ((prev: PersonnelMember[]) => PersonnelMember[])) => {
+      setDiBuiPersonnelPool((prev) => {
+        const next = typeof action === 'function' ? action(prev) : action;
+        try {
+          safeLocalStorageSet(STORAGE_KEY_PERSONNEL_DI_BUI, JSON.stringify(next));
+        } catch (e) {
+          console.error('[Storage] Error persisting di bui personnel to localStorage:', e);
+        }
+        saveToIndexedDB('diBuiPersonnelPool', next);
+        return next;
+      });
+    },
+    []
+  );
+
+  // Chuyển nhân sự sang Kho Đi Bụi (khi tạm nghỉ game)
+  const handleMoveToDiBui = useCallback(
+    (person: PersonnelMember) => {
+      const normName = normalizeName(person.ingame);
+      if (!normName) return;
+
+      // 1. Thêm vào Kho Đi Bụi
+      setDiBuiPersonnelPool((prev) => {
+        const exists = prev.some((p) => normalizeName(p.ingame) === normName);
+        let next: PersonnelMember[];
+        if (exists) {
+          next = prev.map((p) =>
+            normalizeName(p.ingame) === normName
+              ? { ...p, ...person, note: person.note || p.note || 'Tạm nghỉ đi bụi' }
+              : p
+          );
+        } else {
+          next = [
+            {
+              ...person,
+              id: person.id || 'dibui_' + Date.now(),
+              note: person.note || 'Tạm nghỉ đi bụi',
+              createdAt: Date.now(),
+            },
+            ...prev,
+          ];
+        }
+        safeLocalStorageSet(STORAGE_KEY_PERSONNEL_DI_BUI, JSON.stringify(next));
+        saveToIndexedDB('diBuiPersonnelPool', next);
+        return next;
+      });
+
+      // 2. Gỡ khỏi kho nhân sự hiện tại
+      handleUpdatePersonnelPool((prev) => prev.filter((p) => normalizeName(p.ingame) !== normName));
+
+      // 3. Gỡ khỏi bảng Raid hiện tại nếu đã được xếp
+      handleRemoveFromRaid(person.ingame);
+
+      showToast(`🏕️ Đã chuyển "${person.ingame}" sang Kho Đi Bụi!`);
+    },
+    [handleUpdatePersonnelPool, handleRemoveFromRaid]
+  );
+
+  // Đưa nhân sự từ Kho Đi Bụi quay lại Kho Nhân Sự (Quay lại game)
+  const handleRestoreFromDiBui = useCallback(
+    (person: PersonnelMember) => {
+      const normName = normalizeName(person.ingame);
+      if (!normName) return;
+
+      const returningMember: PersonnelMember = {
+        id: person.id || 'p_' + Date.now(),
+        ingame: person.ingame,
+        className: person.className,
+        loggedBy: person.loggedBy || person.ingame,
+        createdAt: Date.now(),
+      };
+
+      // 1. Nạp vào kho nhân sự đang dùng
+      handleUpdatePersonnelPool((prev) => {
+        const exists = prev.some((p) => normalizeName(p.ingame) === normName);
+        if (exists) return prev;
+        return [returningMember, ...prev];
+      });
+
+      // 2. Gỡ khỏi Kho Đi Bụi
+      setDiBuiPersonnelPool((prev) => {
+        const next = prev.filter((p) => normalizeName(p.ingame) !== normName);
+        safeLocalStorageSet(STORAGE_KEY_PERSONNEL_DI_BUI, JSON.stringify(next));
+        saveToIndexedDB('diBuiPersonnelPool', next);
+        return next;
+      });
+
+      showToast(`⚡ Chào mừng "${person.ingame}" quay lại game! Đã nạp vào Kho Nhân Sự.`);
+    },
+    [handleUpdatePersonnelPool]
+  );
 
   // Color Customizer Handlers
   const handleUpdateColor = (className: RaidClass, hex: string) => {
@@ -1911,7 +2038,7 @@ export default function App() {
 
                 {/* 3. Right Column: Draggable Personnel Pool Sidebar (Kho nhân sự to rộng cân đối) */}
                 {isPersonnelSidebarOpen && (
-                  <div className="flex-1 min-w-[340px] w-full sticky top-20 z-10">
+                  <div className="flex-1 min-w-[340px] w-full sticky top-20 z-10 space-y-4 max-h-[calc(100vh-6rem)] overflow-y-auto pr-1">
                     <PersonnelStorage
                       personnelPool={currentPersonnelPool}
                       onUpdatePersonnelPool={handleUpdatePersonnelPool}
@@ -1927,6 +2054,17 @@ export default function App() {
                       isCompact={true}
                       isRaidUpdate={isRaidUpdate}
                       onOpenCopyModal={() => setIsCopyModalOpen(true)}
+                      onMoveToDiBui={handleMoveToDiBui}
+                    />
+
+                    {/* Kho Đi Bụi - Vị trí phía dưới Kho Nhân Sự */}
+                    <DiBuiStorage
+                      diBuiPool={diBuiPersonnelPool}
+                      onUpdateDiBuiPool={handleUpdateDiBuiPersonnelPool}
+                      onRestoreToActivePool={handleRestoreFromDiBui}
+                      customColors={customColors}
+                      isCompact={true}
+                      activePoolName={isRaidUpdate ? 'Kho Raid Update' : 'Kho Raid'}
                     />
                   </div>
                 )}
@@ -1935,7 +2073,7 @@ export default function App() {
 
             {/* Tab 2: Full Personnel Storage View */}
             {activeTab === 'personnel' && (
-              <div className="max-w-4xl mx-auto">
+              <div className="max-w-4xl mx-auto space-y-4">
                 <PersonnelStorage
                   personnelPool={currentPersonnelPool}
                   onUpdatePersonnelPool={handleUpdatePersonnelPool}
@@ -1951,6 +2089,17 @@ export default function App() {
                   isCompact={false}
                   isRaidUpdate={isRaidUpdate}
                   onOpenCopyModal={() => setIsCopyModalOpen(true)}
+                  onMoveToDiBui={handleMoveToDiBui}
+                />
+
+                {/* Kho Đi Bụi - Vị trí phía dưới Kho Nhân Sự */}
+                <DiBuiStorage
+                  diBuiPool={diBuiPersonnelPool}
+                  onUpdateDiBuiPool={handleUpdateDiBuiPersonnelPool}
+                  onRestoreToActivePool={handleRestoreFromDiBui}
+                  customColors={customColors}
+                  isCompact={false}
+                  activePoolName={isRaidUpdate ? 'Kho Raid Update' : 'Kho Raid'}
                 />
               </div>
             )}

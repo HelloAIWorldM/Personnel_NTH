@@ -23,6 +23,7 @@ import {
   Shield,
   Heart,
   Swords,
+  Tent,
 } from 'lucide-react';
 
 export interface PersonnelAssignment {
@@ -48,6 +49,7 @@ interface PersonnelStorageProps {
   isCompact?: boolean; // For sidebar display
   isRaidUpdate?: boolean;
   onOpenCopyModal?: () => void;
+  onMoveToDiBui?: (person: PersonnelMember) => void;
 }
 
 export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
@@ -65,6 +67,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   isCompact = false,
   isRaidUpdate = false,
   onOpenCopyModal,
+  onMoveToDiBui,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState<RaidClass | 'ALL'>('ALL');
@@ -761,6 +764,16 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
 
                   {/* Edit & Delete trigger buttons */}
                   <div className="flex items-center gap-0.5 pl-0.5 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                    {onMoveToDiBui && (
+                      <button
+                        type="button"
+                        onClick={() => onMoveToDiBui(person)}
+                        title="Chuyển sang Kho Đi Bụi (Tạm nghỉ / chờ quay lại game)"
+                        className="p-1 text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 rounded transition-colors"
+                      >
+                        <Tent className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={() => handleStartEdit(person)}

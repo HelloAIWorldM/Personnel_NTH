@@ -26,11 +26,13 @@ interface BackupRestoreModalProps {
   personnelPool: PersonnelMember[];
   customColors?: CustomClassColors;
   guildWarBoards?: GuildWarBoard[];
+  diBuiPersonnelPool?: PersonnelMember[];
   onRestoreData: (restored: {
     boards?: RaidBoard[];
     personnelPool?: PersonnelMember[];
     customColors?: CustomClassColors;
     guildWarBoards?: GuildWarBoard[];
+    diBuiPersonnelPool?: PersonnelMember[];
   }) => void;
   onShowToast: (msg: string) => void;
 }
@@ -42,6 +44,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
   personnelPool,
   customColors,
   guildWarBoards,
+  diBuiPersonnelPool,
   onRestoreData,
   onShowToast,
 }) => {
@@ -52,7 +55,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
 
   const handleDownloadBackup = () => {
     try {
-      downloadBackupFile(boards, personnelPool, customColors, guildWarBoards);
+      downloadBackupFile(boards, personnelPool, customColors, guildWarBoards, diBuiPersonnelPool);
       onShowToast('Đã tải xuống file sao lưu an toàn (.json)');
     } catch {
       onShowToast('Có lỗi khi tạo file sao lưu.');
@@ -98,6 +101,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
         personnelPool: snap.personnelPool,
         customColors: snap.customColors,
         guildWarBoards: snap.guildWarBoards,
+        diBuiPersonnelPool: snap.diBuiPersonnelPool,
       });
       onShowToast('Đã khôi phục dữ liệu từ bản sao lưu tự động!');
       onClose();

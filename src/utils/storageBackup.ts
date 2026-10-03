@@ -29,6 +29,7 @@ export const STORAGE_KEY_APP_MODE = 'guildwar_app_mode_v1';
 export const STORAGE_KEY_BOARDS_UPDATE = 'raid_update_boards_v1';
 export const STORAGE_KEY_ACTIVE_BOARD_UPDATE = 'raid_update_active_board_id_v1';
 export const STORAGE_KEY_PERSONNEL_UPDATE = 'raid_update_personnel_pool_v1';
+export const STORAGE_KEY_PERSONNEL_DI_BUI = 'raid_personnel_pool_di_bui_v1';
 export const STORAGE_KEY_SNAPSHOTS = 'raid_roster_auto_snapshots_v2';
 
 export const LEGACY_STORAGE_KEY_MEMBERS = 'raid_roster_members_v1';
@@ -192,6 +193,7 @@ export interface AutoSnapshot {
   customColors?: CustomClassColors;
   guildWarBoards?: GuildWarBoard[];
   personnelCount: number;
+  diBuiPersonnelPool?: PersonnelMember[];
 }
 
 /**
@@ -326,15 +328,17 @@ export function saveAutoSnapshot(
   boards: RaidBoard[],
   personnelPool: PersonnelMember[],
   customColors?: CustomClassColors,
-  guildWarBoards?: GuildWarBoard[]
+  guildWarBoards?: GuildWarBoard[],
+  diBuiPersonnelPool?: PersonnelMember[]
 ): void {
   try {
     const totalMembers = countMembersWithData(boards);
     const totalGwMembers = guildWarBoards ? countGuildWarMembers(guildWarBoards) : 0;
     const personnelCount = Array.isArray(personnelPool) ? personnelPool.length : 0;
+    const diBuiCount = Array.isArray(diBuiPersonnelPool) ? diBuiPersonnelPool.length : 0;
 
     // Không snapshot nếu hoàn toàn không có dữ liệu nào
-    if (totalMembers === 0 && totalGwMembers === 0 && personnelCount === 0) {
+    if (totalMembers === 0 && totalGwMembers === 0 && personnelCount === 0 && diBuiCount === 0) {
       return;
     }
 
@@ -355,7 +359,7 @@ export function saveAutoSnapshot(
     const newSnapshot: AutoSnapshot = {
       id: `snap_${now}`,
       timestamp: now,
-      label: `Bản lưu ${new Date(now).toLocaleTimeString('vi-VN')} (${totalMembers} thành viên Raid, ${totalGwMembers} Bang chiến, ${personnelCount} kho)`,
+      label: `Bản lưu ${new Date(now).toLocaleTimeString('vi-VN')} (${totalMembers} thành viên Raid, ${totalGwMembers} Bang chiến, ${personnelCount} kho${diBuiCount > 0 ? `, ${diBuiCount} đi bụi` : ''})`,
       boardCount: boards.length,
       totalMembersWithData: totalMembers,
       boards: JSON.parse(JSON.stringify(boards)),
@@ -363,6 +367,7 @@ export function saveAutoSnapshot(
       customColors: customColors ? { ...customColors } : {},
       guildWarBoards: guildWarBoards ? JSON.parse(JSON.stringify(guildWarBoards)) : [],
       personnelCount,
+      diBuiPersonnelPool: diBuiPersonnelPool ? JSON.parse(JSON.stringify(diBuiPersonnelPool)) : [],
     };
 
     // Giới hạn 10 snapshots gần nhất để tiết kiệm dung lượng
@@ -636,6 +641,24 @@ export function loadInitialUpdatePersonnel(initialFallback: PersonnelMember[] = 
 }
 
 /**
+ * Tải kho nhân sự riêng biệt của Kho Đi Bụi (chứa nhân sự trong thời gian tạm nghỉ / chờ quay lại game)
+ */
+export function loadInitialDiBuiPersonnel(initialFallback: PersonnelMember[] = []): PersonnelMember[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_PERSONNEL_DI_BUI);
+    if (saved !== null) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('[Storage] Error loading di bui personnel from localStorage:', e);
+  }
+  return initialFallback;
+}
+
+/**
  * Phục hồi bất đồng bộ từ IndexedDB nếu LocalStorage bị xóa hoặc thiếu dữ liệu
  * Tuyệt đối không xóa bất kỳ dữ liệu nào đã lưu trong IndexedDB.
  */
@@ -650,6 +673,7 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
   updateBoards?: RaidBoard[];
   activeUpdateBoardId?: string;
   updatePersonnelPool?: PersonnelMember[];
+  diBuiPersonnelPool?: PersonnelMember[];
 } | null> {
   try {
     const [
@@ -663,6 +687,7 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
       dbUpdateBoards,
       dbUpdatePersonnel,
       dbActiveUpdateBoardId,
+      dbDiBuiPersonnel,
     ] = await Promise.all([
       getFromIndexedDB<RaidBoard[]>('boards'),
       getFromIndexedDB<PersonnelMember[]>('personnelPool'),
@@ -674,6 +699,7 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
       getFromIndexedDB<RaidBoard[]>('updateBoards'),
       getFromIndexedDB<PersonnelMember[]>('updatePersonnelPool'),
       getFromIndexedDB<string>('activeUpdateBoardId'),
+      getFromIndexedDB<PersonnelMember[]>('diBuiPersonnelPool'),
     ]);
 
     const sanitizedBoards = Array.isArray(dbBoards)
@@ -692,8 +718,9 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
     const hasSnapshots = Array.isArray(dbSnapshots) && dbSnapshots.length > 0;
     const hasUpdateBoards = sanitizedUpdateBoards.length > 0;
     const hasUpdatePersonnel = Array.isArray(dbUpdatePersonnel) && dbUpdatePersonnel.length > 0;
+    const hasDiBuiPersonnel = Array.isArray(dbDiBuiPersonnel) && dbDiBuiPersonnel.length > 0;
 
-    if (!hasBoards && !hasPersonnel && !hasGuildWar && !hasSnapshots && !hasUpdateBoards && !hasUpdatePersonnel) {
+    if (!hasBoards && !hasPersonnel && !hasGuildWar && !hasSnapshots && !hasUpdateBoards && !hasUpdatePersonnel && !hasDiBuiPersonnel) {
       return null;
     }
 
@@ -708,6 +735,7 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
       updateBoards?: RaidBoard[];
       activeUpdateBoardId?: string;
       updatePersonnelPool?: PersonnelMember[];
+      diBuiPersonnelPool?: PersonnelMember[];
     } = {};
 
     if (hasBoards) {
@@ -756,6 +784,10 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
       result.updatePersonnelPool = dbUpdatePersonnel;
       safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(result.updatePersonnelPool));
     }
+    if (hasDiBuiPersonnel) {
+      result.diBuiPersonnelPool = dbDiBuiPersonnel;
+      safeLocalStorageSet(STORAGE_KEY_PERSONNEL_DI_BUI, JSON.stringify(result.diBuiPersonnelPool));
+    }
 
     return result;
   } catch (err) {
@@ -778,6 +810,7 @@ export function flushAllStorageSync(params: {
   updateBoards?: RaidBoard[];
   activeUpdateBoardId?: string;
   updatePersonnelPool?: PersonnelMember[];
+  diBuiPersonnelPool?: PersonnelMember[];
   appMode?: 'RAID' | 'RAID_UPDATE' | 'GUILD_WAR';
 }): void {
   try {
@@ -802,12 +835,15 @@ export function flushAllStorageSync(params: {
     if (params.updatePersonnelPool) {
       safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(params.updatePersonnelPool));
     }
+    if (params.diBuiPersonnelPool) {
+      safeLocalStorageSet(STORAGE_KEY_PERSONNEL_DI_BUI, JSON.stringify(params.diBuiPersonnelPool));
+    }
     if (params.appMode) {
       safeLocalStorageSet(STORAGE_KEY_APP_MODE, params.appMode);
     }
 
     // Tự động tạo snapshot nhanh
-    saveAutoSnapshot(params.boards, params.personnelPool, params.customColors, params.guildWarBoards);
+    saveAutoSnapshot(params.boards, params.personnelPool, params.customColors, params.guildWarBoards, params.diBuiPersonnelPool);
 
     // Lưu vào IndexedDB ngầm
     saveToIndexedDB('boards', params.boards);
@@ -823,6 +859,7 @@ export function flushAllStorageSync(params: {
     if (params.updateBoards) saveToIndexedDB('updateBoards', params.updateBoards);
     if (params.activeUpdateBoardId) saveToIndexedDB('activeUpdateBoardId', params.activeUpdateBoardId);
     if (params.updatePersonnelPool) saveToIndexedDB('updatePersonnelPool', params.updatePersonnelPool);
+    if (params.diBuiPersonnelPool) saveToIndexedDB('diBuiPersonnelPool', params.diBuiPersonnelPool);
   } catch (err) {
     console.warn('[FlushSync] Error flushing storage:', err);
   }
@@ -835,16 +872,18 @@ export function downloadBackupFile(
   boards: RaidBoard[],
   personnelPool: PersonnelMember[],
   customColors?: CustomClassColors,
-  guildWarBoards?: GuildWarBoard[]
+  guildWarBoards?: GuildWarBoard[],
+  diBuiPersonnelPool?: PersonnelMember[]
 ): void {
   const data = {
-    version: 3,
+    version: 4,
     appName: 'Bảng Sắp Xếp Nhân Sự Raid & Bang Chiến NTH',
     exportedAt: new Date().toISOString(),
     boards,
     personnelPool,
     customColors,
     guildWarBoards: guildWarBoards || [],
+    diBuiPersonnelPool: diBuiPersonnelPool || [],
   };
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -869,6 +908,7 @@ export function parseBackupFile(
   personnelPool: PersonnelMember[];
   customColors?: CustomClassColors;
   guildWarBoards?: GuildWarBoard[];
+  diBuiPersonnelPool?: PersonnelMember[];
 } {
   const parsed = JSON.parse(jsonText);
   if (!parsed || typeof parsed !== 'object') {
@@ -879,15 +919,16 @@ export function parseBackupFile(
   const personnelPool = Array.isArray(parsed.personnelPool) ? parsed.personnelPool : [];
   const customColors = parsed.customColors || {};
   const rawGwBoards = Array.isArray(parsed.guildWarBoards) ? parsed.guildWarBoards : [];
+  const diBuiPersonnelPool = Array.isArray(parsed.diBuiPersonnelPool) ? parsed.diBuiPersonnelPool : [];
 
-  if (rawBoards.length === 0 && personnelPool.length === 0 && rawGwBoards.length === 0) {
+  if (rawBoards.length === 0 && personnelPool.length === 0 && rawGwBoards.length === 0 && diBuiPersonnelPool.length === 0) {
     throw new Error('File sao lưu không chứa dữ liệu bảng hoặc kho nhân sự.');
   }
 
   const boards = rawBoards.map((b: any, idx: number) => sanitizeRaidBoard(b, idx + 1));
   const guildWarBoards = rawGwBoards.map((b: any, idx: number) => sanitizeGuildWarBoard(b, idx + 1));
 
-  return { boards, personnelPool, customColors, guildWarBoards };
+  return { boards, personnelPool, customColors, guildWarBoards, diBuiPersonnelPool };
 }
 
 /**
