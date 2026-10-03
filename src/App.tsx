@@ -18,6 +18,7 @@ import {
   RaidBoard,
   PersonnelMember,
   GuildWarBoard,
+  AppMode,
 } from './types';
 import { createEmptyGuildWarBoard } from './constants/guildWarDefaults';
 import { CreateGuildWarModal } from './components/GuildWar/CreateGuildWarModal';
@@ -33,6 +34,7 @@ import { ExportModal } from './components/ExportModal';
 import { ColorCustomizerModal } from './components/ColorCustomizerModal';
 import { CreateBoardModal } from './components/CreateBoardModal';
 import { AllBoardsOverview } from './components/AllBoardsOverview';
+import { CopyPersonnelToUpdateModal } from './components/CopyPersonnelToUpdateModal';
 import {
   FileSpreadsheet,
   Share2,
@@ -75,9 +77,14 @@ import {
   STORAGE_KEY_GUILDWAR_BOARDS,
   STORAGE_KEY_ACTIVE_GUILDWAR,
   STORAGE_KEY_APP_MODE,
+  STORAGE_KEY_BOARDS_UPDATE,
+  STORAGE_KEY_ACTIVE_BOARD_UPDATE,
+  STORAGE_KEY_PERSONNEL_UPDATE,
   loadInitialBoards,
   loadInitialPersonnel,
   loadInitialGuildWarBoards,
+  loadInitialUpdateBoards,
+  loadInitialUpdatePersonnel,
   saveAutoSnapshot,
   flushAllStorageSync,
   parseShareHash,
@@ -151,14 +158,35 @@ export default function App() {
   const [boardToDelete, setBoardToDelete] = useState<RaidBoard | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // App Mode: 'RAID' (Bảng Raid) or 'GUILD_WAR' (Bảng Bang Chiến)
-  const [appMode, setAppMode] = useState<'RAID' | 'GUILD_WAR'>(() => {
+  // App Mode: 'RAID' (Bảng Raid), 'RAID_UPDATE' (Bảng Raid Update), or 'GUILD_WAR' (Bảng Bang Chiến)
+  const [appMode, setAppMode] = useState<AppMode>(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY_APP_MODE);
-      if (saved === 'GUILD_WAR' || saved === 'RAID') return saved;
+      if (saved === 'GUILD_WAR' || saved === 'RAID' || saved === 'RAID_UPDATE') return saved as AppMode;
     } catch {}
     return 'RAID';
   });
+
+  // Multiple Raid Update Boards State - Multi-layer persistence
+  const [updateBoards, setUpdateBoards] = useState<RaidBoard[]>(() => {
+    return loadInitialUpdateBoards().boards;
+  });
+
+  const [activeUpdateBoardId, setActiveUpdateBoardId] = useState<string>(() => {
+    const init = loadInitialUpdateBoards();
+    try {
+      const savedId = localStorage.getItem(STORAGE_KEY_ACTIVE_BOARD_UPDATE);
+      if (savedId && init.boards.some((b) => b.id === savedId)) return savedId;
+    } catch {}
+    return init.activeBoardId;
+  });
+
+  // Separate Personnel Pool for Raid Update (tách riêng từ kho nhân sự Raid và Bang chiến)
+  const [updatePersonnelPool, setUpdatePersonnelPool] = useState<PersonnelMember[]>(() => {
+    return loadInitialUpdatePersonnel([]);
+  });
+
+  const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
 
   // Multiple Guild War Boards State - Multi-layer persistence
   const [guildWarBoards, setGuildWarBoards] = useState<GuildWarBoard[]>(() => {
@@ -178,10 +206,26 @@ export default function App() {
 
   const tableRef = useRef<HTMLDivElement | null>(null);
 
-  // Active Board Resolver
-  const activeBoard = useMemo(() => {
+  const isRaidUpdate = appMode === 'RAID_UPDATE';
+
+  // Active Board Resolver for Standard Raid
+  const activeRaidBoard = useMemo(() => {
     return boards.find((b) => b.id === activeBoardId) || boards[0] || createEmptyBoard(1);
   }, [boards, activeBoardId]);
+
+  // Active Board Resolver for Raid Update
+  const activeUpdateBoard = useMemo(() => {
+    return (
+      updateBoards.find((b) => b.id === activeUpdateBoardId) ||
+      updateBoards[0] ||
+      createEmptyBoard(1)
+    );
+  }, [updateBoards, activeUpdateBoardId]);
+
+  // Dynamic pointers based on whether we are in Raid or Raid Update
+  const activeBoard = isRaidUpdate ? activeUpdateBoard : activeRaidBoard;
+  const currentBoards = isRaidUpdate ? updateBoards : boards;
+  const currentPersonnelPool = isRaidUpdate ? updatePersonnelPool : personnelPool;
 
   // Active Guild War Board Resolver
   const activeGuildWarBoard = useMemo(() => {
@@ -340,6 +384,37 @@ export default function App() {
             setCustomColors(recovered.customColors);
           }
 
+          // E. Phục hồi Bảng Raid Update & Kho Nhân sự Raid Update:
+          if (recovered.updateBoards && recovered.updateBoards.length > 0) {
+            setUpdateBoards((current) => {
+              const curCount = countMembersWithData(current);
+              const idbCount = countMembersWithData(recovered.updateBoards!);
+              if (curCount === 0 && idbCount > 0) {
+                console.info('[Storage] Tự động phục hồi Bảng Raid Update từ IndexedDB:', idbCount, 'thành viên');
+                safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(recovered.updateBoards!));
+                if (recovered.activeUpdateBoardId) {
+                  setActiveUpdateBoardId(recovered.activeUpdateBoardId);
+                  safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD_UPDATE, recovered.activeUpdateBoardId);
+                }
+                hasRestoredAny = true;
+                return recovered.updateBoards!;
+              }
+              return current;
+            });
+          }
+          if (recovered.updatePersonnelPool && recovered.updatePersonnelPool.length > 0) {
+            setUpdatePersonnelPool((currentPool) => {
+              const merged = mergePersonnelPools(currentPool, recovered.updatePersonnelPool!);
+              if (merged.length !== currentPool.length) {
+                console.info('[Storage] Tự động phục hồi Kho Nhân sự Raid Update từ IndexedDB:', merged.length);
+                safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(merged));
+                hasRestoredAny = true;
+                return merged;
+              }
+              return currentPool;
+            });
+          }
+
           if (hasRestoredAny) {
             showToast('Đã tự động bảo toàn & phục hồi dữ liệu an toàn từ IndexedDB!');
           }
@@ -432,6 +507,9 @@ export default function App() {
         customColors,
         guildWarBoards,
         activeGuildWarBoardId,
+        updateBoards,
+        activeUpdateBoardId,
+        updatePersonnelPool,
         appMode,
       });
     };
@@ -458,6 +536,9 @@ export default function App() {
     customColors,
     guildWarBoards,
     activeGuildWarBoardId,
+    updateBoards,
+    activeUpdateBoardId,
+    updatePersonnelPool,
     appMode,
     isStorageHydrated,
   ]);
@@ -539,6 +620,39 @@ export default function App() {
       saveToIndexedDB('activeGuildWarBoardId', activeGuildWarBoardId);
     } catch {}
   }, [activeGuildWarBoardId, isStorageHydrated]);
+
+  // Save update boards to localStorage and IndexedDB
+  useEffect(() => {
+    if (!isStorageHydrated) return;
+    try {
+      safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(updateBoards));
+      saveToIndexedDB('updateBoards', updateBoards);
+    } catch (e) {
+      console.error('Failed to save update boards:', e);
+    }
+  }, [updateBoards, isStorageHydrated]);
+
+  // Save active update board id to localStorage and IndexedDB
+  useEffect(() => {
+    if (!isStorageHydrated) return;
+    try {
+      safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD_UPDATE, activeUpdateBoardId);
+      saveToIndexedDB('activeUpdateBoardId', activeUpdateBoardId);
+    } catch (e) {
+      console.error('Failed to save active update board ID:', e);
+    }
+  }, [activeUpdateBoardId, isStorageHydrated]);
+
+  // Save update personnel pool to localStorage and IndexedDB
+  useEffect(() => {
+    if (!isStorageHydrated) return;
+    try {
+      safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(updatePersonnelPool));
+      saveToIndexedDB('updatePersonnelPool', updatePersonnelPool);
+    } catch (e) {
+      console.error('Failed to save update personnel pool:', e);
+    }
+  }, [updatePersonnelPool, isStorageHydrated]);
 
   // Debounced Auto-sync to Firebase Firestore Cloud
   useEffect(() => {
@@ -652,19 +766,32 @@ export default function App() {
   // Immediate synchronous & multi-layer persistent personnel pool updater
   const handleUpdatePersonnelPool = useCallback(
     (action: PersonnelMember[] | ((prev: PersonnelMember[]) => PersonnelMember[])) => {
-      setPersonnelPool((prev) => {
-        const next = typeof action === 'function' ? action(prev) : action;
-        try {
-          safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(next));
-        } catch (e) {
-          console.error('[Storage] Error persisting personnel to localStorage:', e);
-        }
-        saveToIndexedDB('personnelPool', next);
-        saveAutoSnapshot(boards, next, customColors, guildWarBoards);
-        return next;
-      });
+      if (isRaidUpdate) {
+        setUpdatePersonnelPool((prev) => {
+          const next = typeof action === 'function' ? action(prev) : action;
+          try {
+            safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(next));
+          } catch (e) {
+            console.error('[Storage] Error persisting update personnel to localStorage:', e);
+          }
+          saveToIndexedDB('updatePersonnelPool', next);
+          return next;
+        });
+      } else {
+        setPersonnelPool((prev) => {
+          const next = typeof action === 'function' ? action(prev) : action;
+          try {
+            safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(next));
+          } catch (e) {
+            console.error('[Storage] Error persisting personnel to localStorage:', e);
+          }
+          saveToIndexedDB('personnelPool', next);
+          saveAutoSnapshot(boards, next, customColors, guildWarBoards);
+          return next;
+        });
+      }
     },
-    [boards, customColors, guildWarBoards]
+    [isRaidUpdate, boards, customColors, guildWarBoards]
   );
 
   const handleUpdateGuildWarBoard = (updated: GuildWarBoard) => {
@@ -717,12 +844,21 @@ export default function App() {
 
   // Board Mutators
   const updateActiveBoard = (updates: Partial<RaidBoard>) => {
-    setBoards((prev) => {
-      const next = prev.map((b) => (b.id === activeBoard.id ? { ...b, ...updates } : b));
-      safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(next));
-      saveToIndexedDB('boards', next);
-      return next;
-    });
+    if (isRaidUpdate) {
+      setUpdateBoards((prev) => {
+        const next = prev.map((b) => (b.id === activeBoard.id ? { ...b, ...updates } : b));
+        safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(next));
+        saveToIndexedDB('updateBoards', next);
+        return next;
+      });
+    } else {
+      setBoards((prev) => {
+        const next = prev.map((b) => (b.id === activeBoard.id ? { ...b, ...updates } : b));
+        safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(next));
+        saveToIndexedDB('boards', next);
+        return next;
+      });
+    }
   };
 
   const handleUpdateTitle = (titlePrefix: string, scheduleTime: string, bossName: string) => {
@@ -744,25 +880,39 @@ export default function App() {
 
   // Add a clean empty Board keeping exact Raid 1 format
   const handleAddNewEmptyBoard = () => {
-    const nextNumber = boards.length + 1;
-    const raid1Template = boards[0]?.members || RAID1_DEFAULT_EMPTY_MEMBERS;
-    const newBoard = createEmptyBoard(nextNumber, raid1Template);
-    setBoards((prev) => [...prev, newBoard]);
-    setActiveBoardId(newBoard.id);
-    showToast(`Đã tạo thành công "${newBoard.titlePrefix}" theo định dạng Raid 1!`);
+    if (isRaidUpdate) {
+      const nextNumber = updateBoards.length + 1;
+      const raid1Template = updateBoards[0]?.members || RAID1_DEFAULT_EMPTY_MEMBERS;
+      const newBoard = createEmptyBoard(nextNumber, raid1Template);
+      setUpdateBoards((prev) => [...prev, newBoard]);
+      setActiveUpdateBoardId(newBoard.id);
+      showToast(`Đã tạo thành công "${newBoard.titlePrefix}" trong Raid Update!`);
+    } else {
+      const nextNumber = boards.length + 1;
+      const raid1Template = boards[0]?.members || RAID1_DEFAULT_EMPTY_MEMBERS;
+      const newBoard = createEmptyBoard(nextNumber, raid1Template);
+      setBoards((prev) => [...prev, newBoard]);
+      setActiveBoardId(newBoard.id);
+      showToast(`Đã tạo thành công "${newBoard.titlePrefix}" theo định dạng Raid 1!`);
+    }
   };
 
   // Custom Board creation handler from Modal
   const handleCreateCustomBoard = (newBoard: RaidBoard) => {
-    setBoards((prev) => [...prev, newBoard]);
-    setActiveBoardId(newBoard.id);
-    showToast(`Đã tạo thành công "${newBoard.titlePrefix}"!`);
+    if (isRaidUpdate) {
+      setUpdateBoards((prev) => [...prev, newBoard]);
+      setActiveUpdateBoardId(newBoard.id);
+      showToast(`Đã tạo thành công "${newBoard.titlePrefix}" trong Raid Update!`);
+    } else {
+      setBoards((prev) => [...prev, newBoard]);
+      setActiveBoardId(newBoard.id);
+      showToast(`Đã tạo thành công "${newBoard.titlePrefix}"!`);
+    }
   };
 
   // Duplicate current Board
   const handleDuplicateActiveBoard = () => {
     const timestamp = Date.now();
-    const nextNumber = boards.length + 1;
     const duplicated: RaidBoard = {
       ...activeBoard,
       id: `board_${timestamp}_${Math.random().toString(36).substring(2, 6)}`,
@@ -773,17 +923,24 @@ export default function App() {
         id: `m_${timestamp}_${m.stt}`,
       })),
     };
-    setBoards((prev) => [...prev, duplicated]);
-    setActiveBoardId(duplicated.id);
+    if (isRaidUpdate) {
+      setUpdateBoards((prev) => [...prev, duplicated]);
+      setActiveUpdateBoardId(duplicated.id);
+    } else {
+      setBoards((prev) => [...prev, duplicated]);
+      setActiveBoardId(duplicated.id);
+    }
+    showToast(`Đã nhân bản "${duplicated.titlePrefix}"!`);
   };
 
   // Delete Board
   const handleDeleteBoard = (boardId: string) => {
-    if (boards.length <= 1) {
-      showToast('Cần giữ lại ít nhất 1 bảng Raid!');
+    const targetList = isRaidUpdate ? updateBoards : boards;
+    if (targetList.length <= 1) {
+      showToast(isRaidUpdate ? 'Cần giữ lại ít nhất 1 bảng Raid Update!' : 'Cần giữ lại ít nhất 1 bảng Raid!');
       return;
     }
-    const target = boards.find((b) => b.id === boardId);
+    const target = targetList.find((b) => b.id === boardId);
     if (target) {
       setBoardToDelete(target);
     }
@@ -792,10 +949,24 @@ export default function App() {
   const confirmDeleteBoard = () => {
     if (!boardToDelete) return;
     const boardId = boardToDelete.id;
-    const remaining = boards.filter((b) => b.id !== boardId);
-    setBoards(remaining);
-    if (activeBoardId === boardId) {
-      setActiveBoardId(remaining[0].id);
+    if (isRaidUpdate) {
+      const remaining = updateBoards.filter((b) => b.id !== boardId);
+      setUpdateBoards(remaining);
+      safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(remaining));
+      saveToIndexedDB('updateBoards', remaining);
+      if (activeUpdateBoardId === boardId) {
+        setActiveUpdateBoardId(remaining[0].id);
+        safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD_UPDATE, remaining[0].id);
+      }
+    } else {
+      const remaining = boards.filter((b) => b.id !== boardId);
+      setBoards(remaining);
+      safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(remaining));
+      saveToIndexedDB('boards', remaining);
+      if (activeBoardId === boardId) {
+        setActiveBoardId(remaining[0].id);
+        safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD, remaining[0].id);
+      }
     }
     setBoardToDelete(null);
     showToast(`Đã xoá "${boardToDelete.titlePrefix}"`);
@@ -803,7 +974,8 @@ export default function App() {
 
   // Toggle checkmark for member inside any board (for AllBoardsOverview)
   const handleToggleCheckMemberInBoard = (boardId: string, memberId: string) => {
-    setBoards((prev) =>
+    const setter = isRaidUpdate ? setUpdateBoards : setBoards;
+    setter((prev) =>
       prev.map((b) => {
         if (b.id !== boardId) return b;
         return {
@@ -814,6 +986,27 @@ export default function App() {
         };
       })
     );
+  };
+
+  // Sao chép nhân sự được chọn vào Kho Raid Update
+  const handleCopyMembersToUpdatePool = (
+    newMembers: PersonnelMember[],
+    mode: 'merge' | 'overwrite'
+  ) => {
+    if (mode === 'overwrite') {
+      setUpdatePersonnelPool(newMembers);
+      safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(newMembers));
+      saveToIndexedDB('updatePersonnelPool', newMembers);
+      showToast(`Đã sao chép và ghi đè ${newMembers.length} nhân sự vào Kho Raid Update!`);
+    } else {
+      setUpdatePersonnelPool((prev) => {
+        const merged = mergePersonnelPools(prev, newMembers);
+        safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(merged));
+        saveToIndexedDB('updatePersonnelPool', merged);
+        return merged;
+      });
+      showToast(`Đã sao chép thêm ${newMembers.length} nhân sự vào Kho Raid Update!`);
+    }
   };
 
   // Personnel Assignment Handlers
@@ -896,8 +1089,9 @@ export default function App() {
   };
 
   const handleSyncFromActiveRaid = () => {
+    const currentPool = currentPersonnelPool;
     const currentPoolIngames = new Set(
-      personnelPool.map((p) => normalizeName(p.ingame))
+      currentPool.map((p) => normalizeName(p.ingame))
     );
     const toAdd: PersonnelMember[] = [];
 
@@ -917,9 +1111,9 @@ export default function App() {
 
     if (toAdd.length > 0) {
       handleUpdatePersonnelPool((prev) => [...toAdd, ...prev]);
-      showToast(`Đã lưu thêm ${toAdd.length} nhân sự mới từ bảng Raid vào Kho lưu trữ!`);
+      showToast(`Đã lưu thêm ${toAdd.length} nhân sự mới từ bảng vào Kho lưu trữ!`);
     } else {
-      showToast('Tất cả nhân sự trong bảng Raid hiện tại đã có trong Kho lưu trữ.');
+      showToast('Tất cả nhân sự trong bảng hiện tại đã có trong Kho lưu trữ.');
     }
   };
 
@@ -1003,7 +1197,11 @@ export default function App() {
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="font-extrabold text-slate-900 dark:text-white text-xs sm:text-base leading-tight truncate tracking-tight">
-                  {appMode === 'RAID' ? 'NTH Raid Roster' : 'NTH Bang Chiến'}
+                  {appMode === 'RAID'
+                    ? 'NTH Raid Roster'
+                    : appMode === 'RAID_UPDATE'
+                    ? 'NTH Raid Update'
+                    : 'NTH Bang Chiến'}
                 </h1>
                 {/* Active Cloud Sync Status Pill */}
                 <div
@@ -1018,7 +1216,13 @@ export default function App() {
                 </div>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-[#8CA4B8] hidden sm:flex items-center gap-2 truncate font-medium">
-                <span>{appMode === 'RAID' ? `${boards.length} bảng Raid` : `${guildWarBoards.length} bảng Bang chiến`}</span>
+                <span>
+                  {appMode === 'RAID'
+                    ? `${boards.length} bảng Raid`
+                    : appMode === 'RAID_UPDATE'
+                    ? `${updateBoards.length} bảng Raid Update`
+                    : `${guildWarBoards.length} bảng Bang chiến`}
+                </span>
                 <span className="text-slate-300 dark:text-slate-700">•</span>
                 <span className="text-sky-700 dark:text-[#88DCFA] font-semibold">{fullRaidTitle}</span>
               </p>
@@ -1132,9 +1336,10 @@ export default function App() {
             {/* Mode Switcher + Boards Tabs */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar flex-1">
               {/* Mode Toggle Pills */}
-              <div className="flex items-center p-0.5 bg-slate-100 dark:bg-[#162230] rounded-xl shrink-0 border border-slate-200 dark:border-[#1F3347]">
+              <div className="flex items-center p-0.5 bg-slate-100 dark:bg-[#162230] rounded-xl shrink-0 border border-slate-200 dark:border-[#1F3347] gap-0.5">
                 <button
                   type="button"
+                  id="btn-mode-raid"
                   onClick={() => setAppMode('RAID')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
                     appMode === 'RAID'
@@ -1147,10 +1352,24 @@ export default function App() {
                 </button>
                 <button
                   type="button"
+                  id="btn-mode-raid-update"
+                  onClick={() => setAppMode('RAID_UPDATE')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+                    appMode === 'RAID_UPDATE'
+                      ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 shadow-xs font-black'
+                      : 'text-slate-600 dark:text-[#8CA4B8] hover:text-black dark:hover:text-white'
+                  }`}
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-emerald-950 dark:text-emerald-300" />
+                  <span>Raid Update ({updateBoards.length})</span>
+                </button>
+                <button
+                  type="button"
+                  id="btn-mode-guild-war"
                   onClick={() => setAppMode('GUILD_WAR')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
                     appMode === 'GUILD_WAR'
-                      ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-xs'
+                      ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white shadow-xs font-black'
                       : 'text-slate-600 dark:text-[#8CA4B8] hover:text-black dark:hover:text-white'
                   }`}
                 >
@@ -1162,9 +1381,9 @@ export default function App() {
               <div className="h-5 w-px bg-slate-200 dark:border-[#1F3347] shrink-0" />
 
               {/* Tabs for current mode */}
-              {appMode === 'RAID' ? (
+              {appMode !== 'GUILD_WAR' ? (
                 <>
-                  {boards.map((board) => {
+                  {currentBoards.map((board) => {
                     const isActive = board.id === activeBoard.id;
                     const filledCount = board.members.filter(
                       (m) => m.ingame && m.ingame.trim() !== ''
@@ -1173,10 +1392,18 @@ export default function App() {
                     return (
                       <div
                         key={board.id}
-                        onClick={() => setActiveBoardId(board.id)}
+                        onClick={() => {
+                          if (isRaidUpdate) {
+                            setActiveUpdateBoardId(board.id);
+                          } else {
+                            setActiveBoardId(board.id);
+                          }
+                        }}
                         className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all shrink-0 select-none ${
                           isActive
-                            ? 'bg-[#88DCFA] text-slate-950 border-transparent shadow-[0_0_12px_rgba(136,220,250,0.35)] font-black'
+                            ? isRaidUpdate
+                              ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 border-transparent shadow-[0_0_12px_rgba(52,211,153,0.35)] font-black'
+                              : 'bg-[#88DCFA] text-slate-950 border-transparent shadow-[0_0_12px_rgba(136,220,250,0.35)] font-black'
                             : 'bg-slate-50 dark:bg-[#162230] text-slate-700 dark:text-[#CADEEA] border-slate-200 dark:border-[#1F3347] hover:bg-slate-100 dark:hover:bg-[#1D2D40]'
                         }`}
                       >
@@ -1195,14 +1422,14 @@ export default function App() {
                         </span>
 
                         {/* Delete Board trigger */}
-                        {boards.length > 1 && (
+                        {currentBoards.length > 1 && (
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteBoard(board.id);
                             }}
-                            title="Xoá bảng Raid này"
+                            title={`Xoá bảng ${isRaidUpdate ? 'Raid Update' : 'Raid'} này`}
                             className={`p-0.5 rounded hover:bg-black/20 ${
                               isActive ? 'text-slate-950/80 hover:text-slate-950' : 'text-slate-400 hover:text-red-500'
                             }`}
@@ -1219,11 +1446,15 @@ export default function App() {
                     type="button"
                     id="btn-tab-add-board"
                     onClick={() => setIsCreateBoardModalOpen(true)}
-                    title={`Tạo bảng Raid mới (ví dụ RAID ${boards.length + 1})`}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-dashed border-sky-400 dark:border-sky-500/60 bg-sky-50/70 hover:bg-sky-100 dark:bg-[#162230] dark:hover:bg-[#1D2D40] text-sky-800 dark:text-[#88DCFA] text-xs font-bold transition-all shrink-0 shadow-2xs hover:scale-105 active:scale-95"
+                    title={`Tạo bảng ${isRaidUpdate ? 'Raid Update' : 'Raid'} mới (ví dụ RAID ${currentBoards.length + 1})`}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border border-dashed text-xs font-bold transition-all shrink-0 shadow-2xs hover:scale-105 active:scale-95 ${
+                      isRaidUpdate
+                        ? 'border-emerald-400 dark:border-emerald-500/60 bg-emerald-50/70 hover:bg-emerald-100 dark:bg-[#162230] dark:hover:bg-[#1D2D40] text-emerald-800 dark:text-emerald-300'
+                        : 'border-sky-400 dark:border-sky-500/60 bg-sky-50/70 hover:bg-sky-100 dark:bg-[#162230] dark:hover:bg-[#1D2D40] text-sky-800 dark:text-[#88DCFA]'
+                    }`}
                   >
-                    <Plus className="w-3.5 h-3.5 text-sky-600 dark:text-[#88DCFA]" />
-                    <span>+ Thêm Bảng (Raid {boards.length + 1})</span>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Thêm Bảng (Raid {currentBoards.length + 1})</span>
                   </button>
                 </>
               ) : (
@@ -1288,36 +1519,87 @@ export default function App() {
             </div>
 
             {/* Board Action Buttons */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                id="btn-open-create-board-modal"
-                onClick={() => {
-                  setAppMode('RAID');
-                  setIsCreateBoardModalOpen(true);
-                }}
-                title={`Mở hộp thoại tạo bảng Raid mới (ví dụ RAID ${boards.length + 1})`}
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#88DCFA] hover:bg-[#68CEF6] text-slate-950 rounded-xl text-xs font-black transition-all shadow-[0_0_12px_rgba(136,220,250,0.35)] min-h-[36px]"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>+ Tạo Bảng Raid</span>
-              </button>
-
-              <button
-                type="button"
-                id="btn-open-guildwar-modal"
-                onClick={() => {
-                  setIsCreateGuildWarModalOpen(true);
-                }}
-                title="Tạo Bảng Bang Chiến mới (Bảng nhân sự, chia 5 team Top/Mid/Bot/Cơ Động/Đẩy Trụ & điểm danh)"
-                className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white rounded-xl text-xs font-black transition-all shadow-xs min-h-[36px] active:scale-95"
-              >
-                <Swords className="w-3.5 h-3.5" />
-                <span>+ Tạo Bảng Bang Chiến</span>
-              </button>
-
-              {appMode === 'RAID' && (
+            <div className="flex items-center gap-1.5 shrink-0 flex-wrap sm:flex-nowrap">
+              {appMode === 'RAID_UPDATE' ? (
                 <>
+                  {/* Button Chuyển / Sao chép dữ liệu từ Raid & Bang chiến sang Raid Update */}
+                  <button
+                    type="button"
+                    id="btn-open-copy-to-update-modal"
+                    onClick={() => setIsCopyModalOpen(true)}
+                    title="Sao chép / Chuyển nhân sự từ Kho Raid, Bảng Raid và Bang Chiến vào Kho Raid Update"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-xl text-xs font-black transition-all shadow-[0_0_12px_rgba(16,185,129,0.35)] min-h-[36px] active:scale-95 cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>📋 Sao Chép từ Raid / BC</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="btn-open-create-board-modal"
+                    onClick={() => setIsCreateBoardModalOpen(true)}
+                    title={`Mở hộp thoại tạo bảng Raid Update mới (ví dụ RAID ${updateBoards.length + 1})`}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-emerald-400 to-teal-400 hover:from-emerald-500 hover:to-teal-500 text-slate-950 rounded-xl text-xs font-black transition-all shadow-[0_0_12px_rgba(52,211,153,0.35)] min-h-[36px]"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Tạo Bảng Update</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="btn-all-boards-overview-top"
+                    onClick={() => setActiveTab('all-boards')}
+                    title="Xem tổng tình trạng tất cả các bảng Raid Update cùng lúc"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all min-h-[36px] shadow-2xs ${
+                      activeTab === 'all-boards'
+                        ? 'bg-emerald-400 text-slate-950 shadow-xs font-black'
+                        : 'bg-white dark:bg-[#162230] hover:bg-slate-100 dark:hover:bg-[#1D2D40] text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-[#1F3347]'
+                    }`}
+                  >
+                    <LayoutGrid className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                    <span>Tổng Tình Trạng ({updateBoards.length})</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="btn-duplicate-board"
+                    onClick={handleDuplicateActiveBoard}
+                    title="Nhân bản bảng Raid Update hiện tại"
+                    className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 dark:bg-[#162230] hover:bg-slate-200 dark:hover:bg-[#1D2D40] text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-[#1F3347] rounded-xl text-xs font-bold transition-all min-h-[36px]"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">Nhân bản</span>
+                  </button>
+                </>
+              ) : appMode === 'RAID' ? (
+                <>
+                  <button
+                    type="button"
+                    id="btn-open-create-board-modal"
+                    onClick={() => {
+                      setAppMode('RAID');
+                      setIsCreateBoardModalOpen(true);
+                    }}
+                    title={`Mở hộp thoại tạo bảng Raid mới (ví dụ RAID ${boards.length + 1})`}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#88DCFA] hover:bg-[#68CEF6] text-slate-950 rounded-xl text-xs font-black transition-all shadow-[0_0_12px_rgba(136,220,250,0.35)] min-h-[36px]"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>+ Tạo Bảng Raid</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    id="btn-open-guildwar-modal"
+                    onClick={() => {
+                      setIsCreateGuildWarModalOpen(true);
+                    }}
+                    title="Tạo Bảng Bang Chiến mới (Bảng nhân sự, chia 5 team Top/Mid/Bot/Cơ Động/Đẩy Trụ & điểm danh)"
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white rounded-xl text-xs font-black transition-all shadow-xs min-h-[36px] active:scale-95"
+                  >
+                    <Swords className="w-3.5 h-3.5" />
+                    <span>+ Tạo Bảng Bang Chiến</span>
+                  </button>
+
                   <button
                     type="button"
                     id="btn-all-boards-overview-top"
@@ -1344,6 +1626,19 @@ export default function App() {
                     <span className="hidden sm:inline">Nhân bản</span>
                   </button>
                 </>
+              ) : (
+                <button
+                  type="button"
+                  id="btn-open-guildwar-modal"
+                  onClick={() => {
+                    setIsCreateGuildWarModalOpen(true);
+                  }}
+                  title="Tạo Bảng Bang Chiến mới (Bảng nhân sự, chia 5 team Top/Mid/Bot/Cơ Động/Đẩy Trụ & điểm danh)"
+                  className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-amber-500 to-rose-600 hover:from-amber-600 hover:to-rose-700 text-white rounded-xl text-xs font-black transition-all shadow-xs min-h-[36px] active:scale-95"
+                >
+                  <Swords className="w-3.5 h-3.5" />
+                  <span>+ Tạo Bảng Bang Chiến</span>
+                </button>
               )}
             </div>
           </div>
@@ -1400,7 +1695,7 @@ export default function App() {
                   }`}
                 >
                   <TableIcon className="w-4 h-4 shrink-0" />
-                  <span>📋 Bảng Xếp Raid</span>
+                  <span>{isRaidUpdate ? '📋 Bảng Xếp Raid Update' : '📋 Bảng Xếp Raid'}</span>
                 </button>
 
                 <button
@@ -1414,15 +1709,17 @@ export default function App() {
                   }`}
                 >
                   <LayoutGrid className="w-4 h-4 shrink-0" />
-                  <span>📊 Tổng Quan Tất Cả Bảng</span>
+                  <span>{isRaidUpdate ? '📊 Tổng Quan Tất Cả Bảng' : '📊 Tổng Quan Tất Cả Bảng'}</span>
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                       activeTab === 'all-boards'
                         ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-slate-950'
+                        : isRaidUpdate
+                        ? 'bg-emerald-100 dark:bg-[#1B2A3B] text-emerald-800 dark:text-emerald-300'
                         : 'bg-sky-100 dark:bg-[#1B2A3B] text-sky-800 dark:text-[#88DCFA]'
                     }`}
                   >
-                    {boards.length}
+                    {currentBoards.length}
                   </span>
                 </button>
 
@@ -1437,15 +1734,17 @@ export default function App() {
                   }`}
                 >
                   <Users className="w-4 h-4 shrink-0" />
-                  <span>👥 Kho Nhân Sự</span>
+                  <span>{isRaidUpdate ? '👥 Kho Nhân Sự (Update)' : '👥 Kho Nhân Sự'}</span>
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                       activeTab === 'personnel'
                         ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-slate-950'
+                        : isRaidUpdate
+                        ? 'bg-emerald-100 dark:bg-[#1B2A3B] text-emerald-800 dark:text-emerald-300'
                         : 'bg-sky-100 dark:bg-[#1B2A3B] text-sky-800 dark:text-[#88DCFA]'
                     }`}
                   >
-                    {personnelPool.length}
+                    {currentPersonnelPool.length}
                   </span>
                 </button>
 
@@ -1465,6 +1764,8 @@ export default function App() {
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                       activeTab === 'parties'
                         ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-slate-950'
+                        : isRaidUpdate
+                        ? 'bg-emerald-100 dark:bg-[#1B2A3B] text-emerald-800 dark:text-emerald-300'
                         : 'bg-sky-100 dark:bg-[#1B2A3B] text-sky-800 dark:text-[#88DCFA]'
                     }`}
                   >
@@ -1527,10 +1828,10 @@ export default function App() {
                 {isPersonnelSidebarOpen && (
                   <div className="lg:col-span-5 xl:col-span-5 sticky top-20">
                     <PersonnelStorage
-                      personnelPool={personnelPool}
+                      personnelPool={currentPersonnelPool}
                       onUpdatePersonnelPool={handleUpdatePersonnelPool}
                       activeRaidMembers={activeBoard.members}
-                      allBoards={boards}
+                      allBoards={currentBoards}
                       activeBoardId={activeBoard.id}
                       activeBoardTitle={activeBoard.titlePrefix}
                       onAssignToRaid={handleAssignPersonnelToRaid}
@@ -1539,6 +1840,8 @@ export default function App() {
                       customColors={customColors}
                       onOpenColorCustomizer={() => setIsColorModalOpen(true)}
                       isCompact={true}
+                      isRaidUpdate={isRaidUpdate}
+                      onOpenCopyModal={() => setIsCopyModalOpen(true)}
                     />
                   </div>
                 )}
@@ -1549,10 +1852,10 @@ export default function App() {
             {activeTab === 'personnel' && (
               <div className="max-w-4xl mx-auto">
                 <PersonnelStorage
-                  personnelPool={personnelPool}
+                  personnelPool={currentPersonnelPool}
                   onUpdatePersonnelPool={handleUpdatePersonnelPool}
                   activeRaidMembers={activeBoard.members}
-                  allBoards={boards}
+                  allBoards={currentBoards}
                   activeBoardId={activeBoard.id}
                   activeBoardTitle={activeBoard.titlePrefix}
                   onAssignToRaid={handleAssignPersonnelToRaid}
@@ -1561,6 +1864,8 @@ export default function App() {
                   customColors={customColors}
                   onOpenColorCustomizer={() => setIsColorModalOpen(true)}
                   isCompact={false}
+                  isRaidUpdate={isRaidUpdate}
+                  onOpenCopyModal={() => setIsCopyModalOpen(true)}
                 />
               </div>
             )}
@@ -1595,16 +1900,20 @@ export default function App() {
             {/* Tab 4: All Boards Overview View */}
             {activeTab === 'all-boards' && (
               <AllBoardsOverview
-                boards={boards}
+                boards={currentBoards}
                 activeBoardId={activeBoard.id}
                 customColors={customColors}
-                personnelPool={personnelPool}
+                personnelPool={currentPersonnelPool}
                 onSelectBoard={(boardId) => {
-                  setActiveBoardId(boardId);
+                  if (isRaidUpdate) {
+                    setActiveUpdateBoardId(boardId);
+                  } else {
+                    setActiveBoardId(boardId);
+                  }
                   setActiveTab('table');
                 }}
                 onDuplicateBoard={(boardId) => {
-                  const target = boards.find((b) => b.id === boardId);
+                  const target = currentBoards.find((b) => b.id === boardId);
                   if (target) {
                     const timestamp = Date.now();
                     const duplicated: RaidBoard = {
@@ -1617,7 +1926,11 @@ export default function App() {
                         id: `m_${timestamp}_${m.stt}`,
                       })),
                     };
-                    setBoards((prev) => [...prev, duplicated]);
+                    if (isRaidUpdate) {
+                      setUpdateBoards((prev) => [...prev, duplicated]);
+                    } else {
+                      setBoards((prev) => [...prev, duplicated]);
+                    }
                     showToast(`Đã nhân bản "${duplicated.titlePrefix}"!`);
                   }
                 }}
@@ -1735,13 +2048,25 @@ export default function App() {
       <CreateBoardModal
         isOpen={isCreateBoardModalOpen}
         onClose={() => setIsCreateBoardModalOpen(false)}
-        nextBoardNumber={boards.length + 1}
+        nextBoardNumber={currentBoards.length + 1}
         currentBoardTitle={activeBoard.titlePrefix}
         currentBoardMembers={activeBoard.members}
-        raid1Members={boards[0]?.members || RAID1_DEFAULT_EMPTY_MEMBERS}
-        personnelPool={personnelPool}
-        allBoards={boards}
+        raid1Members={currentBoards[0]?.members || RAID1_DEFAULT_EMPTY_MEMBERS}
+        personnelPool={currentPersonnelPool}
+        allBoards={currentBoards}
         onCreateBoard={handleCreateCustomBoard}
+      />
+
+      {/* Modal Sao Chép Nhân Sự Sang Raid Update */}
+      <CopyPersonnelToUpdateModal
+        isOpen={isCopyModalOpen}
+        onClose={() => setIsCopyModalOpen(false)}
+        currentUpdatePool={updatePersonnelPool}
+        raidPersonnelPool={personnelPool}
+        raidBoards={boards}
+        guildWarBoards={guildWarBoards}
+        customColors={customColors}
+        onCopyMembers={handleCopyMembersToUpdatePool}
       />
 
       {/* Create Guild War Board Modal */}

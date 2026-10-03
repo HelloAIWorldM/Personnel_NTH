@@ -26,6 +26,9 @@ export const STORAGE_KEY_THEME = 'raid_roster_theme_mode_v1';
 export const STORAGE_KEY_GUILDWAR_BOARDS = 'guildwar_roster_boards_v1';
 export const STORAGE_KEY_ACTIVE_GUILDWAR = 'guildwar_active_board_id_v1';
 export const STORAGE_KEY_APP_MODE = 'guildwar_app_mode_v1';
+export const STORAGE_KEY_BOARDS_UPDATE = 'raid_update_boards_v1';
+export const STORAGE_KEY_ACTIVE_BOARD_UPDATE = 'raid_update_active_board_id_v1';
+export const STORAGE_KEY_PERSONNEL_UPDATE = 'raid_update_personnel_pool_v1';
 export const STORAGE_KEY_SNAPSHOTS = 'raid_roster_auto_snapshots_v2';
 
 export const LEGACY_STORAGE_KEY_MEMBERS = 'raid_roster_members_v1';
@@ -580,6 +583,59 @@ export function loadInitialGuildWarBoards(): { boards: GuildWarBoard[]; activeBo
 }
 
 /**
+ * Tải danh sách bảng Raid Update
+ */
+export function loadInitialUpdateBoards(): { boards: RaidBoard[]; activeBoardId: string } {
+  let loadedBoards: RaidBoard[] | null = null;
+
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_BOARDS_UPDATE);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        loadedBoards = parsed.map((b, idx) => sanitizeRaidBoard(b, idx + 1));
+      }
+    }
+  } catch (e) {
+    console.error('[Storage] Error loading raid update boards:', e);
+  }
+
+  if (!loadedBoards || loadedBoards.length === 0) {
+    const initialBoard = createEmptyBoard(1);
+    initialBoard.titlePrefix = 'RAID 1';
+    loadedBoards = [initialBoard];
+  }
+
+  let activeId = loadedBoards[0]?.id || '';
+  try {
+    const savedId = localStorage.getItem(STORAGE_KEY_ACTIVE_BOARD_UPDATE);
+    if (savedId && loadedBoards.some((b) => b.id === savedId)) {
+      activeId = savedId;
+    }
+  } catch {}
+
+  return { boards: loadedBoards, activeBoardId: activeId };
+}
+
+/**
+ * Tải kho nhân sự riêng biệt của Raid Update
+ */
+export function loadInitialUpdatePersonnel(initialFallback: PersonnelMember[] = []): PersonnelMember[] {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY_PERSONNEL_UPDATE);
+    if (saved !== null) {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed)) {
+        return parsed;
+      }
+    }
+  } catch (e) {
+    console.error('[Storage] Error loading update personnel from localStorage:', e);
+  }
+  return initialFallback;
+}
+
+/**
  * Phục hồi bất đồng bộ từ IndexedDB nếu LocalStorage bị xóa hoặc thiếu dữ liệu
  * Tuyệt đối không xóa bất kỳ dữ liệu nào đã lưu trong IndexedDB.
  */
@@ -591,18 +647,34 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
   guildWarBoards?: GuildWarBoard[];
   activeGuildWarBoardId?: string;
   snapshots?: AutoSnapshot[];
+  updateBoards?: RaidBoard[];
+  activeUpdateBoardId?: string;
+  updatePersonnelPool?: PersonnelMember[];
 } | null> {
   try {
-    const [dbBoards, dbPersonnel, dbColors, dbGuildWar, dbSnapshots, dbActiveBoardId, dbActiveGwId] =
-      await Promise.all([
-        getFromIndexedDB<RaidBoard[]>('boards'),
-        getFromIndexedDB<PersonnelMember[]>('personnelPool'),
-        getFromIndexedDB<CustomClassColors>('customColors'),
-        getFromIndexedDB<GuildWarBoard[]>('guildWarBoards'),
-        getFromIndexedDB<AutoSnapshot[]>('snapshots'),
-        getFromIndexedDB<string>('activeBoardId'),
-        getFromIndexedDB<string>('activeGuildWarBoardId'),
-      ]);
+    const [
+      dbBoards,
+      dbPersonnel,
+      dbColors,
+      dbGuildWar,
+      dbSnapshots,
+      dbActiveBoardId,
+      dbActiveGwId,
+      dbUpdateBoards,
+      dbUpdatePersonnel,
+      dbActiveUpdateBoardId,
+    ] = await Promise.all([
+      getFromIndexedDB<RaidBoard[]>('boards'),
+      getFromIndexedDB<PersonnelMember[]>('personnelPool'),
+      getFromIndexedDB<CustomClassColors>('customColors'),
+      getFromIndexedDB<GuildWarBoard[]>('guildWarBoards'),
+      getFromIndexedDB<AutoSnapshot[]>('snapshots'),
+      getFromIndexedDB<string>('activeBoardId'),
+      getFromIndexedDB<string>('activeGuildWarBoardId'),
+      getFromIndexedDB<RaidBoard[]>('updateBoards'),
+      getFromIndexedDB<PersonnelMember[]>('updatePersonnelPool'),
+      getFromIndexedDB<string>('activeUpdateBoardId'),
+    ]);
 
     const sanitizedBoards = Array.isArray(dbBoards)
       ? dbBoards.map((b, idx) => sanitizeRaidBoard(b, idx + 1))
@@ -610,13 +682,18 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
     const sanitizedGw = Array.isArray(dbGuildWar)
       ? dbGuildWar.map((b, idx) => sanitizeGuildWarBoard(b, idx + 1))
       : [];
+    const sanitizedUpdateBoards = Array.isArray(dbUpdateBoards)
+      ? dbUpdateBoards.map((b, idx) => sanitizeRaidBoard(b, idx + 1))
+      : [];
 
     const hasBoards = sanitizedBoards.length > 0;
     const hasPersonnel = Array.isArray(dbPersonnel) && dbPersonnel.length > 0;
     const hasGuildWar = sanitizedGw.length > 0;
     const hasSnapshots = Array.isArray(dbSnapshots) && dbSnapshots.length > 0;
+    const hasUpdateBoards = sanitizedUpdateBoards.length > 0;
+    const hasUpdatePersonnel = Array.isArray(dbUpdatePersonnel) && dbUpdatePersonnel.length > 0;
 
-    if (!hasBoards && !hasPersonnel && !hasGuildWar && !hasSnapshots) {
+    if (!hasBoards && !hasPersonnel && !hasGuildWar && !hasSnapshots && !hasUpdateBoards && !hasUpdatePersonnel) {
       return null;
     }
 
@@ -628,6 +705,9 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
       guildWarBoards?: GuildWarBoard[];
       activeGuildWarBoardId?: string;
       snapshots?: AutoSnapshot[];
+      updateBoards?: RaidBoard[];
+      activeUpdateBoardId?: string;
+      updatePersonnelPool?: PersonnelMember[];
     } = {};
 
     if (hasBoards) {
@@ -663,6 +743,19 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
         safeLocalStorageSet(STORAGE_KEY_SNAPSHOTS, JSON.stringify(dbSnapshots));
       }
     }
+    if (hasUpdateBoards) {
+      result.updateBoards = sanitizedUpdateBoards;
+      result.activeUpdateBoardId =
+        dbActiveUpdateBoardId && result.updateBoards.some((b) => b.id === dbActiveUpdateBoardId)
+          ? dbActiveUpdateBoardId
+          : result.updateBoards[0].id;
+      safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(result.updateBoards));
+      safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD_UPDATE, result.activeUpdateBoardId);
+    }
+    if (hasUpdatePersonnel) {
+      result.updatePersonnelPool = dbUpdatePersonnel;
+      safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(result.updatePersonnelPool));
+    }
 
     return result;
   } catch (err) {
@@ -682,7 +775,10 @@ export function flushAllStorageSync(params: {
   customColors?: CustomClassColors;
   guildWarBoards?: GuildWarBoard[];
   activeGuildWarBoardId?: string;
-  appMode?: 'RAID' | 'GUILD_WAR';
+  updateBoards?: RaidBoard[];
+  activeUpdateBoardId?: string;
+  updatePersonnelPool?: PersonnelMember[];
+  appMode?: 'RAID' | 'RAID_UPDATE' | 'GUILD_WAR';
 }): void {
   try {
     safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(params.boards));
@@ -696,6 +792,15 @@ export function flushAllStorageSync(params: {
     }
     if (params.activeGuildWarBoardId) {
       safeLocalStorageSet(STORAGE_KEY_ACTIVE_GUILDWAR, params.activeGuildWarBoardId);
+    }
+    if (params.updateBoards) {
+      safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(params.updateBoards));
+    }
+    if (params.activeUpdateBoardId) {
+      safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD_UPDATE, params.activeUpdateBoardId);
+    }
+    if (params.updatePersonnelPool) {
+      safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(params.updatePersonnelPool));
     }
     if (params.appMode) {
       safeLocalStorageSet(STORAGE_KEY_APP_MODE, params.appMode);
@@ -715,6 +820,9 @@ export function flushAllStorageSync(params: {
         saveToIndexedDB('activeGuildWarBoardId', params.activeGuildWarBoardId);
       }
     }
+    if (params.updateBoards) saveToIndexedDB('updateBoards', params.updateBoards);
+    if (params.activeUpdateBoardId) saveToIndexedDB('activeUpdateBoardId', params.activeUpdateBoardId);
+    if (params.updatePersonnelPool) saveToIndexedDB('updatePersonnelPool', params.updatePersonnelPool);
   } catch (err) {
     console.warn('[FlushSync] Error flushing storage:', err);
   }

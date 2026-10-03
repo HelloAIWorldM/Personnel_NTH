@@ -46,6 +46,8 @@ interface PersonnelStorageProps {
   customColors?: CustomClassColors;
   onOpenColorCustomizer?: () => void;
   isCompact?: boolean; // For sidebar display
+  isRaidUpdate?: boolean;
+  onOpenCopyModal?: () => void;
 }
 
 export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
@@ -61,6 +63,8 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   customColors,
   onOpenColorCustomizer,
   isCompact = false,
+  isRaidUpdate = false,
+  onOpenCopyModal,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState<RaidClass | 'ALL'>('ALL');
@@ -283,6 +287,19 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5">
+            {isRaidUpdate && onOpenCopyModal && (
+              <button
+                type="button"
+                onClick={onOpenCopyModal}
+                title="Sao chép nhân sự từ Kho Raid và Bang Chiến vào Kho Raid Update này"
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-purple-700 dark:text-purple-300 hover:text-purple-950 dark:hover:text-white bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-300 dark:border-purple-800/80 rounded-lg shadow-2xs transition-all active:scale-95"
+              >
+                <Copy className="w-3 h-3 text-purple-600 dark:text-purple-400" />
+                <span className="hidden sm:inline">Sao chép từ Raid/BC</span>
+                <span className="sm:hidden">Sao chép</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={onSyncFromActiveRaid}

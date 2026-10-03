@@ -14,6 +14,8 @@ export type RaidClass =
 
 export type RaidRole = 'Tank' | 'Healer' | 'DPS';
 
+export type AppMode = 'RAID' | 'RAID_UPDATE' | 'GUILD_WAR';
+
 export interface ClassMetadata {
   name: RaidClass;
   shortName: string;
