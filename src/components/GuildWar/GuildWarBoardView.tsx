@@ -193,6 +193,13 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
     (m) => !m.team || m.team === 'Chưa xếp' || m.team === 'Top' || m.team === 'Bot'
   ).length;
 
+  const handleUpdatePartyNotes = (partyNotes: Record<string, string>) => {
+    onUpdateBoard({
+      ...board,
+      partyNotes,
+    });
+  };
+
   return (
     <div className="space-y-4">
       {/* Board Header Card */}
@@ -379,9 +386,11 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
       {activeTab === 'teams' && (
         <GuildTeamsTab
           members={board.members}
+          partyNotes={board.partyNotes || {}}
           customColors={customColors}
           onUpdateMember={handleUpdateMember}
           onUpdateMembers={handleUpdateMembers}
+          onUpdatePartyNotes={handleUpdatePartyNotes}
         />
       )}
 

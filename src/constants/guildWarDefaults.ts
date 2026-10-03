@@ -33,5 +33,6 @@ export function createEmptyGuildWarBoard(
     minAttendanceRequired: 4,
     reportDate: new Date().toLocaleDateString('vi-VN'),
     createdAt: timestamp,
+    partyNotes: {},
   };
 }

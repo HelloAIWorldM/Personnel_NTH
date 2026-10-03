@@ -116,4 +116,5 @@ export interface GuildWarBoard {
   minAttendanceRequired: number; // Default 4
   reportDate?: string; // e.g. "30/08/2026"
   createdAt: number;
+  partyNotes?: Record<string, string>; // key: "${teamId}-${partyNum}" or team note "${teamId}", value: note text
 }

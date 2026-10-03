@@ -21,13 +21,17 @@ import {
   Download,
   AlertCircle,
   ArrowUpDown,
+  StickyNote,
 } from 'lucide-react';
+import { GuildPartyNoteModal } from './GuildPartyNoteModal';
 
 interface GuildTeamsTabProps {
   members: GuildMember[];
+  partyNotes?: Record<string, string>;
   customColors?: CustomClassColors;
   onUpdateMember: (id: string, updates: Partial<GuildMember>) => void;
   onUpdateMembers?: (updatedMembers: GuildMember[]) => void;
+  onUpdatePartyNotes?: (notes: Record<string, string>) => void;
 }
 
 interface TeamConfig {
@@ -63,9 +67,11 @@ interface DragPayload {
 
 export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
   members,
+  partyNotes = {},
   customColors,
   onUpdateMember,
   onUpdateMembers,
+  onUpdatePartyNotes,
 }) => {
   const tableRef = useRef<HTMLDivElement | null>(null);
   const [copied, setCopied] = useState(false);
@@ -78,6 +84,23 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
   const [filterQuery, setFilterQuery] = useState('');
   const [benchSortByClass, setBenchSortByClass] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [activeNoteTarget, setActiveNoteTarget] = useState<{
+    team: GuildTeam;
+    party: number;
+  } | null>(null);
+
+  const handleSavePartyNote = (key: string, noteText: string) => {
+    const updatedNotes = {
+      ...(partyNotes || {}),
+      [key]: noteText,
+    };
+    if (!noteText.trim()) {
+      delete updatedNotes[key];
+    }
+    if (onUpdatePartyNotes) {
+      onUpdatePartyNotes(updatedNotes);
+    }
+  };
 
   // Normalize string helper
   const normalize = (str: string) => str.trim().toLowerCase();
@@ -458,6 +481,11 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
           }
         }
         text += `• **PT-${p}**: ${ptMems.length > 0 ? ptMems.join(', ') : '*(Trống)*'}\n`;
+        const noteKey = `${team.id}-${p}`;
+        const pNote = partyNotes?.[noteKey]?.trim();
+        if (pNote) {
+          text += `  ↳ 📝 *Ghi chú: ${pNote.replace(/\n+/g, ' ')}*\n`;
+        }
       }
       text += `\n`;
     });
@@ -697,6 +725,16 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
 
           <button
             type="button"
+            onClick={() => setActiveNoteTarget({ team: 'Cơ động', party: 1 })}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-600 dark:text-amber-400 border border-amber-500/30 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer min-h-[34px]"
+            title="Mở bảng ghi chú chiến thuật cho các PT"
+          >
+            <StickyNote className="w-3.5 h-3.5 fill-amber-400/20 text-amber-500 dark:text-amber-400" />
+            <span>Ghi chú chiến thuật</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleCopyDiscordFormat}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 dark:bg-slate-700 dark:hover:bg-slate-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer min-h-[34px]"
           >
@@ -742,37 +780,57 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                     {/* Empty cell above Team name column */}
                     <th className="w-[120px] sm:w-[140px] border-r-2 border-slate-800 dark:border-slate-500 p-1.5"></th>
 
-                    {/* PT-1 Header */}
-                    <th
-                      colSpan={2}
-                      className="border-r border-slate-400 dark:border-slate-600 text-center py-1.5 font-bold tracking-wider text-xs"
-                    >
-                      PT-1
-                    </th>
+                    {[1, 2, 3, 4].map((partyNum) => {
+                      const noteKey = `${team.id}-${partyNum}`;
+                      const note = partyNotes?.[noteKey]?.trim();
+                      const hasNote = Boolean(note);
 
-                    {/* PT-2 Header */}
-                    <th
-                      colSpan={2}
-                      className="border-r border-slate-400 dark:border-slate-600 text-center py-1.5 font-bold tracking-wider text-xs"
-                    >
-                      PT-2
-                    </th>
-
-                    {/* PT-3 Header */}
-                    <th
-                      colSpan={2}
-                      className="border-r border-slate-400 dark:border-slate-600 text-center py-1.5 font-bold tracking-wider text-xs"
-                    >
-                      PT-3
-                    </th>
-
-                    {/* PT-4 Header */}
-                    <th
-                      colSpan={2}
-                      className="text-center py-1.5 font-bold tracking-wider text-xs"
-                    >
-                      PT-4
-                    </th>
+                      return (
+                        <th
+                          key={partyNum}
+                          colSpan={2}
+                          onClick={() => setActiveNoteTarget({ team: team.id, party: partyNum })}
+                          className={`text-center py-1.5 font-bold tracking-wider text-xs cursor-pointer select-none transition-all group relative hover:bg-amber-100/70 dark:hover:bg-amber-950/40 active:scale-98 ${
+                            partyNum < 4
+                              ? 'border-r border-slate-400 dark:border-slate-600'
+                              : ''
+                          }`}
+                          title={
+                            hasNote
+                              ? `Ghi chú PT-${partyNum}: ${note}\n(Nhấp để mở cửa sổ ghi chú)`
+                              : `Nhấp vào PT-${partyNum} để mở cửa sổ ghi chú (note)`
+                          }
+                        >
+                          <div className="flex items-center justify-center gap-1.5 px-2">
+                            <span
+                              className={`transition-colors ${
+                                hasNote
+                                  ? 'text-amber-500 dark:text-amber-400 font-black'
+                                  : 'group-hover:text-amber-500 dark:group-hover:text-amber-300'
+                              }`}
+                            >
+                              PT-{partyNum}
+                            </span>
+                            {hasNote ? (
+                              <span
+                                className="inline-flex items-center justify-center p-0.5 rounded bg-amber-500/20 text-amber-500 dark:text-amber-400 border border-amber-500/40 shadow-2xs"
+                                title="Đã có ghi chú"
+                              >
+                                <StickyNote className="w-3 h-3 fill-amber-400/30" />
+                              </span>
+                            ) : (
+                              <span
+                                data-html2canvas-ignore="true"
+                                className="opacity-0 group-hover:opacity-70 text-slate-400 dark:text-slate-400 transition-opacity"
+                                title="Thêm ghi chú"
+                              >
+                                <StickyNote className="w-3 h-3" />
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                      );
+                    })}
                   </tr>
 
                   {/* 6 Slot Rows (Slot 1 to 6) */}
@@ -1104,6 +1162,20 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
           </div>,
           document.body
         )}
+
+      {/* Tactical Party Note Modal */}
+      {activeNoteTarget && (
+        <GuildPartyNoteModal
+          isOpen={Boolean(activeNoteTarget)}
+          onClose={() => setActiveNoteTarget(null)}
+          initialTeam={activeNoteTarget.team}
+          initialParty={activeNoteTarget.party}
+          members={members}
+          partyNotes={partyNotes || {}}
+          customColors={customColors}
+          onSaveNote={handleSavePartyNote}
+        />
+      )}
 
       {/* Toast Notification */}
       {toastMessage && (

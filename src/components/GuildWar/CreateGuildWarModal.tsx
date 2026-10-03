@@ -86,6 +86,7 @@ export const CreateGuildWarModal: React.FC<CreateGuildWarModalProps> = ({
         minAttendanceRequired: minAttendance,
         reportDate: new Date().toLocaleDateString('vi-VN'),
         createdAt: timestamp,
+        partyNotes: {},
       };
 
       onCreateBoard(newBoard);

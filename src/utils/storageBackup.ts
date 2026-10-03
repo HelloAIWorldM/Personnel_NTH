@@ -274,6 +274,7 @@ export function sanitizeGuildWarBoard(board: any, index: number = 1): GuildWarBo
     minAttendanceRequired,
     reportDate,
     createdAt: typeof board?.createdAt === 'number' ? board.createdAt : timestamp,
+    partyNotes: typeof board?.partyNotes === 'object' && board.partyNotes !== null ? { ...board.partyNotes } : {},
   };
 }
 
@@ -894,6 +895,7 @@ export function generateGuildWarShareLink(board: GuildWarBoard): string {
       s: board.scheduleTime,
       tg: board.targetName,
       min: board.minAttendanceRequired,
+      pn: board.partyNotes || {},
       ses: (board.sessions || []).map((s) => ({ id: s.id, l: s.label })),
       m: (board.members || []).map((m) => ({
         s: m.stt,
@@ -960,6 +962,7 @@ export function parseGuildWarShareHash(hash: string): GuildWarBoard | null {
       minAttendanceRequired: data.min || 4,
       reportDate: new Date().toLocaleDateString('vi-VN'),
       createdAt: timestamp,
+      partyNotes: data.pn || {},
     });
   } catch (err) {
     console.error('Error parsing guild war shared hash:', err);
