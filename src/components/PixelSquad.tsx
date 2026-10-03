@@ -3,9 +3,12 @@ import nyanCatImg from '../assets/pixels/nyan_cat.png';
 import corgiImg from '../assets/pixels/corgi.png';
 import crocImg from '../assets/pixels/croc.png';
 import sailorMoonImg from '../assets/pixels/sailor_moon.png';
+import zeroImg from '../assets/pixels/zero.png';
+
+export type PixelCharId = 'nyan' | 'corgi' | 'croc' | 'sailor' | 'zero';
 
 // Retro 8-bit Sound Effects via Web Audio API
-function playRetroSound(type: 'nyan' | 'corgi' | 'croc' | 'sailor') {
+function playRetroSound(type: PixelCharId) {
   try {
     const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioContextClass) return;
@@ -74,11 +77,33 @@ function playRetroSound(type: 'nyan' | 'corgi' | 'croc' | 'sailor') {
         osc.start(start);
         osc.stop(start + 0.16);
       });
+    } else if (type === 'zero') {
+      // Mega Man X / Zero Z-Saber slash energy sound effect
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sawtooth';
+      const now = ctx.currentTime;
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(1480, now + 0.05);
+      osc.frequency.exponentialRampToValueAtTime(220, now + 0.18);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(now);
+      osc.stop(now + 0.18);
     }
   } catch {}
 }
 
-const MESSAGES: Record<'nyan' | 'corgi' | 'croc' | 'sailor', string[]> = {
+const MESSAGES: Record<PixelCharId, string[]> = {
+  zero: [
+    "I'll handle this! ⚔️⚡",
+    "Z-Saber đã sẵn sàng! Chém bay mọi con Boss! 🔥",
+    "Không kẻ thù nào cản được bước chân của NTH! 🛡️",
+    "Xuất kích! Maverick Hunter Zero tham chiến! 🚀",
+    "Đội hình đã chốt, tiến lên giành chiến thắng! ⭐",
+  ],
   nyan: [
     'Nyan Nyan Nyan! 🌈✨',
     'Poptart bay vù vù~ 🍓',
@@ -120,7 +145,7 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [isJumping, setIsJumping] = useState<boolean>(false);
   const [isHovered, setIsHovered] = useState<boolean>(false);
-  const [bubble, setBubble] = useState<{ charId: 'nyan' | 'corgi' | 'croc' | 'sailor'; text: string } | null>(null);
+  const [bubble, setBubble] = useState<{ charId: PixelCharId; text: string } | null>(null);
 
   const bubbleTimeoutRef = useRef<any>(null);
   const pauseTimeoutRef = useRef<any>(null);
@@ -131,7 +156,7 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
 
     const baseSpeed = isSearching ? 3.0 : 1.3; // pixels per tick
     const tickTime = 30; // ~33 fps
-    const convoyWidth = 145; // Approx width of the 4 characters + gaps
+    const convoyWidth = 175; // Approx width of the 5 characters + gaps
 
     const interval = setInterval(() => {
       setPosX((prev) => {
@@ -173,7 +198,7 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
   }, [isPaused, isHovered, direction, isSearching]);
 
   // Click on a specific character
-  const handleCharClick = (charId: 'nyan' | 'corgi' | 'croc' | 'sailor', e: React.MouseEvent) => {
+  const handleCharClick = (charId: PixelCharId, e: React.MouseEvent) => {
     e.stopPropagation();
     playRetroSound(charId);
 
@@ -203,6 +228,11 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
           image-rendering: -webkit-crisp-edges;
           image-rendering: pixelated;
           image-rendering: crisp-edges;
+        }
+        @keyframes squadZeroStand {
+          0%, 100% { transform: translateY(0px) rotate(0deg); }
+          25% { transform: translateY(-2.5px) rotate(-1.5deg); }
+          75% { transform: translateY(-1px) rotate(1.5deg); }
         }
         @keyframes squadNyanFloat {
           0%, 100% { transform: translateY(0px); }
@@ -258,7 +288,7 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
             <div
               className="absolute -top-1 animate-spin"
               style={{
-                left: direction === 1 ? '152px' : '-18px',
+                left: direction === 1 ? '182px' : '-18px',
                 animationDuration: '1s',
               }}
             >
@@ -274,6 +304,23 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
               transformOrigin: 'center center',
             }}
           >
+            {/* 5. Zero (Mega Man X / Maverick Hunter) */}
+            <div
+              onClick={(e) => handleCharClick('zero', e)}
+              className="relative transition-transform hover:scale-115 active:scale-95"
+              style={{
+                animation: isPaused ? 'none' : `squadZeroStand ${animDuration} infinite ease-in-out`,
+              }}
+              title="Zero (Mega Man X) ⚔️ (Bấm để nghe Z-Saber!)"
+            >
+              <img
+                src={zeroImg}
+                alt="Zero"
+                className="pixel-crisp h-[28px] w-auto drop-shadow-[0_2px_2px_rgba(0,0,0,0.4)]"
+                draggable={false}
+              />
+            </div>
+
             {/* 4. Sailor Moon (At the rear / cheerleader) */}
             <div
               onClick={(e) => handleCharClick('sailor', e)}
