@@ -3,8 +3,9 @@ import {
   GuildMember,
   GuildWarSession,
   CustomClassColors,
+  RaidClass,
 } from '../../types';
-import { CLASS_LIST, getEffectiveClassMeta } from '../../constants/classes';
+import { getEffectiveClassMeta } from '../../constants/classes';
 import {
   Check,
   Plus,
@@ -15,10 +16,9 @@ import {
   Square,
   Sparkles,
   Download,
-  Search,
   X,
-  Filter,
   AlertTriangle,
+  ArrowUpDown,
 } from 'lucide-react';
 import html2canvas from 'html2canvas-pro';
 import {
@@ -57,8 +57,8 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
   const [isExporting, setIsExporting] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editSessionLabel, setEditSessionLabel] = useState('');
-  const [classFilter, setClassFilter] = useState<string>('ALL');
-  const [searchKeyword, setSearchKeyword] = useState<string>('');
+  const [sortField, setSortField] = useState<'stt' | 'className' | 'ingame'>('stt');
+  const [sortAsc, setSortAsc] = useState(true);
 
   // Toggle single member attendance for a session
   const handleToggleAttendance = (member: GuildMember, sessionId: string) => {
@@ -134,47 +134,56 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
     return count;
   };
 
-  // Count members per class
-  const classCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    members.forEach((m) => {
-      if (m.className) {
-        counts[m.className] = (counts[m.className] || 0) + 1;
-      }
-    });
-    return counts;
-  }, [members]);
+  const toggleSort = (field: 'stt' | 'className' | 'ingame') => {
+    if (sortField === field) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortField(field);
+      setSortAsc(true);
+    }
+  };
 
-  // Filter members by Class name or search query
-  const filteredMembers = useMemo(() => {
-    return members.filter((member) => {
-      // 1. Dropdown / chip filter by class
-      if (classFilter !== 'ALL' && member.className !== classFilter) {
-        return false;
-      }
-      // 2. Search query (matches class name or ingame name)
-      if (searchKeyword.trim()) {
-        const q = searchKeyword.toLowerCase().trim();
-        const matchesClass = (member.className || '').toLowerCase().includes(q);
-        const matchesIngame = (member.ingame || '').toLowerCase().includes(q);
-        if (!matchesClass && !matchesIngame) {
-          return false;
-        }
-      }
-      return true;
-    });
-  }, [members, classFilter, searchKeyword]);
+  const CLASS_PRIORITY_ORDER: RaidClass[] = [
+    'Thiết Y',
+    'Thương Lan',
+    'Tố Vấn',
+    'Thiên Vấn',
+    'Toái Mộng',
+    'Thần Tương',
+    'Huyết Hà',
+    'Cửu Linh',
+    'Long Ngâm',
+    'Triều Quang',
+    'Huyền Cơ',
+    'Hồng Âm',
+  ];
 
-  // Summary stats (overall and filtered)
+  const getClassOrderIndex = (className: RaidClass): number => {
+    const idx = CLASS_PRIORITY_ORDER.indexOf(className);
+    return idx === -1 ? 999 : idx;
+  };
+
+  const sortedMembers = useMemo(() => {
+    const sorted = [...members];
+    sorted.sort((a, b) => {
+      let diff = 0;
+      if (sortField === 'className') {
+        diff = getClassOrderIndex(a.className) - getClassOrderIndex(b.className);
+        if (diff === 0) diff = a.ingame.localeCompare(b.ingame, 'vi');
+      } else if (sortField === 'ingame') {
+        diff = a.ingame.localeCompare(b.ingame, 'vi');
+      } else {
+        diff = (a.stt || 0) - (b.stt || 0);
+      }
+      return sortAsc ? diff : -diff;
+    });
+    return sorted;
+  }, [members, sortField, sortAsc]);
+
+  // Summary stats
   const totalPassed = members.filter(
     (m) => getMemberAttendanceCount(m) >= minAttendanceRequired
   ).length;
-
-  const filteredPassed = useMemo(() => {
-    return filteredMembers.filter(
-      (m) => getMemberAttendanceCount(m) >= minAttendanceRequired
-    ).length;
-  }, [filteredMembers, minAttendanceRequired]);
 
   // Duplicate member detection for attendance list
   const duplicateGroups = useMemo(() => findGuildWarDuplicates(members), [members]);
@@ -302,128 +311,7 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
         </form>
       )}
 
-      {/* Class Search & Filter Bar for Attendance & Report */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 sm:p-3.5 shadow-2xs space-y-2.5">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-          {/* Search Input by Class Name or Ingame */}
-          <div className="relative flex-1 max-w-md">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
-            <input
-              type="text"
-              value={searchKeyword}
-              onChange={(e) => setSearchKeyword(e.target.value)}
-              placeholder="🔍 Tìm kiếm theo tên môn phái (Thiết Y, Tố Vấn...) hoặc Ingame..."
-              className="w-full pl-9 pr-8 py-2 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/80 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500/40 focus:border-amber-500 transition-all"
-            />
-            {searchKeyword && (
-              <button
-                type="button"
-                onClick={() => setSearchKeyword('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 dark:hover:text-white p-0.5 cursor-pointer"
-                title="Xóa tìm kiếm"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
 
-          {/* Quick Class Dropdown Select */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-slate-500 dark:text-slate-400 shrink-0 flex items-center gap-1">
-              <Filter className="w-3.5 h-3.5 text-amber-500" />
-              <span>Lọc Môn Phái:</span>
-            </span>
-            <select
-              value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
-              className="px-3 py-2 text-xs font-black rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500/40 cursor-pointer"
-            >
-              <option value="ALL">Tất cả môn phái ({members.length})</option>
-              {CLASS_LIST.map((cls) => {
-                const count = classCounts[cls] || 0;
-                return (
-                  <option key={cls} value={cls}>
-                    {cls} ({count})
-                  </option>
-                );
-              })}
-            </select>
-
-            {(classFilter !== 'ALL' || searchKeyword) && (
-              <button
-                type="button"
-                onClick={() => {
-                  setClassFilter('ALL');
-                  setSearchKeyword('');
-                }}
-                className="px-2.5 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded-xl transition-colors shrink-0 cursor-pointer"
-              >
-                ✕ Bỏ lọc
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Quick Clickable Class Chips with Native Badge Colors */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar pt-1 border-t border-slate-100 dark:border-slate-800/80">
-          <button
-            type="button"
-            onClick={() => setClassFilter('ALL')}
-            className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all shrink-0 cursor-pointer ${
-              classFilter === 'ALL'
-                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-950 shadow-2xs'
-                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
-            }`}
-          >
-            Tất cả ({members.length})
-          </button>
-
-          {CLASS_LIST.filter((cls) => (classCounts[cls] || 0) > 0).map((cls) => {
-            const isSelected = classFilter === cls;
-            const count = classCounts[cls] || 0;
-            const meta = getEffectiveClassMeta(cls, customColors);
-
-            return (
-              <button
-                key={cls}
-                type="button"
-                onClick={() => setClassFilter(isSelected ? 'ALL' : cls)}
-                style={{
-                  backgroundColor: isSelected ? meta.bgColor : undefined,
-                  color: isSelected ? meta.textColor : undefined,
-                }}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-black transition-all shrink-0 cursor-pointer flex items-center gap-1 shadow-2xs ${
-                  isSelected
-                    ? 'ring-2 ring-amber-500/80 shadow-xs scale-105'
-                    : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700/80 text-slate-700 dark:text-slate-300'
-                }`}
-              >
-                <span>{cls}</span>
-                <span
-                  className={`text-[9px] px-1 py-0.2 rounded-full font-bold ${
-                    isSelected ? 'bg-black/20 text-current' : 'bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300'
-                  }`}
-                >
-                  {count}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Filter status summary banner */}
-        {(classFilter !== 'ALL' || searchKeyword) && (
-          <div className="flex items-center justify-between text-xs text-slate-600 dark:text-slate-400 px-1 pt-1">
-            <span>
-              Đang lọc theo môn phái: <strong className="text-amber-600 dark:text-amber-400 font-extrabold">{classFilter !== 'ALL' ? classFilter : searchKeyword}</strong>
-              {' '}— Tìm thấy <strong>{filteredMembers.length}</strong> / {members.length} thành viên
-            </span>
-            <span className="font-bold text-emerald-600 dark:text-emerald-400">
-              Đạt chỉ tiêu: {filteredPassed} / {filteredMembers.length} ({filteredMembers.length > 0 ? Math.round((filteredPassed / filteredMembers.length) * 100) : 0}%)
-            </span>
-          </div>
-        )}
-      </div>
 
       {/* Cảnh Báo Trùng Nhân Sự Điểm Danh */}
       {duplicateGroups.length > 0 && (
@@ -458,34 +346,39 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
         ref={tableRef}
         className="bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden shadow-md text-slate-900 dark:text-slate-100"
       >
-        {/* Filtered Header Banner inside printable report */}
-        {(classFilter !== 'ALL' || searchKeyword) && (
-          <div className="bg-slate-800 dark:bg-slate-950 text-amber-400 py-2 px-3 text-xs font-black flex items-center justify-between border-b border-slate-700">
-            <span className="flex items-center gap-1.5">
-              <span>📋</span>
-              <span>BÁO CÁO ĐIỂM DANH MÔN PHÁI:</span>
-              <span className="text-white uppercase px-2 py-0.5 rounded bg-amber-500/20 border border-amber-500/40">
-                {classFilter !== 'ALL' ? classFilter : searchKeyword}
-              </span>
-            </span>
-            <span className="text-slate-300 text-[11px] font-bold">
-              {filteredMembers.length} thành viên ({filteredPassed} Đạt chỉ tiêu)
-            </span>
-          </div>
-        )}
-
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
-              <tr className="bg-slate-800 dark:bg-slate-950 text-white border-b-2 border-slate-700 text-[11px] font-black uppercase tracking-wider">
-                <th className="py-2.5 px-2 text-center border-r border-slate-600 dark:border-slate-800 w-10">
-                  STT
+              <tr className="bg-slate-800 dark:bg-slate-950 text-white border-b-2 border-slate-700 text-[11px] font-black uppercase tracking-wider select-none">
+                <th
+                  onClick={() => toggleSort('stt')}
+                  className="py-2.5 px-2 text-center border-r border-slate-600 dark:border-slate-800 w-12 cursor-pointer hover:bg-slate-700/60 transition-colors"
+                  title="Nhấp để sắp xếp theo STT"
+                >
+                  <div className="flex items-center justify-center gap-1">
+                    <span>STT</span>
+                    {sortField === 'stt' && <ArrowUpDown className="w-3 h-3 text-amber-400" />}
+                  </div>
                 </th>
-                <th className="py-2.5 px-3 border-r border-slate-600 dark:border-slate-800 min-w-[150px]">
-                  Tên Thành Viên
+                <th
+                  onClick={() => toggleSort('ingame')}
+                  className="py-2.5 px-3 border-r border-slate-600 dark:border-slate-800 min-w-[150px] cursor-pointer hover:bg-slate-700/60 transition-colors"
+                  title="Nhấp để sắp xếp theo Tên Thành Viên"
+                >
+                  <div className="flex items-center gap-1">
+                    <span>Tên Thành Viên</span>
+                    {sortField === 'ingame' && <ArrowUpDown className="w-3 h-3 text-amber-400" />}
+                  </div>
                 </th>
-                <th className="py-2.5 px-3 border-r border-slate-600 dark:border-slate-800 min-w-[120px] text-center">
-                  Lưu Phái
+                <th
+                  onClick={() => toggleSort('className')}
+                  className="py-2.5 px-3 border-r border-slate-600 dark:border-slate-800 min-w-[120px] text-center cursor-pointer hover:bg-slate-700/60 transition-colors"
+                  title="Nhấp để gom theo Môn phái"
+                >
+                  <div className="inline-flex items-center justify-center gap-1 text-emerald-400 font-black">
+                    <span>Lưu Phái</span>
+                    <ArrowUpDown className="w-3.5 h-3.5 text-emerald-400" />
+                  </div>
                 </th>
 
                 {/* Session Checkbox Columns */}
@@ -552,19 +445,17 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
               </tr>
             </thead>
             <tbody>
-              {filteredMembers.length === 0 ? (
+              {sortedMembers.length === 0 ? (
                 <tr>
                   <td
                     colSpan={5 + sessions.length}
                     className="py-8 text-center text-slate-400 font-bold"
                   >
-                    {members.length === 0
-                      ? 'Chưa có thành viên nào trong danh sách. Hãy thêm nhân sự ở tab Bảng Nhân Sự!'
-                      : 'Không tìm thấy thành viên nào phù hợp với bộ lọc môn phái.'}
+                    Chưa có thành viên nào trong danh sách. Hãy thêm nhân sự ở tab Bảng Nhân Sự!
                   </td>
                 </tr>
               ) : (
-                filteredMembers.map((member, idx) => {
+                sortedMembers.map((member, idx) => {
                   const classMeta = getEffectiveClassMeta(member.className, customColors);
                   const attendanceCount = getMemberAttendanceCount(member);
                   const isPassed = attendanceCount >= minAttendanceRequired;
