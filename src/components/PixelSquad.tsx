@@ -3,9 +3,8 @@ import nyanCatImg from '../assets/pixels/nyan_cat.png';
 import corgiImg from '../assets/pixels/corgi.png';
 import crocImg from '../assets/pixels/croc.png';
 import sailorMoonImg from '../assets/pixels/sailor_moon.png';
-import zeroImg from '../assets/pixels/zero.png';
 
-export type PixelCharId = 'nyan' | 'corgi' | 'croc' | 'sailor' | 'zero';
+export type PixelCharId = 'nyan' | 'corgi' | 'croc' | 'sailor';
 
 // Retro 8-bit Sound Effects via Web Audio API
 function playRetroSound(type: PixelCharId) {
@@ -77,33 +76,11 @@ function playRetroSound(type: PixelCharId) {
         osc.start(start);
         osc.stop(start + 0.16);
       });
-    } else if (type === 'zero') {
-      // Mega Man X / Zero Z-Saber slash energy sound effect
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = 'sawtooth';
-      const now = ctx.currentTime;
-      osc.frequency.setValueAtTime(320, now);
-      osc.frequency.exponentialRampToValueAtTime(1480, now + 0.05);
-      osc.frequency.exponentialRampToValueAtTime(220, now + 0.18);
-      gain.gain.setValueAtTime(0.09, now);
-      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(now);
-      osc.stop(now + 0.18);
     }
   } catch {}
 }
 
 const MESSAGES: Record<PixelCharId, string[]> = {
-  zero: [
-    "I'll handle this! ⚔️⚡",
-    "Z-Saber đã sẵn sàng! Chém bay mọi con Boss! 🔥",
-    "Không kẻ thù nào cản được bước chân của NTH! 🛡️",
-    "Xuất kích! Maverick Hunter Zero tham chiến! 🚀",
-    "Đội hình đã chốt, tiến lên giành chiến thắng! ⭐",
-  ],
   nyan: [
     'Nyan Nyan Nyan! 🌈✨',
     'Poptart bay vù vù~ 🍓',
@@ -154,9 +131,9 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
   useEffect(() => {
     if (isPaused || isHovered) return;
 
-    const baseSpeed = isSearching ? 3.0 : 1.3; // pixels per tick
+    const baseSpeed = isSearching ? 2.8 : 1.25; // pixels per tick
     const tickTime = 30; // ~33 fps
-    const convoyWidth = 175; // Approx width of the 5 characters + gaps
+    const convoyWidth = 168; // Total width of 4 characters + gaps
 
     const interval = setInterval(() => {
       setPosX((prev) => {
@@ -217,46 +194,100 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
     }, 2500);
   };
 
-  const animDuration = isSearching ? '0.24s' : '0.48s';
+  const animDuration = isSearching ? '0.26s' : '0.52s';
 
   return (
     <>
-      {/* Inline styles for sharp crisp pixels and bobbing animations */}
+      {/* Inline styles for razor-sharp pixel art and distinct custom pet animations */}
       <style>{`
         .pixel-crisp {
+          image-rendering: -webkit-optimize-contrast;
           image-rendering: -moz-crisp-edges;
           image-rendering: -webkit-crisp-edges;
           image-rendering: pixelated;
           image-rendering: crisp-edges;
         }
-        @keyframes squadZeroStand {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          25% { transform: translateY(-2.5px) rotate(-1.5deg); }
-          75% { transform: translateY(-1px) rotate(1.5deg); }
-        }
+
+        /* 1. Nyan Cat: Smooth Anti-gravity Zero-G float with wave tilt */
         @keyframes squadNyanFloat {
-          0%, 100% { transform: translateY(0px); }
-          50% { transform: translateY(-4px); }
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg);
+          }
+          25% {
+            transform: translateY(-4.5px) rotate(-2.5deg);
+          }
+          50% {
+            transform: translateY(-1.5px) rotate(1deg);
+          }
+          75% {
+            transform: translateY(-5px) rotate(-1deg);
+          }
         }
+
+        /* 2. Corgi: Joyful bouncy trot with peach butt wiggle and squash-stretch */
         @keyframes squadCorgiRun {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          25% { transform: translateY(-2px) rotate(-3deg); }
-          75% { transform: translateY(-1px) rotate(3deg); }
+          0%, 100% {
+            transform: translateY(0px) scale(1, 1) rotate(0deg);
+          }
+          20% {
+            transform: translateY(-5px) scale(0.96, 1.08) rotate(-4deg);
+          }
+          45% {
+            transform: translateY(-1px) scale(1.03, 0.97) rotate(0deg);
+          }
+          65% {
+            transform: translateY(-4.5px) scale(0.96, 1.06) rotate(4deg);
+          }
+          85% {
+            transform: translateY(0px) scale(1.06, 0.92) rotate(1deg);
+          }
         }
-        @keyframes squadCrocHop {
-          0%, 100% { transform: translateY(0px) scaleY(1); }
-          50% { transform: translateY(-3.5px) scaleY(0.95); }
+
+        /* 3. Croc: Clumsy waddle (lạch bạch) with side-to-side roll and heavy tail sway */
+        @keyframes squadCrocWaddle {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg) scale(1, 1);
+          }
+          25% {
+            transform: translateY(-3.5px) rotate(-6deg) scale(1.03, 0.97);
+          }
+          50% {
+            transform: translateY(0px) rotate(0deg) scale(0.98, 1.02);
+          }
+          75% {
+            transform: translateY(-3.5px) rotate(6deg) scale(1.03, 0.97);
+          }
         }
-        @keyframes squadSailorBounce {
-          0%, 100% { transform: translateY(0px) rotate(0deg); }
-          25% { transform: translateY(-3px) rotate(-2deg); }
-          75% { transform: translateY(-1px) rotate(2deg); }
+
+        /* 4. Sailor Moon: Cheerful idol cheerleader jump with twintail bounce */
+        @keyframes squadSailorCheer {
+          0%, 100% {
+            transform: translateY(0px) rotate(0deg) scale(1, 1);
+          }
+          20% {
+            transform: translateY(-5.5px) rotate(-2.5deg) scale(1.04, 1.02);
+          }
+          45% {
+            transform: translateY(-1.5px) rotate(1deg) scale(0.98, 1.01);
+          }
+          65% {
+            transform: translateY(-4.5px) rotate(3deg) scale(1.03, 1.01);
+          }
+          85% {
+            transform: translateY(0px) rotate(-1deg) scale(1.04, 0.96);
+          }
+        }
+
+        /* Idle pause look around */
+        @keyframes squadIdleBreath {
+          0%, 100% { transform: scaleY(1); }
+          50% { transform: scaleY(0.95) translateY(-0.5px); }
         }
       `}</style>
 
       <div
         ref={containerRef}
-        className="absolute -top-8 left-0 right-0 h-8 pointer-events-none select-none z-20 overflow-visible"
+        className="absolute -top-9.5 left-0 right-0 h-9.5 pointer-events-none select-none z-20 overflow-visible"
         aria-hidden="true"
       >
         <div
@@ -268,18 +299,18 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          title="Bấm vào các bé pixel để nghe âm thanh và xem lời thoại! 🐾✨"
+          title="Bấm vào các bé pet để nghe âm thanh và xem lời thoại! 🐾✨"
         >
           {/* Speech Bubble (counter-scaled so text stays un-mirrored) */}
           {bubble && (
             <div
-              className="absolute -top-7.5 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-0.5 rounded-lg text-[10px] font-bold bg-white dark:bg-slate-900 text-slate-800 dark:text-amber-300 shadow-lg border border-amber-300/80 dark:border-amber-500/60 animate-in fade-in zoom-in-90 duration-150 z-30 flex items-center gap-1"
+              className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap px-2.5 py-0.5 rounded-lg text-[10.5px] font-bold bg-white dark:bg-slate-900 text-slate-800 dark:text-amber-300 shadow-xl border border-amber-300/90 dark:border-amber-500/70 animate-in fade-in zoom-in-90 duration-150 z-30 flex items-center gap-1"
               style={{
                 fontFamily: "'Courier New', Courier, monospace",
               }}
             >
               <span>{bubble.text}</span>
-              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-300 dark:border-t-amber-500/60" />
+              <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-amber-300 dark:border-t-amber-500/70" />
             </div>
           )}
 
@@ -288,7 +319,7 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
             <div
               className="absolute -top-1 animate-spin"
               style={{
-                left: direction === 1 ? '182px' : '-18px',
+                left: direction === 1 ? '174px' : '-18px',
                 animationDuration: '1s',
               }}
             >
@@ -298,96 +329,88 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
 
           {/* Convoy wrapper: flipped horizontally with scaleX based on running direction */}
           <div
-            className="flex items-end gap-1.5 transition-transform duration-200"
+            className="flex items-end gap-2 transition-transform duration-200"
             style={{
               transform: `scaleX(${direction})`,
               transformOrigin: 'center center',
             }}
           >
-            {/* 5. Zero (Mega Man X / Maverick Hunter) */}
-            <div
-              onClick={(e) => handleCharClick('zero', e)}
-              className="relative transition-transform hover:scale-115 active:scale-95"
-              style={{
-                animation: isPaused ? 'none' : `squadZeroStand ${animDuration} infinite ease-in-out`,
-              }}
-              title="Zero (Mega Man X) ⚔️ (Bấm để nghe Z-Saber!)"
-            >
-              <img
-                src={zeroImg}
-                alt="Zero"
-                className="pixel-crisp h-[28px] w-auto drop-shadow-[0_2px_2px_rgba(0,0,0,0.4)]"
-                draggable={false}
-              />
-            </div>
-
             {/* 4. Sailor Moon (At the rear / cheerleader) */}
             <div
               onClick={(e) => handleCharClick('sailor', e)}
-              className="relative transition-transform hover:scale-115 active:scale-95"
+              className="relative transition-transform hover:scale-115 active:scale-95 shrink-0"
               style={{
-                animation: isPaused ? 'none' : `squadSailorBounce ${animDuration} infinite ease-in-out`,
+                animation: isPaused
+                  ? 'squadIdleBreath 1.2s infinite ease-in-out'
+                  : `squadSailorCheer ${animDuration} infinite ease-in-out`,
+                animationDelay: '0.36s',
               }}
               title="Thủy Thủ Mặt Trăng 🌙 (Bấm để nghe thoại!)"
             >
               <img
                 src={sailorMoonImg}
                 alt="Sailor Moon"
-                className="pixel-crisp h-[27px] w-auto drop-shadow-[0_2px_2px_rgba(0,0,0,0.35)]"
+                className="pixel-crisp h-[32px] w-auto drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]"
                 draggable={false}
               />
             </div>
 
-            {/* 3. Crocodile / Dinosaur (Nhún nhảy vui vẻ) */}
+            {/* 3. Crocodile / Dinosaur (Nhún nhảy lắc lư lạch bạch) */}
             <div
               onClick={(e) => handleCharClick('croc', e)}
-              className="relative transition-transform hover:scale-115 active:scale-95"
+              className="relative transition-transform hover:scale-115 active:scale-95 shrink-0"
               style={{
-                animation: isPaused ? 'none' : `squadCrocHop ${animDuration} infinite ease-in-out`,
-                animationDelay: '0.07s',
+                animation: isPaused
+                  ? 'squadIdleBreath 1.2s infinite ease-in-out'
+                  : `squadCrocWaddle ${animDuration} infinite ease-in-out`,
+                animationDelay: '0.24s',
               }}
               title="Cá sấu tí hon 🐊 (Bấm để nghe thoại!)"
             >
               <img
                 src={crocImg}
                 alt="Crocodile"
-                className="pixel-crisp h-[22px] w-auto drop-shadow-[0_2px_2px_rgba(0,0,0,0.35)]"
+                className="pixel-crisp h-[27px] w-auto drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]"
                 draggable={false}
               />
             </div>
 
-            {/* 2. Corgi (Mông tròn trái đào lắc lư) */}
+            {/* 2. Corgi (Mông tròn trái đào nhún nhảy) */}
             <div
               onClick={(e) => handleCharClick('corgi', e)}
-              className="relative transition-transform hover:scale-115 active:scale-95"
+              className="relative transition-transform hover:scale-115 active:scale-95 shrink-0"
               style={{
-                animation: isPaused ? 'none' : `squadCorgiRun ${animDuration} infinite ease-in-out`,
-                animationDelay: '0.14s',
+                animation: isPaused
+                  ? 'squadIdleBreath 1.2s infinite ease-in-out'
+                  : `squadCorgiRun ${animDuration} infinite ease-in-out`,
+                animationDelay: '0.12s',
               }}
               title="Corgi mông đào 🍑 (Bấm để nghe thoại!)"
             >
               <img
                 src={corgiImg}
                 alt="Corgi"
-                className="pixel-crisp h-[22px] w-auto drop-shadow-[0_2px_2px_rgba(0,0,0,0.35)]"
+                className="pixel-crisp h-[27px] w-auto drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]"
                 draggable={false}
               />
             </div>
 
-            {/* 1. Nyan Cat (Tiên phong dẫn đầu với dải cầu vồng) */}
+            {/* 1. Nyan Cat (Tiên phong bay bổng với dải cầu vồng) */}
             <div
               onClick={(e) => handleCharClick('nyan', e)}
-              className="relative transition-transform hover:scale-115 active:scale-95"
+              className="relative transition-transform hover:scale-115 active:scale-95 shrink-0"
               style={{
-                animation: isPaused ? 'none' : `squadNyanFloat ${animDuration} infinite ease-in-out`,
-                animationDelay: '0.21s',
+                animation: isPaused
+                  ? 'squadIdleBreath 1.2s infinite ease-in-out'
+                  : `squadNyanFloat ${animDuration} infinite ease-in-out`,
+                animationDelay: '0s',
               }}
               title="Nyan Cat cầu vồng 🌈 (Bấm để nghe thoại!)"
             >
               <img
                 src={nyanCatImg}
                 alt="Nyan Cat"
-                className="pixel-crisp h-[22px] w-auto drop-shadow-[0_2px_2px_rgba(0,0,0,0.35)]"
+                className="pixel-crisp h-[27px] w-auto drop-shadow-[0_2px_3px_rgba(0,0,0,0.35)]"
                 draggable={false}
               />
             </div>

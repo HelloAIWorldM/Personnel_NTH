@@ -418,7 +418,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
         )}
 
         {/* Search & Filter Controls with Pixel Squad (4 characters running in a train) */}
-        <div className="mt-7.5 space-y-2">
+        <div className="mt-9 space-y-2">
           {/* Search bar */}
           <div className="relative">
             <PixelSquad isSearching={Boolean(searchQuery.trim())} />
