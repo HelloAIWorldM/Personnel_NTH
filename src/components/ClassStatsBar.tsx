@@ -23,14 +23,15 @@ export const ClassStatsBar: React.FC<ClassStatsBarProps> = ({
   }, {} as Record<RaidClass, number>);
 
   const tankCount = members.filter(
-    (m) => getEffectiveClassMeta(m.className, customColors).role === 'Tank'
+    (m) => m.className !== 'Trống' && getEffectiveClassMeta(m.className, customColors).role === 'Tank'
   ).length;
   const healerCount = members.filter(
-    (m) => getEffectiveClassMeta(m.className, customColors).role === 'Healer'
+    (m) => m.className !== 'Trống' && getEffectiveClassMeta(m.className, customColors).role === 'Healer'
   ).length;
   const dpsCount = members.filter(
-    (m) => getEffectiveClassMeta(m.className, customColors).role === 'DPS'
+    (m) => m.className !== 'Trống' && getEffectiveClassMeta(m.className, customColors).role === 'DPS'
   ).length;
+  const emptyCount = members.filter((m) => m.className === 'Trống').length;
 
   return (
     <div
@@ -62,6 +63,12 @@ export const ClassStatsBar: React.FC<ClassStatsBarProps> = ({
             <span>DPS:</span>
             <span className="font-bold text-xs sm:text-sm text-blue-900 dark:text-blue-200">{dpsCount}</span>
           </div>
+          {emptyCount > 0 && (
+            <div className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-lg border border-slate-300 dark:border-slate-700 shrink-0">
+              <span>Trống:</span>
+              <span className="font-bold text-xs sm:text-sm text-slate-900 dark:text-white">{emptyCount}</span>
+            </div>
+          )}
         </div>
       </div>
 

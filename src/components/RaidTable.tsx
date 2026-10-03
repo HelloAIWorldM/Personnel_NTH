@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { CLASS_LIST, RAID1_STANDARD_CLASSES, getEffectiveClassMeta } from '../constants/classes';
 import { CustomClassColors, RaidClass, RaidMember, RaidParty, RaidBoard } from '../types';
@@ -31,6 +31,7 @@ import {
   AlertTriangle,
   AlertCircle,
   RefreshCw,
+  UserX,
 } from 'lucide-react';
 
 interface RaidTableProps {
@@ -94,6 +95,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
   // Drag and drop state for table rows
   const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null);
   const [dragOverMemberId, setDragOverMemberId] = useState<string | null>(null);
+  const activeDragRowIdRef = useRef<string | null>(null);
 
   // Mobile row actions modal state
   const [mobileActionMemberId, setMobileActionMemberId] = useState<string | null>(null);
@@ -222,6 +224,18 @@ export const RaidTable: React.FC<RaidTableProps> = ({
     }
   };
 
+  // Bỏ xếp: Xoá tên Ingame & Logged by, đồng thời chuyển môn phái về 'Trống'
+  const handleUnassignRow = (id: string) => {
+    handleUpdateMember(id, {
+      ingame: '',
+      loggedBy: '',
+      className: 'Trống',
+    });
+    if (mobileActionMemberId === id) {
+      setMobileActionMemberId(null);
+    }
+  };
+
   const handleAddRow = () => {
     const nextStt = members.length + 1;
     const lastParty = members.length > 0 ? members[members.length - 1].party || 1 : 1;
@@ -240,13 +254,16 @@ export const RaidTable: React.FC<RaidTableProps> = ({
   const handleRowDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData('text/plain', id);
     e.dataTransfer.setData('source-type', 'row-reorder');
-    e.dataTransfer.effectAllowed = 'move';
+    // 'all' cho phép cả move lẫn copy, tuyệt đối không bị trình duyệt cấm drop (cursor 🚫)
+    e.dataTransfer.effectAllowed = 'all';
+    activeDragRowIdRef.current = id;
     setDraggedMemberId(id);
   };
 
   const handleRowDragOver = (e: React.DragEvent, id: string) => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
+    // 'move' khớp hoàn toàn với effectAllowed 'all', cho phép thay đổi vị trí mượt mà
+    e.dataTransfer.dropEffect = 'move';
     if (dragOverMemberId !== id) {
       setDragOverMemberId(id);
     }
@@ -254,8 +271,6 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
   const handleRowDrop = (e: React.DragEvent, targetId: string) => {
     e.preventDefault();
-    setDraggedMemberId(null);
-    setDragOverMemberId(null);
 
     // 1. Check if this is a drop from Kho Nhân Sự (Personnel Storage)
     try {
@@ -275,13 +290,20 @@ export const RaidTable: React.FC<RaidTableProps> = ({
               : m
           );
           onUpdateMembers(updated);
+          setDraggedMemberId(null);
+          setDragOverMemberId(null);
+          activeDragRowIdRef.current = null;
           return;
         }
       }
     } catch {}
 
     // 2. Fallback to row reordering
-    const sourceId = e.dataTransfer.getData('text/plain') || draggedMemberId;
+    const sourceId = activeDragRowIdRef.current || e.dataTransfer.getData('text/plain') || draggedMemberId;
+    setDraggedMemberId(null);
+    setDragOverMemberId(null);
+    activeDragRowIdRef.current = null;
+
     if (!sourceId || sourceId === targetId) {
       return;
     }
@@ -759,6 +781,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                       onDragStart={(e) => handleRowDragStart(e, member.id)}
                       onDragOver={(e) => handleRowDragOver(e, member.id)}
                       onDragEnd={() => {
+                        activeDragRowIdRef.current = null;
                         setDraggedMemberId(null);
                         setDragOverMemberId(null);
                       }}
@@ -875,13 +898,26 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
                           <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
 
+                          {/* Nút Bỏ Xếp: Xoá Ingame & Logged by, đưa môn phái về 'Trống' */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleUnassignRow(member.id);
+                            }}
+                            title="Bỏ xếp vị trí này (Xoá tên & chuyển môn phái về 'Trống')"
+                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-amber-50 hover:bg-amber-500 hover:text-white dark:bg-amber-950/50 dark:hover:bg-amber-500 text-amber-600 dark:text-amber-400 font-bold transition-all active:scale-95 cursor-pointer shadow-2xs"
+                          >
+                            <UserX className="w-4 h-4 stroke-[2.2]" />
+                          </button>
+
                           <button
                             type="button"
                             onClick={(e) => {
                               e.stopPropagation();
                               handleDeleteRow(member.id);
                             }}
-                            title="Xoá thành viên này khỏi bảng"
+                            title="Xoá thành viên này khỏi bảng (giảm số vị trí)"
                             className="w-7 h-7 flex items-center justify-center rounded-lg bg-rose-50 hover:bg-rose-600 hover:text-white dark:bg-rose-950/50 dark:hover:bg-rose-600 text-rose-600 dark:text-rose-400 font-bold transition-all active:scale-95 cursor-pointer shadow-2xs"
                           >
                             <Trash2 className="w-4 h-4 stroke-[2.2]" />
@@ -1272,6 +1308,29 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                     Đưa bảng về chuẩn 12 vị trí (PT 1: Toái Mộng, Huyết Hà, Thiết Y, Thần Tương, Cửu Linh, Thiết Y; PT 2: Long Ngâm, Tố Vấn, Thần Tương, Cửu Linh, Tố Vấn, Tố Vấn).
                   </div>
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    const clearedMembers = members.map((m) => ({
+                      ...m,
+                      ingame: '',
+                      loggedBy: '',
+                      className: 'Trống' as RaidClass,
+                    }));
+                    onUpdateMembers(clearedMembers);
+                    setShowResetRaidConfirm(false);
+                  }}
+                  className="w-full text-left p-3 rounded-xl border border-amber-500/40 bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+                >
+                  <div className="font-bold text-xs text-amber-400 flex items-center gap-1.5">
+                    <UserX className="w-3.5 h-3.5" />
+                    <span>Bỏ xếp tất cả ({members.length} vị trí thành môn phái "Trống")</span>
+                  </div>
+                  <div className="text-[11px] text-slate-400 mt-0.5">
+                    Xoá sạch Ingame & Logged by, chuyển tất cả {members.length} vị trí hiện có thành class "Trống".
+                  </div>
+                </button>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#1F3347]">
@@ -1488,6 +1547,16 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                   </button>
                 )}
 
+                {/* Unassign Member (Bỏ xếp) */}
+                <button
+                  type="button"
+                  onClick={() => handleUnassignRow(activeMobileMember.id)}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-amber-400 hover:text-amber-300 hover:bg-amber-950/30 rounded-xl min-h-[44px] transition-colors border border-amber-900/40"
+                >
+                  <UserX className="w-4 h-4" />
+                  <span>Bỏ xếp vị trí này (Chuyển về "Trống")</span>
+                </button>
+
                 {/* Delete Member */}
                 <button
                   type="button"
@@ -1495,7 +1564,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                   className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-rose-400 hover:text-rose-300 hover:bg-rose-950/30 rounded-xl min-h-[44px] transition-colors border border-rose-900/40"
                 >
                   <Trash2 className="w-4 h-4" />
-                  <span>Xoá vị trí STT {activeMobileMember.stt}</span>
+                  <span>Xoá vị trí STT {activeMobileMember.stt} (giảm số slot)</span>
                 </button>
               </div>
             </div>

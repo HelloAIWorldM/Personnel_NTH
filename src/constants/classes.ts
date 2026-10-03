@@ -114,6 +114,15 @@ export const RAID_CLASSES: Record<RaidClass, ClassMetadata> = {
     rgb: { r: 0.83, g: 0.22, b: 0.39 },
     description: 'Phi thiên Đôn Hoàng, tỳ bà cầm khúc linh động',
   },
+  'Trống': {
+    name: 'Trống',
+    shortName: 'Trống',
+    role: 'DPS',
+    bgColor: '#64748B', // Neutral slate gray
+    textColor: '#FFFFFF',
+    rgb: { r: 0.39, g: 0.45, b: 0.55 },
+    description: 'Vị trí trống, chưa chỉ định môn phái',
+  },
 };
 
 export const CLASS_LIST: RaidClass[] = [
@@ -129,6 +138,7 @@ export const CLASS_LIST: RaidClass[] = [
   'Triều Quang',
   'Hồng Âm',
   'Thương Lan',
+  'Trống',
 ];
 
 export const RAID1_STANDARD_CLASSES: RaidClass[] = [
