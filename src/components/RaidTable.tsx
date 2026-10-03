@@ -10,8 +10,6 @@ import {
   BoardScheduleConflict,
 } from '../utils/duplicates';
 import {
-  ChevronUp,
-  ChevronDown,
   Trash2,
   Plus,
   Copy,
@@ -193,19 +191,6 @@ export const RaidTable: React.FC<RaidTableProps> = ({
       loggedBy: m.loggedBy ? m.loggedBy : m.ingame,
     }));
     onUpdateMembers(updated);
-  };
-
-  const handleMoveRow = (index: number, direction: 'up' | 'down') => {
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
-    if (targetIndex < 0 || targetIndex >= members.length) return;
-
-    const list = [...members];
-    const [moved] = list.splice(index, 1);
-    list.splice(targetIndex, 0, moved);
-
-    // Re-index STT
-    const reindexed = list.map((item, idx) => ({ ...item, stt: idx + 1 }));
-    onUpdateMembers(reindexed);
   };
 
   const handleDeleteRow = (id: string) => {
@@ -871,33 +856,6 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                               : 'bg-white/98 border-slate-300 text-slate-800 shadow-slate-900/15'
                           }`}
                         >
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveRow(idx, 'up');
-                            }}
-                            disabled={idx === 0}
-                            title="Di chuyển lên trên (STT nhỏ hơn)"
-                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white dark:bg-slate-700/80 dark:hover:bg-indigo-500 text-indigo-600 dark:text-indigo-300 font-bold transition-all active:scale-95 disabled:opacity-25 disabled:hover:bg-slate-100 disabled:hover:text-indigo-600 dark:disabled:hover:bg-slate-700/80 cursor-pointer disabled:cursor-not-allowed shadow-2xs"
-                          >
-                            <ChevronUp className="w-4 h-4 stroke-[2.5]" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleMoveRow(idx, 'down');
-                            }}
-                            disabled={idx === members.length - 1}
-                            title="Di chuyển xuống dưới (STT lớn hơn)"
-                            className="w-7 h-7 flex items-center justify-center rounded-lg bg-slate-100 hover:bg-indigo-600 hover:text-white dark:bg-slate-700/80 dark:hover:bg-indigo-500 text-indigo-600 dark:text-indigo-300 font-bold transition-all active:scale-95 disabled:opacity-25 disabled:hover:bg-slate-100 disabled:hover:text-indigo-600 dark:disabled:hover:bg-slate-700/80 cursor-pointer disabled:cursor-not-allowed shadow-2xs"
-                          >
-                            <ChevronDown className="w-4 h-4 stroke-[2.5]" />
-                          </button>
-
-                          <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700 mx-0.5" />
-
                           {/* Nút Bỏ Xếp: Xoá Ingame & Logged by, đưa môn phái về 'Trống' */}
                           <button
                             type="button"
@@ -1458,34 +1416,6 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
               {/* Quick Actions List */}
               <div className="space-y-1.5">
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleMoveRow(activeMobileIndex, 'up');
-                      setMobileActionMemberId(null);
-                    }}
-                    disabled={activeMobileIndex === 0}
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-[#162230] hover:bg-[#1F3347] active:bg-[#25394e] text-slate-200 font-bold text-xs rounded-xl disabled:opacity-40 min-h-[44px] border border-[#1F3347]"
-                  >
-                    <ChevronUp className="w-4 h-4" />
-                    <span>Di chuyển lên</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      handleMoveRow(activeMobileIndex, 'down');
-                      setMobileActionMemberId(null);
-                    }}
-                    disabled={activeMobileIndex === members.length - 1}
-                    className="flex items-center justify-center gap-1.5 py-2.5 px-3 bg-[#162230] hover:bg-[#1F3347] active:bg-[#25394e] text-slate-200 font-bold text-xs rounded-xl disabled:opacity-40 min-h-[44px] border border-[#1F3347]"
-                  >
-                    <ChevronDown className="w-4 h-4" />
-                    <span>Di chuyển xuống</span>
-                  </button>
-                </div>
-
                 {/* Quick Party Switcher */}
                 {parties.length > 1 && (
                   <div className="pt-2 border-t border-[#1F3347]">
