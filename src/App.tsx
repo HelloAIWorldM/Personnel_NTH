@@ -1875,9 +1875,15 @@ export default function App() {
                   </div>
                 )}
 
-                {/* 2. Center Column: Raid Table */}
-                <div className="flex-1 min-w-0 w-full">
-                  <div className="bg-white dark:bg-slate-900 rounded-2xl p-2 sm:p-5 shadow-xs border border-slate-200 dark:border-slate-800 flex flex-col items-center transition-colors">
+                {/* 2. Center Column: Raid Table (Khung viền bo góc nhỏ gọn, ôm sát bảng vừa vặn) */}
+                <div
+                  className={`transition-all ${
+                    isPersonnelSidebarOpen
+                      ? 'shrink-0 w-full lg:w-[620px] xl:w-[630px] max-w-[630px] mx-auto lg:mx-0'
+                      : 'flex-1 min-w-0 w-full flex justify-center'
+                  }`}
+                >
+                  <div className="bg-white dark:bg-slate-900 rounded-xl p-2 sm:p-2.5 shadow-xs border border-slate-200 dark:border-slate-800 flex flex-col items-center transition-colors w-full max-w-[630px]">
                     <RaidTable
                       titlePrefix={activeBoard.titlePrefix}
                       scheduleTime={activeBoard.scheduleTime}
@@ -1894,9 +1900,9 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* 3. Right Column: Draggable Personnel Pool Sidebar */}
+                {/* 3. Right Column: Draggable Personnel Pool Sidebar (Kho nhân sự to rộng cân đối) */}
                 {isPersonnelSidebarOpen && (
-                  <div className="w-full lg:w-[320px] xl:w-[360px] 2xl:w-[390px] shrink-0 sticky top-20 z-10">
+                  <div className="flex-1 min-w-[340px] w-full sticky top-20 z-10">
                     <PersonnelStorage
                       personnelPool={currentPersonnelPool}
                       onUpdatePersonnelPool={handleUpdatePersonnelPool}
