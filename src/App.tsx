@@ -1896,6 +1896,15 @@ export default function App() {
                       onOpenColorCustomizer={() => setIsColorModalOpen(true)}
                       tableRef={tableRef}
                       selectedClassFilter={selectedClassFilter}
+                      currentBoard={activeBoard}
+                      allBoards={currentBoards}
+                      onSwitchBoard={(id) => {
+                        if (isRaidUpdate) {
+                          setActiveUpdateBoardId(id);
+                        } else {
+                          setActiveBoardId(id);
+                        }
+                      }}
                     />
                   </div>
                 </div>

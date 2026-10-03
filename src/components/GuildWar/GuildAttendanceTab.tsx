@@ -18,8 +18,13 @@ import {
   Search,
   X,
   Filter,
+  AlertTriangle,
 } from 'lucide-react';
 import html2canvas from 'html2canvas-pro';
+import {
+  findGuildWarDuplicates,
+  GuildWarDuplicateGroup,
+} from '../../utils/duplicates';
 
 interface GuildAttendanceTabProps {
   members: GuildMember[];
@@ -170,6 +175,27 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
       (m) => getMemberAttendanceCount(m) >= minAttendanceRequired
     ).length;
   }, [filteredMembers, minAttendanceRequired]);
+
+  // Duplicate member detection for attendance list
+  const duplicateGroups = useMemo(() => findGuildWarDuplicates(members), [members]);
+
+  const duplicateMemberIdSet = useMemo(() => {
+    const set = new Set<string>();
+    duplicateGroups.forEach((g) => {
+      g.members.forEach((m) => set.add(m.id));
+    });
+    return set;
+  }, [duplicateGroups]);
+
+  const duplicateInfoMap = useMemo(() => {
+    const map = new Map<string, GuildWarDuplicateGroup>();
+    duplicateGroups.forEach((g) => {
+      g.members.forEach((m) => {
+        map.set(m.id, g);
+      });
+    });
+    return map;
+  }, [duplicateGroups]);
 
   return (
     <div className="space-y-4">
@@ -399,6 +425,34 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
         )}
       </div>
 
+      {/* Cảnh Báo Trùng Nhân Sự Điểm Danh */}
+      {duplicateGroups.length > 0 && (
+        <div className="bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 rounded-2xl p-3 sm:p-4 text-xs shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2 font-black text-rose-700 dark:text-rose-400 text-xs sm:text-sm mb-1.5">
+            <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 animate-pulse shrink-0" />
+            <span>
+              🚨 CẢNH BÁO TRÙNG NHÂN SỰ ĐIỂM DANH ({duplicateGroups.length} tên nhân sự bị trùng lặp)
+            </span>
+          </div>
+          <p className="text-[11px] text-rose-800 dark:text-rose-300 mb-2">
+            Các nhân sự sau đây đang xuất hiện nhiều lần trong danh sách điểm danh và báo cáo:
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {duplicateGroups.map((group) => (
+              <span
+                key={group.normalizedIngame}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-700 text-slate-800 dark:text-slate-200 text-xs font-bold"
+              >
+                <span>{group.originalName}</span>
+                <span className="px-1.5 py-0.2 rounded text-[10px] font-black bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300">
+                  Trùng {group.count} dòng
+                </span>
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* The Printable / Exportable Attendance Table (Identical format to Image 2) */}
       <div
         ref={tableRef}
@@ -514,12 +568,18 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
                   const classMeta = getEffectiveClassMeta(member.className, customColors);
                   const attendanceCount = getMemberAttendanceCount(member);
                   const isPassed = attendanceCount >= minAttendanceRequired;
+                  const isDuplicate = duplicateMemberIdSet.has(member.id);
+                  const dupGroup = duplicateInfoMap.get(member.id);
 
                   return (
                     <tr
                       key={member.id}
                       className={`border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${
-                        idx % 2 === 1 ? 'bg-slate-50/70 dark:bg-slate-800/40' : 'bg-white dark:bg-slate-900'
+                        isDuplicate
+                          ? 'bg-rose-50/80 dark:bg-rose-950/40'
+                          : idx % 2 === 1
+                          ? 'bg-slate-50/70 dark:bg-slate-800/40'
+                          : 'bg-white dark:bg-slate-900'
                       }`}
                     >
                       {/* STT */}
@@ -528,8 +588,24 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
                       </td>
 
                       {/* Tên Thành Viên */}
-                      <td className="py-2 px-3 font-black text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-800">
-                        {member.ingame}
+                      <td
+                        className={`py-2 px-3 font-black border-r border-slate-200 dark:border-slate-800 ${
+                          isDuplicate
+                            ? 'text-rose-600 dark:text-rose-400'
+                            : 'text-slate-900 dark:text-white'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1.5">
+                          <span>{member.ingame}</span>
+                          {isDuplicate && (
+                            <span
+                              title={`🚨 Nhân sự này bị trùng lặp ${dupGroup?.count} dòng trong danh sách điểm danh!`}
+                              className="text-rose-500 animate-pulse cursor-help shrink-0"
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+                        </div>
                       </td>
 
                       {/* Lưu Phái (Màu badge y như hình 2) */}

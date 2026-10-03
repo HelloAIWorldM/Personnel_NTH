@@ -1,23 +1,40 @@
-import React, { useState } from 'react';
-import { RaidMember } from '../types';
-import { findDuplicateIngames, findDuplicateLoggedBys } from '../utils/duplicates';
-import { AlertTriangle, AlertCircle, ChevronDown, ChevronUp, UserCheck, Users } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { RaidMember, RaidBoard } from '../types';
+import {
+  findDuplicateIngames,
+  findDuplicateLoggedBys,
+  findScheduleConflictsForBoard,
+} from '../utils/duplicates';
+import { AlertTriangle, AlertCircle, ChevronDown, ChevronUp, UserCheck, Users, Calendar, ArrowRight } from 'lucide-react';
 
 interface DuplicateWarningBannerProps {
   members: RaidMember[];
   onScrollToMember?: (stt: number) => void;
+  // Cross-board schedule conflicts
+  currentBoard?: RaidBoard;
+  allBoards?: RaidBoard[];
+  onSwitchBoard?: (boardId: string) => void;
 }
 
 export const DuplicateWarningBanner: React.FC<DuplicateWarningBannerProps> = ({
   members,
   onScrollToMember,
+  currentBoard,
+  allBoards,
+  onSwitchBoard,
 }) => {
   const [isExpanded, setIsExpanded] = useState(true);
 
   const duplicateIngames = findDuplicateIngames(members);
   const duplicateLoggedBys = findDuplicateLoggedBys(members);
 
-  const totalWarnings = duplicateIngames.length + duplicateLoggedBys.length;
+  const scheduleConflicts = useMemo(() => {
+    if (!currentBoard || !allBoards || allBoards.length <= 1) return [];
+    return findScheduleConflictsForBoard(currentBoard, allBoards);
+  }, [currentBoard, allBoards]);
+
+  const totalWarnings =
+    duplicateIngames.length + duplicateLoggedBys.length + scheduleConflicts.length;
 
   if (totalWarnings === 0) return null;
 
@@ -36,7 +53,12 @@ export const DuplicateWarningBanner: React.FC<DuplicateWarningBannerProps> = ({
             <span className="font-bold text-xs sm:text-sm text-amber-900 dark:text-amber-100">
               Phát hiện thông tin trùng lặp
             </span>
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1 flex-wrap">
+              {scheduleConflicts.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-[10px] font-black border border-rose-300 dark:border-rose-800 animate-pulse">
+                  {scheduleConflicts.length} Trùng lịch cùng giờ
+                </span>
+              )}
               {duplicateIngames.length > 0 && (
                 <span className="px-1.5 py-0.5 rounded-md bg-red-100 dark:bg-red-950/80 text-red-700 dark:text-red-300 text-[10px] font-black border border-red-200 dark:border-red-800">
                   {duplicateIngames.length} Ingame trùng
@@ -54,7 +76,7 @@ export const DuplicateWarningBanner: React.FC<DuplicateWarningBannerProps> = ({
         <button
           type="button"
           onClick={() => setIsExpanded(!isExpanded)}
-          className="flex items-center gap-1 text-[11px] font-bold text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-amber-100 px-2 py-1 rounded-lg hover:bg-amber-200/50 dark:hover:bg-amber-900/60 transition-colors"
+          className="flex items-center gap-1 text-[11px] font-bold text-amber-800 dark:text-amber-300 hover:text-amber-950 dark:hover:text-amber-100 px-2 py-1 rounded-lg hover:bg-amber-200/50 dark:hover:bg-amber-900/60 transition-colors cursor-pointer"
         >
           <span>{isExpanded ? 'Thu gọn' : 'Chi tiết'}</span>
           {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
@@ -64,12 +86,83 @@ export const DuplicateWarningBanner: React.FC<DuplicateWarningBannerProps> = ({
       {/* Expanded Content Details */}
       {isExpanded && (
         <div className="p-3 sm:p-3.5 space-y-2.5 text-xs">
+          {/* Schedule Conflict Across Boards (Same Time Slot) Section */}
+          {scheduleConflicts.length > 0 && (
+            <div className="bg-rose-50/90 dark:bg-rose-950/50 rounded-xl p-2.5 border-2 border-rose-300 dark:border-rose-800 shadow-2xs">
+              <div className="font-extrabold text-rose-700 dark:text-rose-300 text-[11px] uppercase tracking-wide flex items-center justify-between gap-1.5 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 shrink-0" />
+                  <span>Cảnh báo trùng nhân sự cùng khung giờ ({scheduleConflicts.length} trường hợp):</span>
+                </div>
+                {currentBoard?.scheduleTime && (
+                  <span className="px-2 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-black tracking-normal">
+                    {currentBoard.scheduleTime}
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                {scheduleConflicts.map((item) => (
+                  <div
+                    key={`${item.type}_${item.key}_${item.otherBoardId}`}
+                    className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] bg-white dark:bg-[#121B24] p-2 rounded-lg border border-rose-200 dark:border-rose-900/50 shadow-2xs"
+                  >
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-black text-rose-950 dark:text-rose-200 px-1.5 py-0.5 bg-rose-100 dark:bg-rose-900/60 rounded border border-rose-300 dark:border-rose-700">
+                        {item.originalName}
+                      </span>
+                      <span className="text-slate-600 dark:text-slate-300">
+                        ({item.type === 'ingame' ? 'Ingame' : 'Logged by'}) bị trùng ở
+                      </span>
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        {currentBoard?.titlePrefix || 'bảng này'}
+                      </span>
+                      <span className="text-slate-500">và</span>
+                      <span className="font-extrabold text-rose-600 dark:text-rose-400">
+                        {item.otherBoardTitle}
+                      </span>
+                      <span className="text-slate-500 text-[10px]">
+                        cùng lúc {item.scheduleTime}!
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {item.currentBoardStts.map((stt) => (
+                        <button
+                          key={stt}
+                          type="button"
+                          onClick={() => onScrollToMember && onScrollToMember(stt)}
+                          className="px-2 py-0.5 font-bold text-[10px] bg-amber-500 hover:bg-amber-600 text-slate-950 rounded transition-colors cursor-pointer"
+                          title={`Cuộn đến STT #${stt} ở bảng hiện tại`}
+                        >
+                          STT #{stt}
+                        </button>
+                      ))}
+
+                      {onSwitchBoard && (
+                        <button
+                          type="button"
+                          onClick={() => onSwitchBoard(item.otherBoardId)}
+                          className="px-2 py-0.5 font-black text-[10px] bg-rose-600 hover:bg-rose-700 text-white rounded transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                          title={`Chuyển sang xem ${item.otherBoardTitle}`}
+                        >
+                          <span>Xem {item.otherBoardTitle}</span>
+                          <span className="text-[9px] opacity-80">(#{item.otherBoardStts.join(', #')})</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Duplicate Ingame Section */}
           {duplicateIngames.length > 0 && (
             <div className="bg-white/80 dark:bg-slate-900/80 rounded-lg p-2.5 border border-red-200 dark:border-red-900/50">
               <div className="font-bold text-red-700 dark:text-red-400 text-[11px] uppercase tracking-wide flex items-center gap-1.5 mb-1.5">
                 <AlertCircle className="w-3.5 h-3.5" />
-                <span>Trùng tên Ingame ({duplicateIngames.length} trường hợp):</span>
+                <span>Trùng tên Ingame nội bộ bảng ({duplicateIngames.length} trường hợp):</span>
               </div>
               <div className="space-y-1.5">
                 {duplicateIngames.map((item) => (

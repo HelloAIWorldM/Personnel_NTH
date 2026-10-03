@@ -1,9 +1,14 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { CLASS_LIST, RAID1_STANDARD_CLASSES, getEffectiveClassMeta } from '../constants/classes';
-import { CustomClassColors, RaidClass, RaidMember, RaidParty } from '../types';
+import { CustomClassColors, RaidClass, RaidMember, RaidParty, RaidBoard } from '../types';
 import { DuplicateWarningBanner } from './DuplicateWarningBanner';
-import { getDuplicateIngameMap, getDuplicateLoggedByMap } from '../utils/duplicates';
+import {
+  getDuplicateIngameMap,
+  getDuplicateLoggedByMap,
+  getScheduleConflictLookupForBoard,
+  BoardScheduleConflict,
+} from '../utils/duplicates';
 import {
   ChevronUp,
   ChevronDown,
@@ -43,6 +48,9 @@ interface RaidTableProps {
   darkMode?: boolean;
   onSyncFromRaid1?: () => void;
   isRaid1?: boolean;
+  currentBoard?: RaidBoard;
+  allBoards?: RaidBoard[];
+  onSwitchBoard?: (boardId: string) => void;
 }
 
 export const RaidTable: React.FC<RaidTableProps> = ({
@@ -63,6 +71,9 @@ export const RaidTable: React.FC<RaidTableProps> = ({
   darkMode = false,
   onSyncFromRaid1,
   isRaid1 = false,
+  currentBoard,
+  allBoards,
+  onSwitchBoard,
 }) => {
   const [editingTitle, setEditingTitle] = useState(false);
   const [tempPrefix, setTempPrefix] = useState(titlePrefix);
@@ -88,9 +99,44 @@ export const RaidTable: React.FC<RaidTableProps> = ({
   const [mobileActionMemberId, setMobileActionMemberId] = useState<string | null>(null);
   const [showResetRaidConfirm, setShowResetRaidConfirm] = useState(false);
 
-  // Duplicate Ingame and LoggedBy lookup maps
+  // Duplicate Ingame and LoggedBy lookup maps (within this table)
   const duplicateIngameMap = useMemo(() => getDuplicateIngameMap(members), [members]);
   const duplicateLoggedByMap = useMemo(() => getDuplicateLoggedByMap(members), [members]);
+
+  // Target board representation for cross-board schedule conflict check
+  const effectiveBoard: RaidBoard = useMemo(() => {
+    if (currentBoard) {
+      return {
+        ...currentBoard,
+        titlePrefix,
+        scheduleTime,
+        bossName,
+        members,
+        parties: parties || currentBoard.parties,
+      };
+    }
+    return {
+      id: 'current-board',
+      title: `${titlePrefix} - ${scheduleTime} ${bossName}`,
+      titlePrefix,
+      scheduleTime,
+      bossName,
+      members,
+      parties: parties || [],
+    };
+  }, [currentBoard, titlePrefix, scheduleTime, bossName, members, parties]);
+
+  // Cross-board schedule conflicts lookup
+  const scheduleConflictLookup = useMemo(() => {
+    if (!allBoards || allBoards.length <= 1) {
+      return {
+        conflictingIngameStts: new Set<number>(),
+        conflictingLoggedByStts: new Set<number>(),
+        conflictsByStt: new Map<number, BoardScheduleConflict[]>(),
+      };
+    }
+    return getScheduleConflictLookupForBoard(effectiveBoard, allBoards);
+  }, [effectiveBoard, allBoards]);
 
   // Smooth scroll and highlight a member row
   const handleScrollToMember = (stt: number) => {
@@ -522,9 +568,12 @@ export const RaidTable: React.FC<RaidTableProps> = ({
         </div>
       )}
 
-      {/* Duplicate Ingame / Logged By Warning Banner */}
+      {/* Duplicate Ingame / Logged By & Cross-Board Schedule Conflict Warning Banner */}
       <DuplicateWarningBanner
         members={members}
+        currentBoard={effectiveBoard}
+        allBoards={allBoards}
+        onSwitchBoard={onSwitchBoard}
         onScrollToMember={handleScrollToMember}
       />
 
@@ -610,6 +659,13 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                 const ingameDupInfo = duplicateIngameMap.get(member.id);
                 const isLoggedByDup = duplicateLoggedByMap.has(member.id);
                 const loggedByDupInfo = duplicateLoggedByMap.get(member.id);
+
+                // Cross-board schedule conflicts for this member row
+                const hasIngameScheduleConflict = scheduleConflictLookup.conflictingIngameStts.has(member.stt);
+                const hasLoggedByScheduleConflict = scheduleConflictLookup.conflictingLoggedByStts.has(member.stt);
+                const rowScheduleConflicts = scheduleConflictLookup.conflictsByStt.get(member.stt) || [];
+                const ingameScheduleConflicts = rowScheduleConflicts.filter((c) => c.conflictType === 'ingame');
+                const loggedByScheduleConflicts = rowScheduleConflicts.filter((c) => c.conflictType === 'loggedBy');
 
                 const currentPartyId = member.party || 1;
                 const prevMember = idx > 0 ? members[idx - 1] : null;
@@ -839,12 +895,16 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                       {/* Ingame Column */}
                       <td
                         style={{ textAlign: 'center' }}
-                        className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] border-b-[2px] transition-colors ${
+                        className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] border-b-[2px] transition-colors relative ${
                           isTableDark
                             ? 'border-slate-700 text-slate-100'
                             : 'border-black text-slate-900'
                         } ${
-                          isIngameDup
+                          hasIngameScheduleConflict
+                            ? isTableDark
+                              ? 'bg-rose-950/70 text-rose-200'
+                              : 'bg-rose-100 text-rose-950'
+                            : isIngameDup
                             ? isTableDark
                               ? 'bg-red-950/40 text-red-200'
                               : 'bg-red-50 text-red-900'
@@ -852,6 +912,21 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                         }`}
                       >
                         <div style={{ textAlign: 'center', width: '100%' }} className="flex items-center justify-center relative w-full text-center">
+                          {hasIngameScheduleConflict && (
+                            <span
+                              data-html2canvas-ignore="true"
+                              title={`🚨 TRÙNG LỊCH: "${member.ingame}" đang được xếp ở bảng khác cùng khung giờ [${scheduleTime}]:\n${ingameScheduleConflicts
+                                .map(
+                                  (c) =>
+                                    `• ${c.otherBoardTitle} lúc ${c.otherBoardSchedule} (STT #${c.otherMemberStt})`
+                                )
+                                .join('\n')}`}
+                              className="absolute left-0.5 sm:left-1 text-rose-600 dark:text-rose-400 hover:text-rose-700 animate-pulse cursor-help z-10"
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                            </span>
+                          )}
+
                           <input
                             type="text"
                             data-column-type="ingame"
@@ -861,7 +936,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             data-text-value={member.ingame || ''}
                             style={{
                               textAlign: 'center',
-                              color: !isTableDark && !isIngameDup ? '#000000' : undefined,
+                              color: !isTableDark && !isIngameDup && !hasIngameScheduleConflict ? '#000000' : undefined,
                             }}
                             dir="ltr"
                             onChange={(e) =>
@@ -869,7 +944,11 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             }
                             placeholder="Ingame..."
                             className={`w-full text-center bg-transparent rounded px-0.5 sm:px-1 py-1 sm:py-0.5 font-semibold text-xs sm:text-[15px] focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                              isIngameDup
+                              hasIngameScheduleConflict
+                                ? isTableDark
+                                  ? 'text-rose-200 font-black placeholder:text-rose-400'
+                                  : 'text-rose-950 font-black placeholder:text-rose-400'
+                                : isIngameDup
                                 ? isTableDark
                                   ? 'text-red-200 font-bold placeholder:text-red-400'
                                   : 'text-red-900 font-bold placeholder:text-red-400'
@@ -994,7 +1073,11 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                         className={`py-1 sm:py-2 px-1 text-center font-semibold text-xs sm:text-[15px] border-b-[2px] relative group/log transition-colors ${
                           isTableDark ? 'border-slate-700 text-slate-100' : 'border-black text-slate-900'
                         } ${
-                          isLoggedByDup
+                          hasLoggedByScheduleConflict
+                            ? isTableDark
+                              ? 'bg-rose-950/70 text-rose-200'
+                              : 'bg-rose-100 text-rose-950'
+                            : isLoggedByDup
                             ? isTableDark
                               ? 'bg-amber-950/40 text-amber-200'
                               : 'bg-amber-50 text-amber-900'
@@ -1002,7 +1085,20 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                         }`}
                       >
                         <div style={{ textAlign: 'center', width: '100%' }} className="flex items-center justify-center relative w-full text-center">
-                          {isLoggedByDup && (
+                          {hasLoggedByScheduleConflict ? (
+                            <span
+                              data-html2canvas-ignore="true"
+                              title={`🚨 TRÙNG LỊCH LOG: "${member.loggedBy || member.ingame}" đang log acc ở bảng khác cùng khung giờ [${scheduleTime}]:\n${loggedByScheduleConflicts
+                                .map(
+                                  (c) =>
+                                    `• ${c.otherBoardTitle} lúc ${c.otherBoardSchedule} (STT #${c.otherMemberStt})`
+                                )
+                                .join('\n')}`}
+                              className="absolute left-0.5 sm:left-1 text-rose-600 dark:text-rose-400 hover:text-rose-700 animate-pulse cursor-help z-10"
+                            >
+                              <AlertTriangle className="w-3.5 h-3.5" />
+                            </span>
+                          ) : isLoggedByDup ? (
                             <span
                               data-html2canvas-ignore="true"
                               title={`⚠️ Trùng người log: "${loggedByDupInfo?.originalName}" đang log cho ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
@@ -1012,7 +1108,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             >
                               <AlertCircle className="w-3.5 h-3.5" />
                             </span>
-                          )}
+                          ) : null}
 
                           <input
                             type="text"
@@ -1023,7 +1119,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             data-text-value={member.loggedBy || member.ingame || ''}
                             style={{
                               textAlign: 'center',
-                              color: !isTableDark && !isLoggedByDup ? '#000000' : undefined,
+                              color: !isTableDark && !isLoggedByDup && !hasLoggedByScheduleConflict ? '#000000' : undefined,
                             }}
                             dir="ltr"
                             onChange={(e) =>
@@ -1033,7 +1129,11 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             }
                             placeholder={member.ingame || 'Log by...'}
                             className={`w-full text-center bg-transparent rounded px-0.5 sm:px-1 py-1 sm:py-0.5 font-semibold text-xs sm:text-[15px] focus:outline-none focus:ring-1 focus:ring-amber-500 ${
-                              isLoggedByDup
+                              hasLoggedByScheduleConflict
+                                ? isTableDark
+                                  ? 'text-rose-200 font-black placeholder:text-rose-400'
+                                  : 'text-rose-950 font-black placeholder:text-rose-400'
+                                : isLoggedByDup
                                 ? isTableDark
                                   ? 'text-amber-200 font-bold placeholder:text-amber-400'
                                   : 'text-amber-900 font-bold placeholder:text-amber-400'

@@ -10,7 +10,9 @@ import {
   FolderPlus,
   Table as TableIcon,
   CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
+import { findScheduleConflictsForBoard } from '../utils/duplicates';
 
 interface VerticalBoardListProps {
   boards: RaidBoard[];
@@ -103,6 +105,8 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
           ).length;
           const totalSlots = membersList.length || 12;
           const isFullyFilled = filledCount === totalSlots && totalSlots > 0;
+          const scheduleConflicts = findScheduleConflictsForBoard(board, boards);
+          const hasConflicts = scheduleConflicts.length > 0;
 
           return (
             <div
@@ -113,6 +117,8 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
                   ? isRaidUpdate
                     ? 'bg-emerald-500/10 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500 shadow-sm ring-1 ring-emerald-400/40'
                     : 'bg-sky-500/10 dark:bg-sky-950/40 border-sky-400 dark:border-sky-500 shadow-sm ring-1 ring-sky-400/40'
+                  : hasConflicts
+                  ? 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/30'
                   : 'bg-slate-50 dark:bg-[#162230] border-slate-200 dark:border-[#1F3347] hover:bg-slate-100 dark:hover:bg-[#1D2D40] hover:border-slate-300 dark:hover:border-slate-600'
               }`}
             >
@@ -125,6 +131,8 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
                         ? isRaidUpdate
                           ? 'bg-emerald-400 text-slate-950'
                           : 'bg-[#88DCFA] text-slate-950'
+                        : hasConflicts
+                        ? 'bg-rose-500 text-white'
                         : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
                     }`}
                   >
@@ -136,6 +144,8 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
                         ? isRaidUpdate
                           ? 'text-emerald-700 dark:text-emerald-300'
                           : 'text-sky-800 dark:text-[#88DCFA]'
+                        : hasConflicts
+                        ? 'text-rose-700 dark:text-rose-400'
                         : 'text-slate-800 dark:text-slate-200'
                     }`}
                   >
@@ -205,6 +215,19 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
                   )}
                 </div>
               </div>
+
+              {/* Warning badge for cross-board schedule conflicts */}
+              {hasConflicts && (
+                <div className="mt-1.5 pt-1 border-t border-rose-200/80 dark:border-rose-900/50 flex items-center justify-between">
+                  <span
+                    title={`⚠️ Có ${scheduleConflicts.length} vị trí trùng nhân sự cùng khung giờ [${board.scheduleTime}] với bảng khác!`}
+                    className="inline-flex items-center gap-1 text-[10px] font-black text-rose-600 dark:text-rose-400"
+                  >
+                    <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0 animate-pulse" />
+                    <span>Trùng giờ ({scheduleConflicts.length} chỗ)</span>
+                  </span>
+                </div>
+              )}
             </div>
           );
         })}

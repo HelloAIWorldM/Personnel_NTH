@@ -20,10 +20,15 @@ import {
   Image as ImageIcon,
   Download,
   AlertCircle,
+  AlertTriangle,
   ArrowUpDown,
   StickyNote,
 } from 'lucide-react';
 import { GuildPartyNoteModal } from './GuildPartyNoteModal';
+import {
+  findGuildWarDuplicates,
+  GuildWarDuplicateGroup,
+} from '../../utils/duplicates';
 
 interface GuildTeamsTabProps {
   members: GuildMember[];
@@ -235,6 +240,27 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
   const unassignedMembers = useMemo(() => {
     return members.filter((m) => !placedMemberIds.has(m.id));
   }, [members, placedMemberIds]);
+
+  // Duplicate member detection across teams, parties, and bench
+  const duplicateGroups = useMemo(() => findGuildWarDuplicates(members), [members]);
+
+  const duplicateMemberIdSet = useMemo(() => {
+    const set = new Set<string>();
+    duplicateGroups.forEach((g) => {
+      g.members.forEach((m) => set.add(m.id));
+    });
+    return set;
+  }, [duplicateGroups]);
+
+  const duplicateInfoMap = useMemo(() => {
+    const map = new Map<string, GuildWarDuplicateGroup>();
+    duplicateGroups.forEach((g) => {
+      g.members.forEach((m) => {
+        map.set(m.id, g);
+      });
+    });
+    return map;
+  }, [duplicateGroups]);
 
   // Drag handlers
   const handleDragStart = (
@@ -753,6 +779,51 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
         </div>
       </div>
 
+      {/* Cảnh Báo Trùng Nhân Sự Bang Chiến */}
+      {duplicateGroups.length > 0 && (
+        <div className="bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 rounded-2xl p-3 sm:p-4 text-xs shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2 font-black text-rose-700 dark:text-rose-400 text-xs sm:text-sm mb-1.5">
+            <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 animate-pulse shrink-0" />
+            <span>
+              🚨 CẢNH BÁO TRÙNG NHÂN SỰ BANG CHIẾN ({duplicateGroups.length} trường hợp bị xếp trùng)
+            </span>
+          </div>
+          <p className="text-[11px] text-rose-800 dark:text-rose-300 mb-2">
+            Các nhân sự sau đây đang xuất hiện nhiều lần (trong nhiều đội hình hoặc vừa ở đội hình vừa ở hàng dự bị):
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {duplicateGroups.map((group) => (
+              <div
+                key={group.normalizedIngame}
+                className="bg-white/90 dark:bg-slate-900/90 border border-rose-200 dark:border-rose-800/80 rounded-xl p-2.5 flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className="font-black text-slate-900 dark:text-white truncate">
+                    {group.originalName}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300">
+                    Trùng {group.count} lần
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5">
+                  {group.members.map((m, i) => (
+                    <div key={m.id || i} className="flex items-center gap-1">
+                      <span className="text-slate-400">•</span>
+                      <span>
+                        {m.isBench
+                          ? 'Ghế dự bị'
+                          : `${m.team || 'Chưa xếp'} PT-${m.party || 1} Slot ${m.slot || 1}`}
+                      </span>
+                      <span className="text-slate-400 text-[10px]">({m.className})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Main Excel-style Table Container */}
       <div
         ref={tableRef}
@@ -859,6 +930,8 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                         const member = grid[partyNum][slotNum];
                         const slotKey = `${team.id}-${partyNum}-${slotNum}`;
                         const isHovered = hoveredSlot === slotKey;
+                        const isDuplicate = member ? duplicateMemberIdSet.has(member.id) : false;
+                        const dupGroup = member ? duplicateInfoMap.get(member.id) : null;
                         const classMeta = member
                           ? getEffectiveClassMeta(member.className, customColors)
                           : null;
@@ -875,6 +948,8 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                               className={`w-[130px] sm:w-[160px] p-1.5 border-r border-slate-300 dark:border-slate-700 transition-all ${
                                 isHovered
                                   ? 'bg-indigo-100/70 dark:bg-indigo-950/70 ring-2 ring-indigo-500 z-10'
+                                  : isDuplicate
+                                  ? 'bg-rose-50/90 dark:bg-rose-950/50 ring-1 ring-rose-400'
                                   : member
                                   ? 'bg-white dark:bg-slate-900'
                                   : 'bg-slate-50/40 dark:bg-slate-850/40'
@@ -903,6 +978,15 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                                     <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
                                       {member.ingame}
                                     </span>
+                                    {isDuplicate && (
+                                      <span
+                                        data-html2canvas-ignore="true"
+                                        title={`🚨 TRÙNG NHÂN SỰ: "${member.ingame}" xuất hiện ${dupGroup?.count} lần trong danh sách Bang Chiến!`}
+                                        className="text-rose-500 hover:text-rose-600 animate-pulse shrink-0 cursor-help"
+                                      >
+                                        <AlertTriangle className="w-3.5 h-3.5" />
+                                      </span>
+                                    )}
                                   </div>
                                   <button
                                     type="button"
@@ -1051,18 +1135,37 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
           <div className="flex flex-wrap gap-2">
             {filteredBenchMembers.map((member) => {
               const meta = getEffectiveClassMeta(member.className, customColors);
+              const isDuplicate = duplicateMemberIdSet.has(member.id);
+              const dupGroup = duplicateInfoMap.get(member.id);
+
               return (
                 <div
                   key={member.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, member.id)}
-                  className="group bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500 rounded-xl px-2.5 py-1.5 shadow-2xs flex items-center gap-2 cursor-grab active:cursor-grabbing transition-all hover:scale-105"
-                  title="Kéo và thả vào một vị trí trong bảng"
+                  className={`group border rounded-xl px-2.5 py-1.5 shadow-2xs flex items-center gap-2 cursor-grab active:cursor-grabbing transition-all hover:scale-105 ${
+                    isDuplicate
+                      ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-700 ring-1 ring-rose-400'
+                      : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-indigo-400 dark:hover:border-indigo-500'
+                  }`}
+                  title={
+                    isDuplicate
+                      ? `🚨 TRÙNG NHÂN SỰ: "${member.ingame}" xuất hiện ${dupGroup?.count} lần trong danh sách Bang Chiến!`
+                      : 'Kéo và thả vào một vị trí trong bảng'
+                  }
                 >
                   <GripVertical className="w-3 h-3 text-slate-400 shrink-0" />
                   <span className="text-xs font-black text-slate-900 dark:text-white">
                     {member.ingame}
                   </span>
+                  {isDuplicate && (
+                    <span
+                      data-html2canvas-ignore="true"
+                      className="text-rose-500 animate-pulse"
+                    >
+                      <AlertTriangle className="w-3 h-3" />
+                    </span>
+                  )}
                   <span
                     className="px-2 py-0.5 rounded-full text-[10px] font-bold shadow-2xs"
                     style={{
