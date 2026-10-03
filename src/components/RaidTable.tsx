@@ -661,11 +661,17 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                 const loggedByDupInfo = duplicateLoggedByMap.get(member.id);
 
                 // Cross-board schedule conflicts for this member row
-                const hasIngameScheduleConflict = scheduleConflictLookup.conflictingIngameStts.has(member.stt);
-                const hasLoggedByScheduleConflict = scheduleConflictLookup.conflictingLoggedByStts.has(member.stt);
-                const rowScheduleConflicts = scheduleConflictLookup.conflictsByStt.get(member.stt) || [];
-                const ingameScheduleConflicts = rowScheduleConflicts.filter((c) => c.conflictType === 'ingame');
-                const loggedByScheduleConflicts = rowScheduleConflicts.filter((c) => c.conflictType === 'loggedBy');
+                const hasIngameScheduleConflict = Boolean(
+                  scheduleConflictLookup?.conflictingIngameStts?.has(member.stt) ||
+                  scheduleConflictLookup?.ingameConflictStts?.has(member.stt)
+                );
+                const hasLoggedByScheduleConflict = Boolean(
+                  scheduleConflictLookup?.conflictingLoggedByStts?.has(member.stt) ||
+                  scheduleConflictLookup?.loggedByConflictStts?.has(member.stt)
+                );
+                const rowScheduleConflicts = scheduleConflictLookup?.conflictsByStt?.get(member.stt) || [];
+                const ingameScheduleConflicts = rowScheduleConflicts.filter((c) => c.type === 'ingame');
+                const loggedByScheduleConflicts = rowScheduleConflicts.filter((c) => c.type === 'loggedBy');
 
                 const currentPartyId = member.party || 1;
                 const prevMember = idx > 0 ? members[idx - 1] : null;
@@ -918,7 +924,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                               title={`🚨 TRÙNG LỊCH: "${member.ingame}" đang được xếp ở bảng khác cùng khung giờ [${scheduleTime}]:\n${ingameScheduleConflicts
                                 .map(
                                   (c) =>
-                                    `• ${c.otherBoardTitle} lúc ${c.otherBoardSchedule} (STT #${c.otherMemberStt})`
+                                    `• ${c.otherBoardTitle} lúc ${c.scheduleTime} (STT ${c.otherBoardStts.map((s) => `#${s}`).join(', ')})`
                                 )
                                 .join('\n')}`}
                               className="absolute left-0.5 sm:left-1 text-rose-600 dark:text-rose-400 hover:text-rose-700 animate-pulse cursor-help z-10"
@@ -1091,7 +1097,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                               title={`🚨 TRÙNG LỊCH LOG: "${member.loggedBy || member.ingame}" đang log acc ở bảng khác cùng khung giờ [${scheduleTime}]:\n${loggedByScheduleConflicts
                                 .map(
                                   (c) =>
-                                    `• ${c.otherBoardTitle} lúc ${c.otherBoardSchedule} (STT #${c.otherMemberStt})`
+                                    `• ${c.otherBoardTitle} lúc ${c.scheduleTime} (STT ${c.otherBoardStts.map((s) => `#${s}`).join(', ')})`
                                 )
                                 .join('\n')}`}
                               className="absolute left-0.5 sm:left-1 text-rose-600 dark:text-rose-400 hover:text-rose-700 animate-pulse cursor-help z-10"

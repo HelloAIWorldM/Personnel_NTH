@@ -237,15 +237,17 @@ export const getScheduleConflictLookupForBoard = (
 ): {
   ingameConflictStts: Set<number>;
   loggedByConflictStts: Set<number>;
+  conflictingIngameStts: Set<number>;
+  conflictingLoggedByStts: Set<number>;
   conflictsByStt: Map<number, BoardScheduleConflict[]>;
 } => {
-  const conflicts = findScheduleConflictsForBoard(targetBoard, allBoards);
+  const conflicts = findScheduleConflictsForBoard(targetBoard, allBoards || []);
   const ingameConflictStts = new Set<number>();
   const loggedByConflictStts = new Set<number>();
   const conflictsByStt = new Map<number, BoardScheduleConflict[]>();
 
   conflicts.forEach((c) => {
-    c.currentBoardStts.forEach((stt) => {
+    (c.currentBoardStts || []).forEach((stt) => {
       if (c.type === 'ingame') {
         ingameConflictStts.add(stt);
       } else {
@@ -257,7 +259,13 @@ export const getScheduleConflictLookupForBoard = (
     });
   });
 
-  return { ingameConflictStts, loggedByConflictStts, conflictsByStt };
+  return {
+    ingameConflictStts,
+    loggedByConflictStts,
+    conflictingIngameStts: ingameConflictStts,
+    conflictingLoggedByStts: loggedByConflictStts,
+    conflictsByStt,
+  };
 };
 
 // ==========================================
