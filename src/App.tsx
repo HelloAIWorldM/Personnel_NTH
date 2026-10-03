@@ -35,6 +35,7 @@ import { ColorCustomizerModal } from './components/ColorCustomizerModal';
 import { CreateBoardModal } from './components/CreateBoardModal';
 import { AllBoardsOverview } from './components/AllBoardsOverview';
 import { CopyPersonnelToUpdateModal } from './components/CopyPersonnelToUpdateModal';
+import { VerticalBoardList } from './components/VerticalBoardList';
 import {
   FileSpreadsheet,
   Share2,
@@ -53,6 +54,9 @@ import {
   LayoutGrid,
   PanelRightClose,
   PanelRightOpen,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Layers,
   Check,
   Calendar,
   Swords,
@@ -143,6 +147,19 @@ export default function App() {
 
   const [activeTab, setActiveTab] = useState<'table' | 'parties' | 'personnel' | 'all-boards'>('table');
   const [isPersonnelSidebarOpen, setIsPersonnelSidebarOpen] = useState<boolean>(true);
+  const [isBoardNavOpen, setIsBoardNavOpen] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('raid_roster_board_nav_open_v1');
+      if (saved !== null) return saved === 'true';
+    } catch {}
+    return true;
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('raid_roster_board_nav_open_v1', String(isBoardNavOpen));
+    } catch {}
+  }, [isBoardNavOpen]);
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
@@ -933,6 +950,32 @@ export default function App() {
     showToast(`Đã nhân bản "${duplicated.titlePrefix}"!`);
   };
 
+  // Duplicate a specific board by its ID (for Vertical Board Navigator)
+  const handleDuplicateBoardById = (boardId: string) => {
+    const targetList = isRaidUpdate ? updateBoards : boards;
+    const target = targetList.find((b) => b.id === boardId);
+    if (!target) return;
+    const timestamp = Date.now();
+    const duplicated: RaidBoard = {
+      ...target,
+      id: `board_${timestamp}_${Math.random().toString(36).substring(2, 6)}`,
+      titlePrefix: `${target.titlePrefix} (Bản sao)`,
+      createdAt: timestamp,
+      members: target.members.map((m) => ({
+        ...m,
+        id: `m_${timestamp}_${m.stt}`,
+      })),
+    };
+    if (isRaidUpdate) {
+      setUpdateBoards((prev) => [...prev, duplicated]);
+      setActiveUpdateBoardId(duplicated.id);
+    } else {
+      setBoards((prev) => [...prev, duplicated]);
+      setActiveBoardId(duplicated.id);
+    }
+    showToast(`Đã nhân bản "${duplicated.titlePrefix}"!`);
+  };
+
   // Delete Board
   const handleDeleteBoard = (boardId: string) => {
     const targetList = isRaidUpdate ? updateBoards : boards;
@@ -1189,7 +1232,7 @@ export default function App() {
 
       {/* Top Header Navbar - Tactical Cyan Style */}
       <header className="bg-white/95 dark:bg-[#101A24]/95 backdrop-blur-md border-b border-sky-300/80 dark:border-[#1F3347] sticky top-0 z-30 transition-colors shadow-xs">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4 relative z-10">
+        <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4 relative z-10">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-gradient-to-tr from-[#38BDF8] to-[#88DCFA] text-slate-950 flex items-center justify-center font-black text-xs sm:text-sm shadow-[0_0_14px_rgba(136,220,250,0.45)] shrink-0 tracking-wider">
               NTH
@@ -1329,7 +1372,7 @@ export default function App() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-3 sm:px-6 pt-3 sm:pt-5 relative z-10">
+      <main className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-5 relative z-10">
         {/* Board Selector Bar (Raid & Bang Chiến) */}
         <section className="mb-4 bg-white dark:bg-[#101A24] border border-sky-300/80 dark:border-[#1F3347] rounded-2xl p-2.5 sm:p-3 shadow-2xs transition-colors">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
@@ -1382,72 +1425,58 @@ export default function App() {
 
               {/* Tabs for current mode */}
               {appMode !== 'GUILD_WAR' ? (
-                <>
-                  {currentBoards.map((board) => {
-                    const isActive = board.id === activeBoard.id;
-                    const filledCount = board.members.filter(
-                      (m) => m.ingame && m.ingame.trim() !== ''
-                    ).length;
+                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
+                  {/* Active Board Badge */}
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#162230] border border-slate-200 dark:border-[#1F3347] text-xs font-bold shrink-0">
+                    <span className="text-slate-500 dark:text-slate-400 text-[11px]">Bảng hiện tại:</span>
+                    <span
+                      className={`font-black ${
+                        isRaidUpdate ? 'text-emerald-700 dark:text-emerald-300' : 'text-sky-800 dark:text-[#88DCFA]'
+                      }`}
+                    >
+                      {activeBoard.titlePrefix}
+                    </span>
+                    <span className="text-slate-500 text-[11px] hidden md:inline">
+                      • {activeBoard.scheduleTime || 'MON 20:30'}
+                    </span>
+                    <span
+                      className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
+                        isRaidUpdate
+                          ? 'bg-emerald-500/20 text-emerald-800 dark:text-emerald-300'
+                          : 'bg-sky-500/20 text-sky-800 dark:text-[#88DCFA]'
+                      }`}
+                    >
+                      {activeBoard.members.filter((m) => m.ingame && m.ingame.trim() !== '').length}/{activeBoard.members.length}
+                    </span>
+                  </div>
 
-                    return (
-                      <div
-                        key={board.id}
-                        onClick={() => {
-                          if (isRaidUpdate) {
-                            setActiveUpdateBoardId(board.id);
-                          } else {
-                            setActiveBoardId(board.id);
-                          }
-                        }}
-                        className={`group flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold cursor-pointer transition-all shrink-0 select-none ${
-                          isActive
-                            ? isRaidUpdate
-                              ? 'bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 border-transparent shadow-[0_0_12px_rgba(52,211,153,0.35)] font-black'
-                              : 'bg-[#88DCFA] text-slate-950 border-transparent shadow-[0_0_12px_rgba(136,220,250,0.35)] font-black'
-                            : 'bg-slate-50 dark:bg-[#162230] text-slate-700 dark:text-[#CADEEA] border-slate-200 dark:border-[#1F3347] hover:bg-slate-100 dark:hover:bg-[#1D2D40]'
-                        }`}
-                      >
-                        <span className="truncate max-w-[150px] sm:max-w-[200px]">
-                          {board.titlePrefix} • {board.scheduleTime}
-                        </span>
+                  {/* Quick Toggle / Open Vertical Board Navigator */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('table');
+                      setIsBoardNavOpen(!isBoardNavOpen);
+                    }}
+                    title="Bật/Tắt danh sách cuộn dọc các bảng ở bên trái bảng xếp Raid"
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shrink-0 shadow-2xs cursor-pointer ${
+                      isBoardNavOpen && activeTab === 'table'
+                        ? isRaidUpdate
+                          ? 'border-emerald-400 bg-emerald-500/15 text-emerald-800 dark:text-emerald-300 font-black'
+                          : 'border-sky-400 bg-sky-500/15 text-sky-800 dark:text-[#88DCFA] font-black'
+                        : 'border-slate-200 dark:border-[#1F3347] bg-white dark:bg-[#162230] text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-[#1D2D40]'
+                    }`}
+                  >
+                    <Layers className="w-3.5 h-3.5" />
+                    <span>Cột Bảng Dọc ({currentBoards.length})</span>
+                  </button>
 
-                        <span
-                          className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${
-                            isActive
-                              ? 'bg-slate-950/20 text-slate-950'
-                              : 'bg-slate-200 dark:bg-[#1B2A3B] text-slate-600 dark:text-[#8CA4B8]'
-                          }`}
-                        >
-                          {filledCount}/{board.members.length}
-                        </span>
-
-                        {/* Delete Board trigger */}
-                        {currentBoards.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteBoard(board.id);
-                            }}
-                            title={`Xoá bảng ${isRaidUpdate ? 'Raid Update' : 'Raid'} này`}
-                            className={`p-0.5 rounded hover:bg-black/20 ${
-                              isActive ? 'text-slate-950/80 hover:text-slate-950' : 'text-slate-400 hover:text-red-500'
-                            }`}
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-
-                  {/* Inline Add New Board Tab Button */}
+                  {/* Inline Add New Board Quick Button */}
                   <button
                     type="button"
                     id="btn-tab-add-board"
-                    onClick={() => setIsCreateBoardModalOpen(true)}
-                    title={`Tạo bảng ${isRaidUpdate ? 'Raid Update' : 'Raid'} mới (ví dụ RAID ${currentBoards.length + 1})`}
-                    className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border border-dashed text-xs font-bold transition-all shrink-0 shadow-2xs hover:scale-105 active:scale-95 ${
+                    onClick={handleAddNewEmptyBoard}
+                    title={`Tạo nhanh Bảng ${isRaidUpdate ? 'Raid Update' : 'Raid'} ${currentBoards.length + 1}`}
+                    className={`flex items-center gap-1 px-3 py-1.5 rounded-xl border border-dashed text-xs font-bold transition-all shrink-0 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer ${
                       isRaidUpdate
                         ? 'border-emerald-400 dark:border-emerald-500/60 bg-emerald-50/70 hover:bg-emerald-100 dark:bg-[#162230] dark:hover:bg-[#1D2D40] text-emerald-800 dark:text-emerald-300'
                         : 'border-sky-400 dark:border-sky-500/60 bg-sky-50/70 hover:bg-sky-100 dark:bg-[#162230] dark:hover:bg-[#1D2D40] text-sky-800 dark:text-[#88DCFA]'
@@ -1456,7 +1485,7 @@ export default function App() {
                     <Plus className="w-3.5 h-3.5" />
                     <span>+ Thêm Bảng (Raid {currentBoards.length + 1})</span>
                   </button>
-                </>
+                </div>
               ) : (
                 <>
                   {guildWarBoards.map((gwBoard) => {
@@ -1775,11 +1804,34 @@ export default function App() {
               </div>
 
               {activeTab === 'table' && (
-                <div className="flex items-center gap-2 self-end sm:self-auto">
+                <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+                  {/* Toggle Vertical Board Navigator on Left */}
                   <button
                     type="button"
+                    id="btn-toggle-board-nav"
+                    onClick={() => setIsBoardNavOpen(!isBoardNavOpen)}
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border border-sky-300 dark:border-sky-800/80 bg-sky-50 dark:bg-[#162230] text-sky-800 dark:text-[#88DCFA] hover:bg-sky-100 dark:hover:bg-[#1D2D40] transition-colors cursor-pointer"
+                    title="Bật/Tắt danh sách cuộn dọc các bảng bên trái"
+                  >
+                    {isBoardNavOpen ? (
+                      <>
+                        <PanelLeftClose className="w-4 h-4" />
+                        <span>Ẩn DS Bảng</span>
+                      </>
+                    ) : (
+                      <>
+                        <PanelLeftOpen className="w-4 h-4" />
+                        <span>Hiện DS Bảng ({currentBoards.length})</span>
+                      </>
+                    )}
+                  </button>
+
+                  {/* Toggle Personnel Sidebar on Right */}
+                  <button
+                    type="button"
+                    id="btn-toggle-personnel-sidebar"
                     onClick={() => setIsPersonnelSidebarOpen(!isPersonnelSidebarOpen)}
-                    className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl border border-sky-300 dark:border-sky-800/80 bg-sky-50 dark:bg-[#162230] text-sky-800 dark:text-[#88DCFA] hover:bg-sky-100 dark:hover:bg-[#1D2D40] transition-colors"
+                    className="flex items-center gap-1 text-xs font-bold px-3 py-1.5 rounded-xl border border-sky-300 dark:border-sky-800/80 bg-sky-50 dark:bg-[#162230] text-sky-800 dark:text-[#88DCFA] hover:bg-sky-100 dark:hover:bg-[#1D2D40] transition-colors cursor-pointer"
                     title="Bật/Tắt khung kéo thả Kho Nhân Sự bên cạnh bảng"
                   >
                     {isPersonnelSidebarOpen ? (
@@ -1798,15 +1850,33 @@ export default function App() {
               )}
             </div>
 
-            {/* Tab 1: Main Table View with Side-by-Side Drag-Drop Personnel Storage */}
+            {/* Tab 1: Main Table View with Side-by-Side Vertical Board Navigator & Personnel Storage */}
             <div className={activeTab === 'table' ? 'block' : 'hidden'}>
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
-                {/* Raid Table Column */}
-                <div
-                  className={`transition-all ${
-                    isPersonnelSidebarOpen ? 'lg:col-span-7 xl:col-span-7' : 'lg:col-span-12'
-                  }`}
-                >
+              <div className="flex flex-col lg:flex-row items-start gap-4">
+                {/* 1. Left Column: Vertical Scrollable Board Navigator */}
+                {isBoardNavOpen && (
+                  <div className="w-full lg:w-[230px] xl:w-[250px] shrink-0 sticky top-20 z-10">
+                    <VerticalBoardList
+                      boards={currentBoards}
+                      activeBoardId={activeBoard.id}
+                      onSelectBoard={(id) => {
+                        if (isRaidUpdate) {
+                          setActiveUpdateBoardId(id);
+                        } else {
+                          setActiveBoardId(id);
+                        }
+                      }}
+                      onAddNewBoard={handleAddNewEmptyBoard}
+                      onOpenCreateModal={() => setIsCreateBoardModalOpen(true)}
+                      onDuplicateBoard={handleDuplicateBoardById}
+                      onDeleteBoard={handleDeleteBoard}
+                      isRaidUpdate={isRaidUpdate}
+                    />
+                  </div>
+                )}
+
+                {/* 2. Center Column: Raid Table */}
+                <div className="flex-1 min-w-0 w-full">
                   <div className="bg-white dark:bg-slate-900 rounded-2xl p-2 sm:p-5 shadow-xs border border-slate-200 dark:border-slate-800 flex flex-col items-center transition-colors">
                     <RaidTable
                       titlePrefix={activeBoard.titlePrefix}
@@ -1824,9 +1894,9 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Draggable Personnel Pool Sidebar Column */}
+                {/* 3. Right Column: Draggable Personnel Pool Sidebar */}
                 {isPersonnelSidebarOpen && (
-                  <div className="lg:col-span-5 xl:col-span-5 sticky top-20">
+                  <div className="w-full lg:w-[320px] xl:w-[360px] 2xl:w-[390px] shrink-0 sticky top-20 z-10">
                     <PersonnelStorage
                       personnelPool={currentPersonnelPool}
                       onUpdatePersonnelPool={handleUpdatePersonnelPool}
