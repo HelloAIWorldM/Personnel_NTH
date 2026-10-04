@@ -1,7 +1,8 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
 import { CustomClassColors, PersonnelMember, RaidClass } from '../types';
 import { normalizeName } from '../utils/duplicates';
+import { PixelNoteBubble } from './PixelNoteBubble';
 import {
   Tent,
   UserPlus,
@@ -17,6 +18,7 @@ import {
   Clock,
   AlertTriangle,
   Users,
+  MessageSquare,
 } from 'lucide-react';
 
 interface DiBuiStorageProps {
@@ -75,6 +77,48 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
 
   // Confirmation dialogs
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  // Pixel Note Bubble hover & edit states
+  const [hoveredNotePerson, setHoveredNotePerson] = useState<PersonnelMember | null>(null);
+  const [noteAnchorRect, setNoteAnchorRect] = useState<DOMRect | null>(null);
+  const noteCloseTimeoutRef = useRef<any>(null);
+  const noteOpenTimeoutRef = useRef<any>(null);
+
+  const handleOpenNoteForPerson = (person: PersonnelMember, rect: DOMRect) => {
+    clearTimeout(noteCloseTimeoutRef.current);
+    clearTimeout(noteOpenTimeoutRef.current);
+    setHoveredNotePerson(person);
+    setNoteAnchorRect(rect);
+  };
+
+  const handleCardMouseEnter = (person: PersonnelMember, e: React.MouseEvent<HTMLDivElement>) => {
+    clearTimeout(noteCloseTimeoutRef.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    clearTimeout(noteOpenTimeoutRef.current);
+    noteOpenTimeoutRef.current = setTimeout(() => {
+      setHoveredNotePerson(person);
+      setNoteAnchorRect(rect);
+    }, 160);
+  };
+
+  const handleCardMouseLeave = () => {
+    clearTimeout(noteOpenTimeoutRef.current);
+    noteCloseTimeoutRef.current = setTimeout(() => {
+      setHoveredNotePerson(null);
+      setNoteAnchorRect(null);
+    }, 280);
+  };
+
+  const handleSavePersonNote = (personId: string, noteText: string) => {
+    const trimmed = noteText.trim();
+    const updated = diBuiPool.map((p) =>
+      p.id === personId ? { ...p, note: trimmed ? trimmed : undefined } : p
+    );
+    onUpdateDiBuiPool(updated);
+    if (hoveredNotePerson && hoveredNotePerson.id === personId) {
+      setHoveredNotePerson((prev) => (prev ? { ...prev, note: trimmed ? trimmed : undefined } : null));
+    }
+  };
 
   // Count personnel per class in Kho Đi Bụi
   const classCountMap = useMemo(() => {
@@ -476,6 +520,9 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
                 return (
                   <div
                     key={person.id}
+                    data-person-card="true"
+                    onMouseEnter={(e) => handleCardMouseEnter(person, e)}
+                    onMouseLeave={handleCardMouseLeave}
                     className="group flex items-center justify-between gap-2 p-2.5 rounded-xl border border-amber-200/80 dark:border-slate-800 bg-amber-50/30 dark:bg-[#121B26] hover:border-amber-400 dark:hover:border-amber-600/70 shadow-2xs hover:shadow-xs transition-all"
                   >
                     {/* Left: Info */}
@@ -488,10 +535,22 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
                             {person.ingame}
                           </span>
                           {person.note && (
-                            <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 truncate max-w-[200px]">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
+                                handleOpenNoteForPerson(
+                                  person,
+                                  card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
+                                );
+                              }}
+                              className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 truncate max-w-[200px] cursor-pointer"
+                              title={`Ghi chú: ${person.note} (Click để xem & sửa)`}
+                            >
                               <span>📝</span>
                               <span className="truncate">{person.note}</span>
-                            </span>
+                            </button>
                           )}
                         </div>
 
@@ -530,8 +589,27 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
                         <span>Quay lại game</span>
                       </button>
 
-                      {/* Edit & Delete */}
+                      {/* Note, Edit & Delete */}
                       <div className="flex items-center gap-0.5 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
+                            handleOpenNoteForPerson(
+                              person,
+                              card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
+                            );
+                          }}
+                          title={person.note ? 'Xem & sửa ghi chú' : 'Thêm ghi chú'}
+                          className={`p-1 rounded transition-colors cursor-pointer ${
+                            person.note
+                              ? 'text-amber-500 hover:text-amber-600 bg-amber-50 dark:bg-amber-950/40'
+                              : 'text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                          }`}
+                        >
+                          <MessageSquare className="w-3.5 h-3.5" />
+                        </button>
                         <button
                           type="button"
                           onClick={() => handleStartEdit(person)}
@@ -607,6 +685,29 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Floating Pixel Note Bubble Modal / Tooltip (Style chuẩn theo mẫu ảnh) */}
+      {hoveredNotePerson && noteAnchorRect && (
+        <PixelNoteBubble
+          person={hoveredNotePerson}
+          anchorRect={noteAnchorRect}
+          onSaveNote={handleSavePersonNote}
+          onClose={() => {
+            setHoveredNotePerson(null);
+            setNoteAnchorRect(null);
+          }}
+          onMouseEnter={() => {
+            clearTimeout(noteCloseTimeoutRef.current);
+          }}
+          onMouseLeave={() => {
+            noteCloseTimeoutRef.current = setTimeout(() => {
+              setHoveredNotePerson(null);
+              setNoteAnchorRect(null);
+            }, 280);
+          }}
+          customColors={customColors}
+        />
       )}
     </div>
   );

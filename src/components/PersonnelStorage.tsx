@@ -4,6 +4,7 @@ import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
 import { CustomClassColors, PersonnelMember, RaidBoard, RaidClass, RaidMember } from '../types';
 import { normalizeName } from '../utils/duplicates';
 import { PixelSquad } from './PixelSquad';
+import { PixelNoteBubble } from './PixelNoteBubble';
 import {
   Users,
   UserPlus,
@@ -24,6 +25,7 @@ import {
   Heart,
   Swords,
   Tent,
+  MessageSquare,
 } from 'lucide-react';
 
 export interface PersonnelAssignment {
@@ -95,6 +97,48 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   // In-app dialog states (avoids window.confirm which is blocked in sandboxed iframes)
   const [showResetConfirm, setShowResetConfirm] = useState(false);
 
+  // Pixel Note Bubble hover & edit states
+  const [hoveredNotePerson, setHoveredNotePerson] = useState<PersonnelMember | null>(null);
+  const [noteAnchorRect, setNoteAnchorRect] = useState<DOMRect | null>(null);
+  const noteCloseTimeoutRef = useRef<any>(null);
+  const noteOpenTimeoutRef = useRef<any>(null);
+
+  const handleOpenNoteForPerson = (person: PersonnelMember, rect: DOMRect) => {
+    clearTimeout(noteCloseTimeoutRef.current);
+    clearTimeout(noteOpenTimeoutRef.current);
+    setHoveredNotePerson(person);
+    setNoteAnchorRect(rect);
+  };
+
+  const handleCardMouseEnter = (person: PersonnelMember, e: React.MouseEvent<HTMLDivElement>) => {
+    clearTimeout(noteCloseTimeoutRef.current);
+    const rect = e.currentTarget.getBoundingClientRect();
+    clearTimeout(noteOpenTimeoutRef.current);
+    noteOpenTimeoutRef.current = setTimeout(() => {
+      setHoveredNotePerson(person);
+      setNoteAnchorRect(rect);
+    }, 160);
+  };
+
+  const handleCardMouseLeave = () => {
+    clearTimeout(noteOpenTimeoutRef.current);
+    noteCloseTimeoutRef.current = setTimeout(() => {
+      setHoveredNotePerson(null);
+      setNoteAnchorRect(null);
+    }, 280);
+  };
+
+  const handleSavePersonNote = (personId: string, noteText: string) => {
+    const trimmed = noteText.trim();
+    const updated = personnelPool.map((p) =>
+      p.id === personId ? { ...p, note: trimmed ? trimmed : undefined } : p
+    );
+    onUpdatePersonnelPool(updated);
+    if (hoveredNotePerson && hoveredNotePerson.id === personId) {
+      setHoveredNotePerson((prev) => (prev ? { ...prev, note: trimmed ? trimmed : undefined } : null));
+    }
+  };
+
   // Count personnel per class in pool (hiển thị số lượng trên từng badge giống Ảnh 2)
   const classCountMap = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -164,7 +208,8 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
         const matchIngame = person.ingame.toLowerCase().includes(query);
         const matchLogged = (person.loggedBy || '').toLowerCase().includes(query);
         const matchClass = person.className.toLowerCase().includes(query);
-        if (!matchIngame && !matchLogged && !matchClass) return false;
+        const matchNote = (person.note || '').toLowerCase().includes(query);
+        if (!matchIngame && !matchLogged && !matchClass && !matchNote) return false;
       }
 
       // Class filter
@@ -626,6 +671,9 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
             return (
               <div
                 key={person.id}
+                data-person-card="true"
+                onMouseEnter={(e) => handleCardMouseEnter(person, e)}
+                onMouseLeave={handleCardMouseLeave}
                 draggable={!isAssignedInActiveBoard}
                 onDragStart={(e) => handleDragStart(e, person)}
                 onDragEnd={handleDragEnd}
@@ -710,6 +758,26 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                           <span>Có mặt</span>
                         </span>
                       )}
+
+                      {/* Note Badge nếu đã có ghi chú */}
+                      {person.note?.trim() && (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
+                            handleOpenNoteForPerson(
+                              person,
+                              card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
+                            );
+                          }}
+                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/80 shadow-2xs shrink-0 max-w-[130px] transition-all hover:scale-105 cursor-pointer"
+                          title={`Ghi chú: ${person.note} (Click để mở xem & sửa)`}
+                        >
+                          <span className="text-[11px]">📝</span>
+                          <span className="truncate">{person.note}</span>
+                        </button>
+                      )}
                     </div>
 
                     <div className="text-[11px] truncate flex items-center gap-1 text-slate-500 dark:text-slate-400 mt-0.5">
@@ -774,6 +842,26 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                         <Tent className="w-3.5 h-3.5" />
                       </button>
                     )}
+                    {/* Note button */}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
+                        handleOpenNoteForPerson(
+                          person,
+                          card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
+                        );
+                      }}
+                      title={person.note ? 'Xem & sửa ghi chú' : 'Thêm ghi chú'}
+                      className={`p-1 rounded transition-colors cursor-pointer ${
+                        person.note
+                          ? 'text-amber-500 hover:text-amber-600 bg-amber-50 dark:bg-amber-950/40'
+                          : 'text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                      }`}
+                    >
+                      <MessageSquare className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       type="button"
                       onClick={() => handleStartEdit(person)}
@@ -852,6 +940,29 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
           </div>,
           document.body
         )}
+
+      {/* Floating Pixel Note Bubble Modal / Tooltip (Style chuẩn theo mẫu ảnh) */}
+      {hoveredNotePerson && noteAnchorRect && (
+        <PixelNoteBubble
+          person={hoveredNotePerson}
+          anchorRect={noteAnchorRect}
+          onSaveNote={handleSavePersonNote}
+          onClose={() => {
+            setHoveredNotePerson(null);
+            setNoteAnchorRect(null);
+          }}
+          onMouseEnter={() => {
+            clearTimeout(noteCloseTimeoutRef.current);
+          }}
+          onMouseLeave={() => {
+            noteCloseTimeoutRef.current = setTimeout(() => {
+              setHoveredNotePerson(null);
+              setNoteAnchorRect(null);
+            }, 280);
+          }}
+          customColors={customColors}
+        />
+      )}
     </div>
   );
 };
