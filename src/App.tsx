@@ -1805,6 +1805,7 @@ export default function App() {
             board={activeGuildWarBoard}
             customColors={customColors}
             personnelPool={personnelPool}
+            onUpdatePersonnelPool={setPersonnelPool}
             raidMembers={activeBoard.members}
             onUpdateBoard={handleUpdateGuildWarBoard}
             onDeleteBoard={handleDeleteGuildWarBoard}

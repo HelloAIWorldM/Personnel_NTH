@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   GuildMember,
   RaidClass,
@@ -22,12 +22,15 @@ import {
   FileSpreadsheet,
   ArrowRight,
   ArrowUpDown,
+  MessageSquare,
 } from 'lucide-react';
+import { PixelNoteBubble } from '../PixelNoteBubble';
 
 interface GuildRosterTabProps {
   members: GuildMember[];
   customColors?: CustomClassColors;
   personnelPool?: PersonnelMember[];
+  onUpdatePersonnelPool?: (pool: PersonnelMember[]) => void;
   onUpdateMember: (id: string, updates: Partial<GuildMember>) => void;
   onAddMember: (member: Omit<GuildMember, 'id'>) => void;
   onDeleteMember: (id: string) => void;
@@ -54,6 +57,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
   members,
   customColors,
   personnelPool = [],
+  onUpdatePersonnelPool,
   onUpdateMember,
   onAddMember,
   onDeleteMember,
@@ -62,6 +66,38 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClass, setFilterClass] = useState<string>('ALL');
+
+  // Pixel Note Bubble hover & edit states
+  const [hoveredNoteMember, setHoveredNoteMember] = useState<GuildMember | null>(null);
+  const [noteAnchorRect, setNoteAnchorRect] = useState<DOMRect | null>(null);
+  const noteCloseTimeoutRef = useRef<any>(null);
+  const noteOpenTimeoutRef = useRef<any>(null);
+
+  const handleOpenNoteForMember = (member: GuildMember, rect: DOMRect) => {
+    clearTimeout(noteCloseTimeoutRef.current);
+    clearTimeout(noteOpenTimeoutRef.current);
+    setHoveredNoteMember(member);
+    setNoteAnchorRect(rect);
+  };
+
+  const handleSaveMemberNote = (memberId: string, noteText: string) => {
+    const trimmed = noteText.trim();
+    onUpdateMember(memberId, { note: trimmed ? trimmed : undefined });
+    if (hoveredNoteMember && hoveredNoteMember.id === memberId) {
+      setHoveredNoteMember((prev) => (prev ? { ...prev, note: trimmed ? trimmed : undefined } : null));
+    }
+    // Đồng bộ liên thông với kho nhân sự Raid nếu có
+    if (onUpdatePersonnelPool && personnelPool && personnelPool.length > 0) {
+      const targetMem = members.find((m) => m.id === memberId);
+      if (targetMem && targetMem.ingame) {
+        const normName = targetMem.ingame.trim().toLowerCase();
+        const updatedPool = personnelPool.map((p) =>
+          p.ingame.trim().toLowerCase() === normName ? { ...p, note: trimmed ? trimmed : undefined } : p
+        );
+        onUpdatePersonnelPool(updatedPool);
+      }
+    }
+  };
   const [filterRole, setFilterRole] = useState<string>('ALL');
   const [filterParticipation, setFilterParticipation] = useState<string>('ALL');
   const [filterTeam, setFilterTeam] = useState<string>('ALL');
@@ -724,9 +760,29 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                         {index + 1}
                       </td>
                       <td className="py-2.5 px-3">
-                        <span className="font-black text-slate-900 dark:text-white">
-                          {member.ingame}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="font-black text-slate-900 dark:text-white">
+                            {member.ingame}
+                          </span>
+                          {member.note?.trim() && (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const row = e.currentTarget.closest('tr') as HTMLElement;
+                                handleOpenNoteForMember(
+                                  member,
+                                  row ? row.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
+                                );
+                              }}
+                              className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10.5px] font-black bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/80 shadow-2xs shrink-0 max-w-[120px] transition-all hover:scale-105 cursor-pointer"
+                              title={`Ghi chú: ${member.note} (Click để mở xem & sửa)`}
+                            >
+                              <span className="text-[11px]">📝</span>
+                              <span className="truncate">{member.note}</span>
+                            </button>
+                          )}
+                        </div>
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         <span
@@ -809,6 +865,25 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                         <div className="flex items-center justify-center gap-1">
                           <button
                             type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const row = e.currentTarget.closest('tr') as HTMLElement;
+                              handleOpenNoteForMember(
+                                member,
+                                row ? row.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
+                              );
+                            }}
+                            className={`p-1 rounded-lg transition-colors cursor-pointer ${
+                              member.note?.trim()
+                                ? 'text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 bg-amber-50 dark:bg-amber-950/40'
+                                : 'text-slate-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-800'
+                            }`}
+                            title={member.note?.trim() ? `Sửa ghi chú (${member.note})` : 'Thêm ghi chú cho nhân sự này'}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
                             onClick={() => handleStartEdit(member)}
                             className="p-1 text-slate-500 hover:text-black dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors"
                             title="Chỉnh sửa"
@@ -846,6 +921,35 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Floating Pixel Note Bubble Modal / Tooltip */}
+      {hoveredNoteMember && noteAnchorRect && (
+        <PixelNoteBubble
+          person={{
+            id: hoveredNoteMember.id,
+            ingame: hoveredNoteMember.ingame,
+            className: hoveredNoteMember.className,
+            loggedBy: hoveredNoteMember.guildRole || '',
+            note: hoveredNoteMember.note,
+          }}
+          anchorRect={noteAnchorRect}
+          onSaveNote={handleSaveMemberNote}
+          onClose={() => {
+            setHoveredNoteMember(null);
+            setNoteAnchorRect(null);
+          }}
+          onMouseEnter={() => {
+            clearTimeout(noteCloseTimeoutRef.current);
+          }}
+          onMouseLeave={() => {
+            noteCloseTimeoutRef.current = setTimeout(() => {
+              setHoveredNoteMember(null);
+              setNoteAnchorRect(null);
+            }, 280);
+          }}
+          customColors={customColors}
+        />
+      )}
     </div>
   );
 };

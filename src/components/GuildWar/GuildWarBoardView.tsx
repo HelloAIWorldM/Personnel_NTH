@@ -30,6 +30,7 @@ interface GuildWarBoardViewProps {
   board: GuildWarBoard;
   customColors?: CustomClassColors;
   personnelPool?: PersonnelMember[];
+  onUpdatePersonnelPool?: (pool: PersonnelMember[]) => void;
   raidMembers?: RaidMember[];
   onUpdateBoard: (updatedBoard: GuildWarBoard) => void;
   onDeleteBoard: (boardId: string) => void;
@@ -43,6 +44,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
   board,
   customColors,
   personnelPool = [],
+  onUpdatePersonnelPool,
   raidMembers = [],
   onUpdateBoard,
   onDeleteBoard,
@@ -135,6 +137,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
           participation: 'Cả hai',
           team: 'Chưa xếp',
           attendance: {},
+          note: p.note,
         });
       }
     });
@@ -375,6 +378,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
           members={board.members}
           customColors={customColors}
           personnelPool={personnelPool}
+          onUpdatePersonnelPool={onUpdatePersonnelPool}
           onUpdateMember={handleUpdateMember}
           onAddMember={handleAddMember}
           onDeleteMember={handleDeleteMember}
@@ -388,6 +392,8 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
           members={board.members}
           partyNotes={board.partyNotes || {}}
           customColors={customColors}
+          personnelPool={personnelPool}
+          onUpdatePersonnelPool={onUpdatePersonnelPool}
           onUpdateMember={handleUpdateMember}
           onUpdateMembers={handleUpdateMembers}
           onUpdatePartyNotes={handleUpdatePartyNotes}
