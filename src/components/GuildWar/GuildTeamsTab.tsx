@@ -95,53 +95,50 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
   const [benchSortByClass, setBenchSortByClass] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Floating Pixel Note Bubble hover & edit states (chuẩn 1:1 theo phong cách Raid / Kho Nhân Sự)
-  const [hoveredNoteMember, setHoveredNoteMember] = useState<GuildMember | null>(null);
-  const [noteAnchorRect, setNoteAnchorRect] = useState<DOMRect | null>(null);
-  const noteCloseTimeoutRef = useRef<any>(null);
-  const noteOpenTimeoutRef = useRef<any>(null);
+  // Pixel Note Bubble hover & click states cho các PT (PT-1 .. PT-4)
+  const [activePartyNoteTarget, setActivePartyNoteTarget] = useState<{
+    team: TeamConfig;
+    partyNum: number;
+  } | null>(null);
+  const [partyNoteAnchorRect, setPartyNoteAnchorRect] = useState<DOMRect | null>(null);
+  const partyNoteCloseTimeoutRef = useRef<any>(null);
+  const partyNoteOpenTimeoutRef = useRef<any>(null);
 
-  const handleOpenNoteForMember = (member: GuildMember, rect: DOMRect) => {
-    clearTimeout(noteCloseTimeoutRef.current);
-    clearTimeout(noteOpenTimeoutRef.current);
-    setHoveredNoteMember(member);
-    setNoteAnchorRect(rect);
+  const handleOpenPartyNote = (team: TeamConfig, partyNum: number, rect: DOMRect) => {
+    clearTimeout(partyNoteCloseTimeoutRef.current);
+    clearTimeout(partyNoteOpenTimeoutRef.current);
+    setActivePartyNoteTarget({ team, partyNum });
+    setPartyNoteAnchorRect(rect);
   };
 
-  const handleCardMouseEnter = (member: GuildMember, e: React.MouseEvent<HTMLElement>) => {
-    clearTimeout(noteCloseTimeoutRef.current);
+  const handlePartyMouseEnter = (team: TeamConfig, partyNum: number, e: React.MouseEvent<HTMLElement>) => {
+    clearTimeout(partyNoteCloseTimeoutRef.current);
     const rect = e.currentTarget.getBoundingClientRect();
-    clearTimeout(noteOpenTimeoutRef.current);
-    noteOpenTimeoutRef.current = setTimeout(() => {
-      setHoveredNoteMember(member);
-      setNoteAnchorRect(rect);
-    }, 160);
+    clearTimeout(partyNoteOpenTimeoutRef.current);
+    partyNoteOpenTimeoutRef.current = setTimeout(() => {
+      setActivePartyNoteTarget({ team, partyNum });
+      setPartyNoteAnchorRect(rect);
+    }, 180);
   };
 
-  const handleCardMouseLeave = () => {
-    clearTimeout(noteOpenTimeoutRef.current);
-    noteCloseTimeoutRef.current = setTimeout(() => {
-      setHoveredNoteMember(null);
-      setNoteAnchorRect(null);
+  const handlePartyMouseLeave = () => {
+    clearTimeout(partyNoteOpenTimeoutRef.current);
+    partyNoteCloseTimeoutRef.current = setTimeout(() => {
+      setActivePartyNoteTarget(null);
+      setPartyNoteAnchorRect(null);
     }, 280);
   };
 
-  const handleSaveMemberNote = (memberId: string, noteText: string) => {
-    const trimmed = noteText.trim();
-    onUpdateMember(memberId, { note: trimmed ? trimmed : undefined });
-    if (hoveredNoteMember && hoveredNoteMember.id === memberId) {
-      setHoveredNoteMember((prev) => (prev ? { ...prev, note: trimmed ? trimmed : undefined } : null));
+  const handleSavePartyNote = (key: string, noteText: string) => {
+    const updatedNotes = {
+      ...(partyNotes || {}),
+      [key]: noteText.trim(),
+    };
+    if (!noteText.trim()) {
+      delete updatedNotes[key];
     }
-    // Đồng bộ liên thông với kho nhân sự Raid nếu có
-    if (onUpdatePersonnelPool && personnelPool && personnelPool.length > 0) {
-      const targetMem = members.find((m) => m.id === memberId);
-      if (targetMem && targetMem.ingame) {
-        const normName = normalize(targetMem.ingame);
-        const updatedPool = personnelPool.map((p) =>
-          normalize(p.ingame) === normName ? { ...p, note: trimmed ? trimmed : undefined } : p
-        );
-        onUpdatePersonnelPool(updatedPool);
-      }
+    if (onUpdatePartyNotes) {
+      onUpdatePartyNotes(updatedNotes);
     }
   };
 
@@ -541,8 +538,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
         for (let s = 1; s <= 6; s++) {
           const m = grid[p][s];
           if (m && m.ingame) {
-            const noteStr = m.note?.trim() ? ` (📝 ${m.note.trim()})` : '';
-            ptMems.push(`**${m.ingame}** [${m.className}]${noteStr}`);
+            ptMems.push(`**${m.ingame}** [${m.className}]`);
           }
         }
         text += `• **PT-${p}**: ${ptMems.length > 0 ? ptMems.join(', ') : '*(Trống)*'}\n`;
@@ -880,21 +876,68 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                     {/* Empty cell above Team name column */}
                     <th className="w-[120px] sm:w-[140px] border-r-2 border-slate-800 dark:border-slate-500 p-1.5"></th>
 
-                    {[1, 2, 3, 4].map((partyNum) => (
-                      <th
-                        key={partyNum}
-                        colSpan={2}
-                        className={`text-center py-1.5 font-black tracking-wider text-xs select-none ${
-                          partyNum < 4
-                            ? 'border-r border-slate-400 dark:border-slate-600'
-                            : ''
-                        }`}
-                      >
-                        <span className="text-slate-800 dark:text-slate-200">
-                          PT-{partyNum}
-                        </span>
-                      </th>
-                    ))}
+                    {[1, 2, 3, 4].map((partyNum) => {
+                      const noteKey = `${team.id}-${partyNum}`;
+                      const pNote = partyNotes?.[noteKey]?.trim();
+                      const hasNote = Boolean(pNote);
+
+                      return (
+                        <th
+                          key={partyNum}
+                          colSpan={2}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenPartyNote(team, partyNum, e.currentTarget.getBoundingClientRect());
+                          }}
+                          onMouseEnter={(e) => handlePartyMouseEnter(team, partyNum, e)}
+                          onMouseLeave={handlePartyMouseLeave}
+                          className={`text-center py-1.5 px-2 font-black tracking-wider text-xs cursor-pointer select-none transition-all group relative hover:bg-amber-100/80 dark:hover:bg-amber-950/50 active:scale-[0.99] ${
+                            partyNum < 4
+                              ? 'border-r border-slate-400 dark:border-slate-600'
+                              : ''
+                          } ${
+                            hasNote
+                              ? 'bg-amber-50/70 dark:bg-amber-950/30'
+                              : ''
+                          }`}
+                          title={
+                            hasNote
+                              ? `Ghi chú PT-${partyNum}: ${pNote}\n(Lia chuột hoặc nhấp để xem & sửa)`
+                              : `Lia chuột hoặc nhấp vào PT-${partyNum} để ghi chú chiến thuật`
+                          }
+                        >
+                          <div className="flex items-center justify-center gap-1.5 min-w-0">
+                            <span
+                              className={`transition-colors text-xs font-black ${
+                                hasNote
+                                  ? 'text-amber-600 dark:text-amber-400'
+                                  : 'text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-300'
+                              }`}
+                            >
+                              PT-{partyNum}
+                            </span>
+
+                            {hasNote ? (
+                              <span
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-amber-200/90 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 border border-amber-400/80 dark:border-amber-700/80 shadow-2xs max-w-[110px] truncate"
+                                title={`Ghi chú: ${pNote}`}
+                              >
+                                <span className="text-[10px]">📝</span>
+                                <span className="truncate">{pNote}</span>
+                              </span>
+                            ) : (
+                              <span
+                                data-html2canvas-ignore="true"
+                                className="opacity-0 group-hover:opacity-100 text-slate-400 dark:text-slate-400 hover:text-amber-500 transition-opacity p-0.5"
+                                title="Thêm ghi chú chiến thuật"
+                              >
+                                <MessageSquare className="w-3 h-3" />
+                              </span>
+                            )}
+                          </div>
+                        </th>
+                      );
+                    })}
                   </tr>
 
                   {/* 6 Slot Rows (Slot 1 to 6) */}
@@ -950,7 +993,6 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                             >
                               {member ? (
                                 <div
-                                  data-member-card={member.id}
                                   draggable
                                   onDragStart={(e) =>
                                     handleDragStart(
@@ -961,9 +1003,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                                       slotNum
                                     )
                                   }
-                                  onMouseEnter={(e) => handleCardMouseEnter(member, e)}
-                                  onMouseLeave={handleCardMouseLeave}
-                                  className="group flex items-center justify-between gap-1 cursor-grab active:cursor-grabbing px-1.5 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors relative"
+                                  className="group flex items-center justify-between gap-1 cursor-grab active:cursor-grabbing px-1.5 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
                                   title={`Kéo để di chuyển hoặc đổi chỗ (STT #${member.stt || slotNum})`}
                                 >
                                   <div className="flex items-center gap-1 min-w-0 flex-1">
@@ -983,63 +1023,18 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                                         <AlertTriangle className="w-3.5 h-3.5" />
                                       </span>
                                     )}
-
-                                    {/* Note Badge nếu đã có ghi chú */}
-                                    {member.note?.trim() && (
-                                      <button
-                                        type="button"
-                                        data-html2canvas-ignore="true"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const card = e.currentTarget.closest('[data-member-card]') as HTMLElement;
-                                          handleOpenNoteForMember(
-                                            member,
-                                            card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
-                                          );
-                                        }}
-                                        className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[10px] font-black bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/80 shadow-2xs shrink-0 max-w-[85px] transition-all hover:scale-105 cursor-pointer"
-                                        title={`Ghi chú: ${member.note} (Click để mở xem & sửa)`}
-                                      >
-                                        <span className="text-[10px]">📝</span>
-                                        <span className="truncate">{member.note}</span>
-                                      </button>
-                                    )}
                                   </div>
 
-                                  <div className="flex items-center gap-0.5 shrink-0">
-                                    {/* Note trigger button */}
-                                    <button
-                                      type="button"
-                                      data-html2canvas-ignore="true"
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        const card = e.currentTarget.closest('[data-member-card]') as HTMLElement;
-                                        handleOpenNoteForMember(
-                                          member,
-                                          card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
-                                        );
-                                      }}
-                                      title={member.note?.trim() ? `Sửa ghi chú (${member.note})` : 'Thêm ghi chú cho nhân sự này'}
-                                      className={`p-0.5 rounded transition-colors ${
-                                        member.note?.trim()
-                                          ? 'text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 opacity-100'
-                                          : 'opacity-0 group-hover:opacity-100 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-slate-700'
-                                      }`}
-                                    >
-                                      <MessageSquare className="w-3 h-3" />
-                                    </button>
-
-                                    {/* Unassign from slot */}
-                                    <button
-                                      type="button"
-                                      data-html2canvas-ignore="true"
-                                      onClick={() => handleUnassignMember(member.id, team.id, partyNum, slotNum)}
-                                      title="Gỡ khỏi slot (về hàng dự bị)"
-                                      className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition-opacity p-0.5"
-                                    >
-                                      <X className="w-3 h-3" />
-                                    </button>
-                                  </div>
+                                  {/* Unassign from slot */}
+                                  <button
+                                    type="button"
+                                    data-html2canvas-ignore="true"
+                                    onClick={() => handleUnassignMember(member.id, team.id, partyNum, slotNum)}
+                                    title="Gỡ khỏi slot (về hàng dự bị)"
+                                    className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition-opacity p-0.5"
+                                  >
+                                    <X className="w-3 h-3" />
+                                  </button>
                                 </div>
                               ) : (
                                 <div className="text-center text-[11px] text-slate-300 dark:text-slate-600 italic py-0.5">
@@ -1184,11 +1179,8 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
               return (
                 <div
                   key={member.id}
-                  data-member-card={member.id}
                   draggable
                   onDragStart={(e) => handleDragStart(e, member.id)}
-                  onMouseEnter={(e) => handleCardMouseEnter(member, e)}
-                  onMouseLeave={handleCardMouseLeave}
                   className={`group border rounded-xl px-2.5 py-1.5 shadow-2xs flex items-center gap-1.5 cursor-grab active:cursor-grabbing transition-all hover:scale-105 relative ${
                     isDuplicate
                       ? 'bg-rose-50 dark:bg-rose-950/40 border-rose-400 dark:border-rose-700 ring-1 ring-rose-400'
@@ -1226,49 +1218,6 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                       ({member.guildRole})
                     </span>
                   )}
-
-                  {/* Note Badge nếu đã có ghi chú */}
-                  {member.note?.trim() && (
-                    <button
-                      type="button"
-                      data-html2canvas-ignore="true"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const card = e.currentTarget.closest('[data-member-card]') as HTMLElement;
-                        handleOpenNoteForMember(
-                          member,
-                          card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
-                        );
-                      }}
-                      className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[10px] font-black bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/80 shadow-2xs shrink-0 max-w-[85px] transition-all hover:scale-105 cursor-pointer"
-                      title={`Ghi chú: ${member.note} (Click để mở xem & sửa)`}
-                    >
-                      <span className="text-[10px]">📝</span>
-                      <span className="truncate">{member.note}</span>
-                    </button>
-                  )}
-
-                  {/* Note trigger button */}
-                  <button
-                    type="button"
-                    data-html2canvas-ignore="true"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const card = e.currentTarget.closest('[data-member-card]') as HTMLElement;
-                      handleOpenNoteForMember(
-                        member,
-                        card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
-                      );
-                    }}
-                    title={member.note?.trim() ? `Sửa ghi chú (${member.note})` : 'Thêm ghi chú cho nhân sự này'}
-                    className={`p-0.5 rounded transition-colors ${
-                      member.note?.trim()
-                        ? 'text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 opacity-100'
-                        : 'opacity-0 group-hover:opacity-100 text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-slate-700'
-                    }`}
-                  >
-                    <MessageSquare className="w-3 h-3" />
-                  </button>
                 </div>
               );
             })}
@@ -1355,34 +1304,39 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
           document.body
         )}
 
-      {/* Floating Pixel Note Bubble Modal / Tooltip (Style chuẩn theo mẫu ảnh từ Raid) */}
-      {hoveredNoteMember && noteAnchorRect && (
-        <PixelNoteBubble
-          person={{
-            id: hoveredNoteMember.id,
-            ingame: hoveredNoteMember.ingame,
-            className: hoveredNoteMember.className,
-            loggedBy: hoveredNoteMember.guildRole || '',
-            note: hoveredNoteMember.note,
-          }}
-          anchorRect={noteAnchorRect}
-          onSaveNote={handleSaveMemberNote}
-          onClose={() => {
-            setHoveredNoteMember(null);
-            setNoteAnchorRect(null);
-          }}
-          onMouseEnter={() => {
-            clearTimeout(noteCloseTimeoutRef.current);
-          }}
-          onMouseLeave={() => {
-            noteCloseTimeoutRef.current = setTimeout(() => {
-              setHoveredNoteMember(null);
-              setNoteAnchorRect(null);
-            }, 280);
-          }}
-          customColors={customColors}
-        />
-      )}
+      {/* Floating Pixel Note Bubble Modal / Tooltip cho PT (PT-1 .. PT-4) */}
+      {activePartyNoteTarget && partyNoteAnchorRect && (() => {
+        const partyKey = `${activePartyNoteTarget.team.id}-${activePartyNoteTarget.partyNum}`;
+        const currentPartyNote = partyNotes[partyKey] || '';
+
+        return (
+          <PixelNoteBubble
+            targetId={partyKey}
+            title={`${activePartyNoteTarget.team.displayTitle} • PT-${activePartyNoteTarget.partyNum}`}
+            badgeText={`PT-${activePartyNoteTarget.partyNum}`}
+            badgeBgColor="#6366f1"
+            badgeTextColor="#ffffff"
+            initialNote={currentPartyNote}
+            placeholder="Nhập chiến thuật / phân công nhiệm vụ cho PT này (ví dụ: bọc sườn, bắt xe pháo, quấy rối sau lưng...)"
+            anchorRect={partyNoteAnchorRect}
+            onSaveNote={(_id, text) => handleSavePartyNote(partyKey, text)}
+            onClose={() => {
+              setActivePartyNoteTarget(null);
+              setPartyNoteAnchorRect(null);
+            }}
+            onMouseEnter={() => {
+              clearTimeout(partyNoteCloseTimeoutRef.current);
+            }}
+            onMouseLeave={() => {
+              partyNoteCloseTimeoutRef.current = setTimeout(() => {
+                setActivePartyNoteTarget(null);
+                setPartyNoteAnchorRect(null);
+              }, 280);
+            }}
+            customColors={customColors}
+          />
+        );
+      })()}
 
       {/* Toast Notification */}
       {toastMessage && (

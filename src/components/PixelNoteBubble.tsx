@@ -4,10 +4,17 @@ import { PersonnelMember, CustomClassColors } from '../types';
 import { getEffectiveClassMeta } from '../constants/classes';
 import { Check, X, Trash2, MessageSquare } from 'lucide-react';
 
-interface PixelNoteBubbleProps {
-  person: PersonnelMember;
+export interface PixelNoteBubbleProps {
+  person?: PersonnelMember;
+  targetId?: string;
+  title?: string;
+  badgeText?: string;
+  badgeBgColor?: string;
+  badgeTextColor?: string;
+  initialNote?: string;
+  placeholder?: string;
   anchorRect: DOMRect;
-  onSaveNote: (personId: string, note: string) => void;
+  onSaveNote: (id: string, note: string) => void;
   onClose: () => void;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
@@ -16,6 +23,13 @@ interface PixelNoteBubbleProps {
 
 export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
   person,
+  targetId,
+  title,
+  badgeText,
+  badgeBgColor,
+  badgeTextColor,
+  initialNote,
+  placeholder,
   anchorRect,
   onSaveNote,
   onClose,
@@ -23,16 +37,18 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
   onMouseLeave,
   customColors,
 }) => {
-  const [noteText, setNoteText] = useState<string>(person.note || '');
+  const effectiveId = person?.id || targetId || '';
+  const effectiveOriginalNote = initialNote !== undefined ? initialNote : (person?.note || '');
+  const [noteText, setNoteText] = useState<string>(effectiveOriginalNote);
   const [savedStatus, setSavedStatus] = useState<boolean>(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
 
-  // Sync when person changes
+  // Sync when target or note changes
   useEffect(() => {
-    setNoteText(person.note || '');
+    setNoteText(effectiveOriginalNote);
     setSavedStatus(false);
-  }, [person.id, person.note]);
+  }, [effectiveId, effectiveOriginalNote]);
 
   // Focus textarea on mount if user opened to edit
   useEffect(() => {
@@ -44,7 +60,7 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
 
   // Save handler
   const handleSave = () => {
-    onSaveNote(person.id, noteText);
+    onSaveNote(effectiveId, noteText);
     setSavedStatus(true);
     setTimeout(() => {
       setSavedStatus(false);
@@ -54,11 +70,11 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
   // Delete note handler
   const handleDeleteNote = () => {
     setNoteText('');
-    onSaveNote(person.id, '');
+    onSaveNote(effectiveId, '');
     setSavedStatus(true);
   };
 
-  const classMeta = getEffectiveClassMeta(person.className, customColors);
+  const classMeta = person?.className ? getEffectiveClassMeta(person.className, customColors) : null;
 
   // Layout calculations
   const bubbleWidth = 300;
@@ -109,20 +125,22 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
           <div className="flex items-center gap-1.5 min-w-0">
             <span className="text-sm shrink-0">💬</span>
             <span
-              className="text-xs font-black text-black truncate max-w-[130px]"
-              title={person.ingame}
+              className="text-xs font-black text-black truncate max-w-[140px]"
+              title={title || person?.ingame}
             >
-              {person.ingame || 'Chưa đặt tên'}
+              {title || person?.ingame || 'Ghi chú'}
             </span>
-            <span
-              className="px-1.5 py-0.5 rounded text-[10px] font-black shrink-0 border border-black/30"
-              style={{
-                backgroundColor: classMeta.bgColor,
-                color: classMeta.textColor,
-              }}
-            >
-              {person.className}
-            </span>
+            {(badgeText || classMeta) && (
+              <span
+                className="px-1.5 py-0.5 rounded text-[10px] font-black shrink-0 border border-black/30"
+                style={{
+                  backgroundColor: badgeBgColor || classMeta?.bgColor || '#F59E0B',
+                  color: badgeTextColor || classMeta?.textColor || '#000000',
+                }}
+              >
+                {badgeText || person?.className}
+              </span>
+            )}
           </div>
 
           <button
@@ -153,7 +171,12 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
                 onClose();
               }
             }}
-            placeholder={`Ghi chú cho ${person.ingame}... (vd: Dự bị PT2, đi muộn 15p, có đồ buff...)`}
+            placeholder={
+              placeholder ||
+              (person?.ingame
+                ? `Ghi chú cho ${person.ingame}... (vd: Dự bị PT2, đi muộn 15p, có đồ buff...)`
+                : 'Ghi chú chiến thuật cho PT này... (vd: Chiếm pháo, đẩy cánh trái...)')
+            }
             rows={3}
             className="w-full p-2 text-xs font-bold text-black bg-slate-50 border-2 border-black rounded-xl focus:bg-white focus:outline-none resize-none shadow-[inset_1px_1px_0px_rgba(0,0,0,0.15)] placeholder:text-slate-400 placeholder:font-normal placeholder:text-[11px]"
           />
@@ -166,7 +189,7 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
                   <Check className="w-3.5 h-3.5 stroke-[3]" />
                   <span>Đã lưu!</span>
                 </span>
-              ) : noteText !== (person.note || '') ? (
+              ) : noteText !== effectiveOriginalNote ? (
                 <span className="text-[10px] font-bold text-amber-700">
                   Chưa lưu (Ctrl+Enter)
                 </span>
@@ -178,7 +201,7 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
             </div>
 
             <div className="flex items-center gap-1.5">
-              {person.note && (
+              {(person?.note || effectiveOriginalNote) && (
                 <button
                   type="button"
                   onClick={handleDeleteNote}
