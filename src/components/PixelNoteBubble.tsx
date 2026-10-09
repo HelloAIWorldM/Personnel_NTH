@@ -58,6 +58,22 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
     return () => clearTimeout(timer);
   }, []);
 
+  // Close on outside click
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (bubbleRef.current && !bubbleRef.current.contains(e.target as Node)) {
+        onClose();
+      }
+    };
+    const timer = setTimeout(() => {
+      document.addEventListener('mousedown', handleOutsideClick);
+    }, 80);
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener('mousedown', handleOutsideClick);
+    };
+  }, [onClose]);
+
   // Save handler
   const handleSave = () => {
     onSaveNote(effectiveId, noteText);

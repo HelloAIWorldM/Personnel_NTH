@@ -95,38 +95,25 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
   const [benchSortByClass, setBenchSortByClass] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Pixel Note Bubble hover & click states cho các PT (PT-1 .. PT-4)
+  // Pixel Note Bubble click-to-toggle state cho các PT (PT-1 .. PT-4)
   const [activePartyNoteTarget, setActivePartyNoteTarget] = useState<{
     team: TeamConfig;
     partyNum: number;
   } | null>(null);
   const [partyNoteAnchorRect, setPartyNoteAnchorRect] = useState<DOMRect | null>(null);
-  const partyNoteCloseTimeoutRef = useRef<any>(null);
-  const partyNoteOpenTimeoutRef = useRef<any>(null);
 
-  const handleOpenPartyNote = (team: TeamConfig, partyNum: number, rect: DOMRect) => {
-    clearTimeout(partyNoteCloseTimeoutRef.current);
-    clearTimeout(partyNoteOpenTimeoutRef.current);
-    setActivePartyNoteTarget({ team, partyNum });
-    setPartyNoteAnchorRect(rect);
-  };
-
-  const handlePartyMouseEnter = (team: TeamConfig, partyNum: number, e: React.MouseEvent<HTMLElement>) => {
-    clearTimeout(partyNoteCloseTimeoutRef.current);
-    const rect = e.currentTarget.getBoundingClientRect();
-    clearTimeout(partyNoteOpenTimeoutRef.current);
-    partyNoteOpenTimeoutRef.current = setTimeout(() => {
-      setActivePartyNoteTarget({ team, partyNum });
-      setPartyNoteAnchorRect(rect);
-    }, 180);
-  };
-
-  const handlePartyMouseLeave = () => {
-    clearTimeout(partyNoteOpenTimeoutRef.current);
-    partyNoteCloseTimeoutRef.current = setTimeout(() => {
+  const handleTogglePartyNote = (team: TeamConfig, partyNum: number, rect: DOMRect) => {
+    if (
+      activePartyNoteTarget &&
+      activePartyNoteTarget.team.id === team.id &&
+      activePartyNoteTarget.partyNum === partyNum
+    ) {
       setActivePartyNoteTarget(null);
       setPartyNoteAnchorRect(null);
-    }, 280);
+    } else {
+      setActivePartyNoteTarget({ team, partyNum });
+      setPartyNoteAnchorRect(rect);
+    }
   };
 
   const handleSavePartyNote = (key: string, noteText: string) => {
@@ -887,10 +874,8 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                           colSpan={2}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleOpenPartyNote(team, partyNum, e.currentTarget.getBoundingClientRect());
+                            handleTogglePartyNote(team, partyNum, e.currentTarget.getBoundingClientRect());
                           }}
-                          onMouseEnter={(e) => handlePartyMouseEnter(team, partyNum, e)}
-                          onMouseLeave={handlePartyMouseLeave}
                           className={`text-center py-1.5 px-2 font-black tracking-wider text-xs cursor-pointer select-none transition-all group relative hover:bg-amber-100/80 dark:hover:bg-amber-950/50 active:scale-[0.99] ${
                             partyNum < 4
                               ? 'border-r border-slate-400 dark:border-slate-600'
@@ -902,8 +887,8 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                           }`}
                           title={
                             hasNote
-                              ? `Ghi chú PT-${partyNum}: ${pNote}\n(Lia chuột hoặc nhấp để xem & sửa)`
-                              : `Lia chuột hoặc nhấp vào PT-${partyNum} để ghi chú chiến thuật`
+                              ? `Ghi chú PT-${partyNum}: ${pNote}\n(Click để xem & sửa)`
+                              : `Click vào PT-${partyNum} để ghi chú chiến thuật`
                           }
                         >
                           <div className="flex items-center justify-center gap-1.5 min-w-0">
@@ -1323,15 +1308,6 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
             onClose={() => {
               setActivePartyNoteTarget(null);
               setPartyNoteAnchorRect(null);
-            }}
-            onMouseEnter={() => {
-              clearTimeout(partyNoteCloseTimeoutRef.current);
-            }}
-            onMouseLeave={() => {
-              partyNoteCloseTimeoutRef.current = setTimeout(() => {
-                setActivePartyNoteTarget(null);
-                setPartyNoteAnchorRect(null);
-              }, 280);
             }}
             customColors={customColors}
           />

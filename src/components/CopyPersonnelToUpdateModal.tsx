@@ -31,6 +31,7 @@ interface CandidateMember {
   id: string;
   ingame: string;
   className: RaidClass;
+  loggedBy: string;
   source: string;
   sourceType: 'raid_pool' | 'guild_war' | 'raid_board';
   note?: string;
@@ -63,6 +64,15 @@ export const CopyPersonnelToUpdateModal: React.FC<CopyPersonnelToUpdateModalProp
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [skipDuplicates, setSkipDuplicates] = useState(true);
   const [copyMode, setCopyMode] = useState<'merge' | 'overwrite'>('merge');
+  const [customLoggedByMap, setCustomLoggedByMap] = useState<Record<string, string>>({});
+
+  // Helper to get effective loggedBy for candidate
+  const getCandidateLoggedBy = (c: CandidateMember) => {
+    if (customLoggedByMap[c.id] !== undefined) {
+      return customLoggedByMap[c.id];
+    }
+    return c.loggedBy;
+  };
 
   // Set of existing normalized names in current Raid Update pool
   const existingUpdateNames = useMemo(() => {
@@ -74,20 +84,39 @@ export const CopyPersonnelToUpdateModal: React.FC<CopyPersonnelToUpdateModalProp
     return set;
   }, [currentUpdatePool]);
 
-  // Aggregate candidate members from all sources
+  // Aggregate candidate members from all sources with accurate loggedBy
   const allCandidates = useMemo(() => {
     const list: CandidateMember[] = [];
     const seenNames = new Set<string>();
+
+    // Map existing known loggedBy from Raid pool & boards
+    const knownRaidLoggedByMap = new Map<string, string>();
+    raidPersonnelPool.forEach((p) => {
+      const norm = normalizeName(p.ingame);
+      const log = (p.loggedBy && p.loggedBy.trim()) || p.ingame.trim();
+      if (norm && log) knownRaidLoggedByMap.set(norm, log);
+    });
+    raidBoards.forEach((b) => {
+      b.members.forEach((m) => {
+        const norm = normalizeName(m.ingame);
+        const log = m.loggedBy && m.loggedBy.trim();
+        if (norm && log && !knownRaidLoggedByMap.has(norm)) {
+          knownRaidLoggedByMap.set(norm, log);
+        }
+      });
+    });
 
     // 1. From Raid Personnel Pool
     raidPersonnelPool.forEach((p, idx) => {
       const norm = normalizeName(p.ingame);
       if (norm && !seenNames.has(norm)) {
         seenNames.add(norm);
+        const effectiveLoggedBy = (p.loggedBy && p.loggedBy.trim()) ? p.loggedBy.trim() : p.ingame.trim();
         list.push({
           id: `cand_rp_${p.id || idx}`,
           ingame: p.ingame.trim(),
           className: p.className,
+          loggedBy: effectiveLoggedBy,
           source: 'Kho Nhân Sự Raid',
           sourceType: 'raid_pool',
           note: p.note,
@@ -102,10 +131,14 @@ export const CopyPersonnelToUpdateModal: React.FC<CopyPersonnelToUpdateModalProp
         const norm = normalizeName(m.ingame);
         if (norm && !seenNames.has(norm)) {
           seenNames.add(norm);
+          const effectiveLoggedBy = (m.loggedBy && m.loggedBy.trim())
+            ? m.loggedBy.trim()
+            : (knownRaidLoggedByMap.get(norm) || m.ingame.trim());
           list.push({
             id: `cand_rb_${b.id}_${m.id || mIdx}`,
             ingame: m.ingame.trim(),
             className: m.className,
+            loggedBy: effectiveLoggedBy,
             source: `Bảng ${b.titlePrefix}`,
             sourceType: 'raid_board',
             alreadyExistsInUpdate: existingUpdateNames.has(norm),
@@ -120,11 +153,13 @@ export const CopyPersonnelToUpdateModal: React.FC<CopyPersonnelToUpdateModalProp
         const norm = normalizeName(m.ingame);
         if (norm && !seenNames.has(norm)) {
           seenNames.add(norm);
+          const effectiveLoggedBy = knownRaidLoggedByMap.get(norm) || (m.discord ? m.discord.trim() : m.ingame.trim());
           const teamLabel = m.team && m.team !== 'Chưa xếp' ? ` - ${m.team}` : '';
           list.push({
             id: `cand_gw_${gwb.id}_${m.id || mIdx}`,
             ingame: m.ingame.trim(),
             className: m.className,
+            loggedBy: effectiveLoggedBy,
             source: `Bang Chiến${teamLabel}`,
             sourceType: 'guild_war',
             note: m.note || (m.discord ? `Discord: ${m.discord}` : undefined),
@@ -151,12 +186,13 @@ export const CopyPersonnelToUpdateModal: React.FC<CopyPersonnelToUpdateModalProp
         const nameMatch = normalizeName(c.ingame).includes(q);
         const classMatch = normalizeName(c.className).includes(q);
         const sourceMatch = normalizeName(c.source).includes(q);
-        if (!nameMatch && !classMatch && !sourceMatch) return false;
+        const logMatch = normalizeName(getCandidateLoggedBy(c)).includes(q);
+        if (!nameMatch && !classMatch && !sourceMatch && !logMatch) return false;
       }
 
       return true;
     });
-  }, [allCandidates, activeSourceTab, searchQuery]);
+  }, [allCandidates, activeSourceTab, searchQuery, customLoggedByMap]);
 
   // Auto initialize selected IDs on modal open or tab change
   React.useEffect(() => {
@@ -202,14 +238,18 @@ export const CopyPersonnelToUpdateModal: React.FC<CopyPersonnelToUpdateModalProp
     if (chosen.length === 0) return;
 
     const timestamp = Date.now();
-    const newPersonnelList: PersonnelMember[] = chosen.map((c, idx) => ({
-      id: `p_up_${timestamp}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
-      ingame: c.ingame,
-      className: c.className,
-      loggedBy: c.source,
-      note: c.note || '',
-      createdAt: timestamp,
-    }));
+    const newPersonnelList: PersonnelMember[] = chosen.map((c, idx) => {
+      const userEdited = customLoggedByMap[c.id];
+      const finalLoggedBy = (userEdited !== undefined ? userEdited : c.loggedBy).trim() || c.ingame;
+      return {
+        id: `p_up_${timestamp}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+        ingame: c.ingame,
+        className: c.className,
+        loggedBy: finalLoggedBy,
+        note: c.note || '',
+        createdAt: timestamp,
+      };
+    });
 
     onCopyMembers(newPersonnelList, copyMode);
     onClose();
@@ -385,8 +425,8 @@ export const CopyPersonnelToUpdateModal: React.FC<CopyPersonnelToUpdateModalProp
                         )}
                       </div>
 
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <span className="text-xs font-bold text-white truncate">
                             {c.ingame}
                           </span>
@@ -396,8 +436,28 @@ export const CopyPersonnelToUpdateModal: React.FC<CopyPersonnelToUpdateModalProp
                             </span>
                           )}
                         </div>
-                        <div className="text-[10px] text-slate-400 truncate mt-0.5">
-                          {c.source}
+                        {/* Logged by editable field & source badge */}
+                        <div
+                          className="flex items-center gap-1.5 mt-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span className="text-[10px] text-slate-400 font-bold shrink-0">
+                            Log:
+                          </span>
+                          <input
+                            type="text"
+                            value={getCandidateLoggedBy(c)}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setCustomLoggedByMap((prev) => ({ ...prev, [c.id]: val }));
+                            }}
+                            placeholder={c.ingame}
+                            title="Tên người log (Logged By) khi copy. Bạn có thể sửa trực tiếp tại đây."
+                            className="text-[11px] px-1.5 py-0.5 rounded bg-slate-900 border border-slate-700 focus:border-purple-500 focus:ring-1 focus:ring-purple-500 text-purple-200 font-semibold w-24 sm:w-28 transition-colors"
+                          />
+                          <span className="text-[10px] text-slate-400 truncate" title={`Nguồn: ${c.source}`}>
+                            • {c.source}
+                          </span>
                         </div>
                       </div>
                     </div>

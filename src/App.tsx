@@ -532,6 +532,35 @@ export default function App() {
     };
   }, []);
 
+  // Tự động sửa/phục hồi tên Logged By cho Kho Raid Update nếu trước đó bị lỗi gán tên nguồn (như "Kho Nhân Sự Raid" hay "Bang Chiến")
+  useEffect(() => {
+    if (!isStorageHydrated || updatePersonnelPool.length === 0) return;
+    let hasDirty = false;
+    const cleaned = updatePersonnelPool.map((p) => {
+      const isDirty =
+        p.loggedBy === 'Kho Nhân Sự Raid' ||
+        p.loggedBy === 'Bang Chiến' ||
+        p.loggedBy?.startsWith('Kho Nhân Sự') ||
+        p.loggedBy?.startsWith('Bang Chiến') ||
+        p.loggedBy?.startsWith('Bảng ');
+      if (isDirty) {
+        hasDirty = true;
+        const match = personnelPool.find(
+          (rp) => normalizeName(rp.ingame) === normalizeName(p.ingame)
+        );
+        const realLog = (match?.loggedBy && match.loggedBy.trim()) || p.ingame;
+        return { ...p, loggedBy: realLog };
+      }
+      return p;
+    });
+
+    if (hasDirty) {
+      setUpdatePersonnelPool(cleaned);
+      safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(cleaned));
+      saveToIndexedDB('updatePersonnelPool', cleaned);
+    }
+  }, [isStorageHydrated, personnelPool, updatePersonnelPool]);
+
   // Synchronous flush on tab close / computer shutdown (beforeunload, pagehide & visibilitychange)
   useEffect(() => {
     const handleFlush = () => {
@@ -1076,7 +1105,23 @@ export default function App() {
       showToast(`Đã sao chép và ghi đè ${newMembers.length} nhân sự vào Kho Raid Update!`);
     } else {
       setUpdatePersonnelPool((prev) => {
-        const merged = mergePersonnelPools(prev, newMembers);
+        const newMap = new Map<string, PersonnelMember>();
+        newMembers.forEach((m) => newMap.set(normalizeName(m.ingame), m));
+
+        const updatedPrev = prev.map((p) => {
+          const match = newMap.get(normalizeName(p.ingame));
+          if (match && match.loggedBy) {
+            return {
+              ...p,
+              loggedBy: match.loggedBy,
+              className: match.className,
+              note: match.note || p.note,
+            };
+          }
+          return p;
+        });
+
+        const merged = mergePersonnelPools(updatedPrev, newMembers);
         safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(merged));
         saveToIndexedDB('updatePersonnelPool', merged);
         return merged;

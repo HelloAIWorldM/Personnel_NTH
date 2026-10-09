@@ -78,35 +78,18 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
   // Confirmation dialogs
   const [showClearConfirm, setShowClearConfirm] = useState(false);
 
-  // Pixel Note Bubble hover & edit states
-  const [hoveredNotePerson, setHoveredNotePerson] = useState<PersonnelMember | null>(null);
+  // Pixel Note Bubble click-to-toggle state
+  const [activeNotePerson, setActiveNotePerson] = useState<PersonnelMember | null>(null);
   const [noteAnchorRect, setNoteAnchorRect] = useState<DOMRect | null>(null);
-  const noteCloseTimeoutRef = useRef<any>(null);
-  const noteOpenTimeoutRef = useRef<any>(null);
 
-  const handleOpenNoteForPerson = (person: PersonnelMember, rect: DOMRect) => {
-    clearTimeout(noteCloseTimeoutRef.current);
-    clearTimeout(noteOpenTimeoutRef.current);
-    setHoveredNotePerson(person);
-    setNoteAnchorRect(rect);
-  };
-
-  const handleCardMouseEnter = (person: PersonnelMember, e: React.MouseEvent<HTMLDivElement>) => {
-    clearTimeout(noteCloseTimeoutRef.current);
-    const rect = e.currentTarget.getBoundingClientRect();
-    clearTimeout(noteOpenTimeoutRef.current);
-    noteOpenTimeoutRef.current = setTimeout(() => {
-      setHoveredNotePerson(person);
-      setNoteAnchorRect(rect);
-    }, 160);
-  };
-
-  const handleCardMouseLeave = () => {
-    clearTimeout(noteOpenTimeoutRef.current);
-    noteCloseTimeoutRef.current = setTimeout(() => {
-      setHoveredNotePerson(null);
+  const handleToggleNoteForPerson = (person: PersonnelMember, rect: DOMRect) => {
+    if (activeNotePerson && activeNotePerson.id === person.id) {
+      setActiveNotePerson(null);
       setNoteAnchorRect(null);
-    }, 280);
+    } else {
+      setActiveNotePerson(person);
+      setNoteAnchorRect(rect);
+    }
   };
 
   const handleSavePersonNote = (personId: string, noteText: string) => {
@@ -115,8 +98,8 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
       p.id === personId ? { ...p, note: trimmed ? trimmed : undefined } : p
     );
     onUpdateDiBuiPool(updated);
-    if (hoveredNotePerson && hoveredNotePerson.id === personId) {
-      setHoveredNotePerson((prev) => (prev ? { ...prev, note: trimmed ? trimmed : undefined } : null));
+    if (activeNotePerson && activeNotePerson.id === personId) {
+      setActiveNotePerson((prev) => (prev ? { ...prev, note: trimmed ? trimmed : undefined } : null));
     }
   };
 
@@ -521,8 +504,6 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
                   <div
                     key={person.id}
                     data-person-card="true"
-                    onMouseEnter={(e) => handleCardMouseEnter(person, e)}
-                    onMouseLeave={handleCardMouseLeave}
                     className="group flex items-center justify-between gap-2 p-2.5 rounded-xl border border-amber-200/80 dark:border-slate-800 bg-amber-50/30 dark:bg-[#121B26] hover:border-amber-400 dark:hover:border-amber-600/70 shadow-2xs hover:shadow-xs transition-all"
                   >
                     {/* Left: Info */}
@@ -540,13 +521,13 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
                               onClick={(e) => {
                                 e.stopPropagation();
                                 const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
-                                handleOpenNoteForPerson(
+                                handleToggleNoteForPerson(
                                   person,
                                   card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
                                 );
                               }}
                               className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 truncate max-w-[200px] cursor-pointer"
-                              title={`Ghi chú: ${person.note} (Click để xem & sửa)`}
+                              title={`Ghi chú: ${person.note} (Click để ẩn/hiện)`}
                             >
                               <span>📝</span>
                               <span className="truncate">{person.note}</span>
@@ -596,14 +577,16 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
                           onClick={(e) => {
                             e.stopPropagation();
                             const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
-                            handleOpenNoteForPerson(
+                            handleToggleNoteForPerson(
                               person,
                               card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
                             );
                           }}
-                          title={person.note ? 'Xem & sửa ghi chú' : 'Thêm ghi chú'}
+                          title={person.note ? 'Xem & sửa ghi chú (Click để ẩn/hiện)' : 'Thêm ghi chú (Click để ẩn/hiện)'}
                           className={`p-1 rounded transition-colors cursor-pointer ${
-                            person.note
+                            activeNotePerson?.id === person.id
+                              ? 'text-amber-500 bg-amber-100 dark:bg-amber-950/70 ring-1 ring-amber-400'
+                              : person.note
                               ? 'text-amber-500 hover:text-amber-600 bg-amber-50 dark:bg-amber-950/40'
                               : 'text-slate-400 hover:text-slate-800 dark:hover:text-white'
                           }`}
@@ -688,23 +671,14 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
       )}
 
       {/* Floating Pixel Note Bubble Modal / Tooltip (Style chuẩn theo mẫu ảnh) */}
-      {hoveredNotePerson && noteAnchorRect && (
+      {activeNotePerson && noteAnchorRect && (
         <PixelNoteBubble
-          person={hoveredNotePerson}
+          person={activeNotePerson}
           anchorRect={noteAnchorRect}
           onSaveNote={handleSavePersonNote}
           onClose={() => {
-            setHoveredNotePerson(null);
+            setActiveNotePerson(null);
             setNoteAnchorRect(null);
-          }}
-          onMouseEnter={() => {
-            clearTimeout(noteCloseTimeoutRef.current);
-          }}
-          onMouseLeave={() => {
-            noteCloseTimeoutRef.current = setTimeout(() => {
-              setHoveredNotePerson(null);
-              setNoteAnchorRect(null);
-            }, 280);
           }}
           customColors={customColors}
         />
