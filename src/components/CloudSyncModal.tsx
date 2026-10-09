@@ -18,6 +18,9 @@ interface CloudSyncModalProps {
   personnelCount: number;
   raidBoardsCount: number;
   guildWarBoardsCount: number;
+  updateBoardsCount?: number;
+  updatePersonnelCount?: number;
+  diBuiCount?: number;
   showToast: (msg: string) => void;
 }
 
@@ -31,6 +34,9 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
   personnelCount,
   raidBoardsCount,
   guildWarBoardsCount,
+  updateBoardsCount = 0,
+  updatePersonnelCount = 0,
+  diBuiCount = 0,
   showToast,
 }) => {
   const [guildId, setGuildId] = useState<string>(() => getSavedGuildId());
@@ -132,9 +138,10 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                 </div>
               </div>
             </div>
-            <div className="text-right text-[11px] text-slate-400">
-              <div>Kho nhân sự: <strong className="text-amber-400">{personnelCount}</strong></div>
+            <div className="text-right text-[11px] text-slate-400 space-y-0.5">
+              <div>Kho Raid: <strong className="text-amber-400">{personnelCount}</strong> | Đi Bụi: <strong className="text-amber-300">{diBuiCount}</strong></div>
               <div>Bảng: <strong className="text-blue-400">{raidBoardsCount} Raid</strong> | <strong className="text-purple-400">{guildWarBoardsCount} Bang chiến</strong></div>
+              <div>Raid Update: <strong className="text-emerald-400">{updateBoardsCount} bảng</strong> • <strong className="text-emerald-300">{updatePersonnelCount} người</strong></div>
             </div>
           </div>
 

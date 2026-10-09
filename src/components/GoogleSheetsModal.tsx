@@ -13,6 +13,7 @@ import {
   Loader2,
   X,
   LogOut,
+  Sparkles,
 } from 'lucide-react';
 
 interface GoogleSheetsModalProps {
@@ -24,6 +25,7 @@ interface GoogleSheetsModalProps {
   members: RaidMember[];
   customColors?: CustomClassColors;
   onImportSuccess: (imported: { title?: string; members: RaidMember[] }) => void;
+  onOpenCloneFromImage?: () => void;
 }
 
 export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
@@ -35,6 +37,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
   members,
   customColors,
   onImportSuccess,
+  onOpenCloneFromImage,
 }) => {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -344,6 +347,33 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
                 </button>
               </div>
             </div>
+
+            {/* Action 3: Clone from Raid Image */}
+            {onOpenCloneFromImage && (
+              <div className="p-3.5 border border-dashed border-sky-400 dark:border-sky-500/60 rounded-xl bg-sky-50/40 dark:bg-sky-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="text-xs font-bold text-sky-900 dark:text-[#88DCFA] flex items-center gap-1.5 mb-0.5">
+                    <span>🖼️</span>
+                    <span>Hoặc Clone trực tiếp từ ảnh chụp Bảng Raid</span>
+                  </div>
+                  <div className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Tải ảnh bảng bất kỳ để tự động nhận diện thành bảng Raid hoàn chỉnh
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenCloneFromImage();
+                  }}
+                  className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-sky-400 to-[#88DCFA] hover:from-sky-500 hover:to-[#68CEF6] text-slate-950 text-xs font-black rounded-xl shadow-xs transition-colors shrink-0 cursor-pointer"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Chọn ảnh để Clone</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
 

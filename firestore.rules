@@ -57,7 +57,11 @@ service cloud.firestore {
         'activeGuildWarBoardId',
         'customColors',
         'updatedAt',
-        'title'
+        'title',
+        'updateBoards',
+        'updatePersonnelPool',
+        'activeUpdateBoardId',
+        'diBuiPersonnelPool'
       ]);
     }
 
@@ -95,7 +99,12 @@ service cloud.firestore {
         && data.customColors.keys().size() <= 50
         // Update timestamp & title
         && isValidUpdatedAt(data)
-        && isValidTitle(data);
+        && isValidTitle(data)
+        // Optional Raid Update & Di Bụi synchronization fields
+        && (!('updateBoards' in data) || (data.updateBoards is list && data.updateBoards.size() <= 100))
+        && (!('updatePersonnelPool' in data) || (data.updatePersonnelPool is list && data.updatePersonnelPool.size() <= 1000))
+        && (!('activeUpdateBoardId' in data) || (data.activeUpdateBoardId is string && data.activeUpdateBoardId.size() <= 128))
+        && (!('diBuiPersonnelPool' in data) || (data.diBuiPersonnelPool is list && data.diBuiPersonnelPool.size() <= 1000));
     }
 
     // =========================================================================

@@ -63,9 +63,11 @@ import {
   Swords,
   Coffee,
   Cloud,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { CloudSyncModal } from './components/CloudSyncModal';
 import { DonateModal } from './components/DonateModal';
+import { ImportRaidImageModal } from './components/ImportRaidImageModal';
 import {
   getSavedGuildId,
   pushToCloud,
@@ -174,6 +176,7 @@ export default function App() {
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<number | null>(null);
   const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
+  const [isImportImageModalOpen, setIsImportImageModalOpen] = useState(false);
   const [selectedClassFilter, setSelectedClassFilter] = useState<RaidClass | null>(null);
   const [boardToDelete, setBoardToDelete] = useState<RaidBoard | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -508,6 +511,46 @@ export default function App() {
               return curr;
             });
 
+            // Phục hồi Raid Update Pool từ Cloud nếu máy hiện tại trống
+            setUpdatePersonnelPool((curr) => {
+              if (curr.length === 0 && cd.updatePersonnelPool && cd.updatePersonnelPool.length > 0) {
+                safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(cd.updatePersonnelPool));
+                saveToIndexedDB('updatePersonnelPool', cd.updatePersonnelPool);
+                restoredFromCloud = true;
+                return cd.updatePersonnelPool;
+              }
+              return curr;
+            });
+
+            // Phục hồi các Bảng Raid Update từ Cloud nếu máy hiện tại trống
+            setUpdateBoards((curr) => {
+              const localCount = countMembersWithData(curr);
+              const cloudCount = countMembersWithData(cd.updateBoards || []);
+              if (localCount === 0 && cloudCount > 0) {
+                safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(cd.updateBoards));
+                saveToIndexedDB('updateBoards', cd.updateBoards);
+                if (cd.activeUpdateBoardId) {
+                  setActiveUpdateBoardId(cd.activeUpdateBoardId);
+                  safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD_UPDATE, cd.activeUpdateBoardId);
+                  saveToIndexedDB('activeUpdateBoardId', cd.activeUpdateBoardId);
+                }
+                restoredFromCloud = true;
+                return cd.updateBoards || curr;
+              }
+              return curr;
+            });
+
+            // Phục hồi Kho Đi Bụi từ Cloud nếu máy hiện tại trống
+            setDiBuiPersonnelPool((curr) => {
+              if (curr.length === 0 && cd.diBuiPersonnelPool && cd.diBuiPersonnelPool.length > 0) {
+                safeLocalStorageSet(STORAGE_KEY_PERSONNEL_DI_BUI, JSON.stringify(cd.diBuiPersonnelPool));
+                saveToIndexedDB('diBuiPersonnelPool', cd.diBuiPersonnelPool);
+                restoredFromCloud = true;
+                return cd.diBuiPersonnelPool;
+              }
+              return curr;
+            });
+
             if (cd.updatedAt) {
               setLastCloudSyncTime(cd.updatedAt);
             }
@@ -737,7 +780,13 @@ export default function App() {
   useEffect(() => {
     if (!isStorageHydrated || !isAutoCloudSyncEnabled()) return;
 
-    const hasData = boards.length > 0 || personnelPool.length > 0 || guildWarBoards.length > 0;
+    const hasData =
+      boards.length > 0 ||
+      personnelPool.length > 0 ||
+      guildWarBoards.length > 0 ||
+      updateBoards.length > 0 ||
+      updatePersonnelPool.length > 0 ||
+      diBuiPersonnelPool.length > 0;
     if (!hasData) return;
 
     const timer = setTimeout(async () => {
@@ -751,6 +800,10 @@ export default function App() {
           activeBoardId,
           activeGuildWarBoardId,
           customColors,
+          updateBoards,
+          updatePersonnelPool,
+          activeUpdateBoardId,
+          diBuiPersonnelPool,
         });
         if (res.success) {
           setLastCloudSyncTime(Date.now());
@@ -770,6 +823,10 @@ export default function App() {
     activeBoardId,
     activeGuildWarBoardId,
     customColors,
+    updateBoards,
+    updatePersonnelPool,
+    activeUpdateBoardId,
+    diBuiPersonnelPool,
     isStorageHydrated,
   ]);
 
@@ -783,6 +840,10 @@ export default function App() {
         activeBoardId,
         activeGuildWarBoardId,
         customColors,
+        updateBoards,
+        updatePersonnelPool,
+        activeUpdateBoardId,
+        diBuiPersonnelPool,
       });
       if (res.success) {
         setLastCloudSyncTime(Date.now());
@@ -821,6 +882,26 @@ export default function App() {
             setActiveGuildWarBoardId(cd.activeGuildWarBoardId);
             safeLocalStorageSet(STORAGE_KEY_ACTIVE_GUILDWAR, cd.activeGuildWarBoardId);
           }
+        }
+        if (cd.updateBoards && cd.updateBoards.length > 0) {
+          setUpdateBoards(cd.updateBoards);
+          safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(cd.updateBoards));
+          saveToIndexedDB('updateBoards', cd.updateBoards);
+          if (cd.activeUpdateBoardId) {
+            setActiveUpdateBoardId(cd.activeUpdateBoardId);
+            safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD_UPDATE, cd.activeUpdateBoardId);
+            saveToIndexedDB('activeUpdateBoardId', cd.activeUpdateBoardId);
+          }
+        }
+        if (cd.updatePersonnelPool) {
+          setUpdatePersonnelPool(cd.updatePersonnelPool);
+          safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(cd.updatePersonnelPool));
+          saveToIndexedDB('updatePersonnelPool', cd.updatePersonnelPool);
+        }
+        if (cd.diBuiPersonnelPool) {
+          setDiBuiPersonnelPool(cd.diBuiPersonnelPool);
+          safeLocalStorageSet(STORAGE_KEY_PERSONNEL_DI_BUI, JSON.stringify(cd.diBuiPersonnelPool));
+          saveToIndexedDB('diBuiPersonnelPool', cd.diBuiPersonnelPool);
         }
         if (cd.customColors && Object.keys(cd.customColors).length > 0) {
           setCustomColors(cd.customColors);
@@ -1526,6 +1607,19 @@ export default function App() {
               ) : (
                 <span className="w-2 h-2 rounded-full bg-[#88DCFA] inline-block" />
               )}
+            </button>
+
+            {/* Clone Raid from Image Button */}
+            <button
+              type="button"
+              id="btn-open-import-image-modal"
+              onClick={() => setIsImportImageModalOpen(true)}
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 hover:from-emerald-100 hover:to-teal-100 dark:hover:from-emerald-900/50 dark:hover:to-teal-900/50 text-emerald-800 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-800/60 rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
+              title="Clone dữ liệu bảng Raid từ ảnh bất kỳ (nhận diện tự động)"
+            >
+              <ImageIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="hidden sm:inline font-bold">Clone ảnh</span>
+              <span className="sm:hidden font-bold text-[11px]">Clone</span>
             </button>
 
             {/* Export / Share Modal Button */}
@@ -2291,6 +2385,7 @@ export default function App() {
         members={activeBoard.members}
         customColors={customColors}
         onImportSuccess={handleImportSuccess}
+        onOpenCloneFromImage={() => setIsImportImageModalOpen(true)}
       />
 
       {/* Export / Share Modal */}
@@ -2315,6 +2410,31 @@ export default function App() {
         personnelCount={personnelPool.length}
         raidBoardsCount={boards.length}
         guildWarBoardsCount={guildWarBoards.length}
+        updateBoardsCount={updateBoards.length}
+        updatePersonnelCount={updatePersonnelPool.length}
+        diBuiCount={diBuiPersonnelPool.length}
+        showToast={showToast}
+      />
+
+      {/* Clone Raid From Image Modal */}
+      <ImportRaidImageModal
+        isOpen={isImportImageModalOpen}
+        onClose={() => setIsImportImageModalOpen(false)}
+        nextBoardNumber={currentBoards.length + 1}
+        customColors={customColors}
+        currentActiveBoard={activeBoard}
+        onCreateNewBoard={(newBoard) => {
+          if (isRaidUpdate) {
+            setUpdateBoards((prev) => [...prev, newBoard]);
+            setActiveUpdateBoardId(newBoard.id);
+          } else {
+            setBoards((prev) => [...prev, newBoard]);
+            setActiveBoardId(newBoard.id);
+          }
+        }}
+        onOverwriteCurrentBoard={(updated) => {
+          updateActiveBoard(updated);
+        }}
         showToast={showToast}
       />
 
@@ -2335,6 +2455,7 @@ export default function App() {
         personnelPool={currentPersonnelPool}
         allBoards={currentBoards}
         onCreateBoard={handleCreateCustomBoard}
+        onOpenCloneFromImage={() => setIsImportImageModalOpen(true)}
       />
 
       {/* Modal Sao Chép Nhân Sự Sang Raid Update */}

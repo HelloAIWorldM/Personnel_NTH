@@ -22,6 +22,7 @@ interface CreateBoardModalProps {
   personnelPool?: PersonnelMember[];
   allBoards?: RaidBoard[];
   onCreateBoard: (board: RaidBoard) => void;
+  onOpenCloneFromImage?: () => void;
 }
 
 export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
@@ -34,6 +35,7 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
   personnelPool = [],
   allBoards = [],
   onCreateBoard,
+  onOpenCloneFromImage,
 }) => {
   const [titlePrefix, setTitlePrefix] = useState(`RAID ${nextBoardNumber}`);
   const [scheduleTime, setScheduleTime] = useState(
@@ -320,6 +322,32 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
                       </p>
                     </div>
                   </label>
+
+                  {/* Option 4: Clone From Raid Image */}
+                  {onOpenCloneFromImage && (
+                    <div
+                      onClick={() => {
+                        onClose();
+                        onOpenCloneFromImage();
+                      }}
+                      className="flex items-start gap-3 p-3 rounded-xl border border-dashed border-sky-400 dark:border-sky-500 bg-sky-50/60 dark:bg-sky-950/30 hover:bg-sky-100/70 dark:hover:bg-sky-900/40 cursor-pointer transition-all group"
+                    >
+                      <div className="w-5 h-5 rounded-lg bg-sky-500/20 text-sky-600 dark:text-[#88DCFA] flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
+                        <Sparkles className="w-3.5 h-3.5" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center justify-between font-black text-xs text-sky-800 dark:text-[#88DCFA]">
+                          <span>🖼️ Clone tự động từ ảnh chụp Bảng Raid</span>
+                          <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-sky-200 dark:bg-sky-900 text-sky-950 dark:text-sky-200 font-bold">
+                            Mới
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                          Tải lên ảnh chụp bảng Raid để AI & OCR tự động nhận diện 12 vị trí môn phái, ingame và người log thành bảng mới.
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 

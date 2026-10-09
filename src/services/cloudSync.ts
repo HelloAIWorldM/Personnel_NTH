@@ -18,6 +18,10 @@ export interface CloudGuildData {
   activeBoardId: string;
   activeGuildWarBoardId: string;
   customColors: CustomClassColors;
+  updateBoards?: RaidBoard[];
+  updatePersonnelPool?: PersonnelMember[];
+  activeUpdateBoardId?: string;
+  diBuiPersonnelPool?: PersonnelMember[];
   updatedAt: number;
   title?: string;
 }
@@ -98,6 +102,10 @@ export async function pushToCloud(
     activeBoardId: string;
     activeGuildWarBoardId: string;
     customColors: CustomClassColors;
+    updateBoards?: RaidBoard[];
+    updatePersonnelPool?: PersonnelMember[];
+    activeUpdateBoardId?: string;
+    diBuiPersonnelPool?: PersonnelMember[];
     title?: string;
   }
 ): Promise<{ success: boolean; error?: string }> {
@@ -106,7 +114,7 @@ export async function pushToCloud(
     const docRef = doc(db, 'guilds', targetId);
 
     // Chuẩn hóa và giới hạn kích thước theo firestore.rules
-    const rawData = {
+    const rawData: Record<string, any> = {
       boards: (payload.boards || []).slice(0, 100),
       personnelPool: (payload.personnelPool || []).slice(0, 1000),
       guildWarBoards: (payload.guildWarBoards || []).slice(0, 100),
@@ -116,6 +124,19 @@ export async function pushToCloud(
       updatedAt: Date.now(),
       title: payload.title ? String(payload.title).slice(0, 200) : 'Bang NTH',
     };
+
+    if (payload.updateBoards && Array.isArray(payload.updateBoards)) {
+      rawData.updateBoards = payload.updateBoards.slice(0, 100);
+    }
+    if (payload.updatePersonnelPool && Array.isArray(payload.updatePersonnelPool)) {
+      rawData.updatePersonnelPool = payload.updatePersonnelPool.slice(0, 1000);
+    }
+    if (payload.activeUpdateBoardId) {
+      rawData.activeUpdateBoardId = String(payload.activeUpdateBoardId).slice(0, 128);
+    }
+    if (payload.diBuiPersonnelPool && Array.isArray(payload.diBuiPersonnelPool)) {
+      rawData.diBuiPersonnelPool = payload.diBuiPersonnelPool.slice(0, 1000);
+    }
 
     // Làm sạch 100% undefined ở mọi cấp độ trước khi gửi Firestore
     const cleaned = cleanForFirestore(rawData);
