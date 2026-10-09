@@ -247,6 +247,14 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
           },
           ...personnelPool,
         ]);
+      } else {
+        onUpdatePersonnelPool(
+          personnelPool.map((p) =>
+            normalizeName(p.ingame) === norm
+              ? { ...p, className: newClass, loggedBy: cleanLoggedBy }
+              : p
+          )
+        );
       }
     }
 

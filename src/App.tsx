@@ -18,6 +18,7 @@ import {
   RaidBoard,
   PersonnelMember,
   GuildWarBoard,
+  GuildMember,
   AppMode,
   PersonnelSubPool,
 } from './types';
@@ -741,6 +742,66 @@ export default function App() {
     }
   }, [isStorageHydrated, personnelPool, updatePersonnelPool]);
 
+  // Tự động đối chiếu & đồng bộ 2 chiều Logged By giữa Kho BC và Bảng Bang Chiến khi có lệch dữ liệu
+  useEffect(() => {
+    if (!isStorageHydrated || guildWarPersonnelPool.length === 0 || !activeGuildWarBoard?.members?.length) return;
+
+    let poolHasChanges = false;
+    let boardHasChanges = false;
+
+    const boardMemberMap = new Map(
+      activeGuildWarBoard.members.map((m) => [normalizeName(m.ingame), m])
+    );
+    const poolMemberMap = new Map(
+      guildWarPersonnelPool.map((p) => [normalizeName(p.ingame), p])
+    );
+
+    // 1. Cập nhật Kho BC nếu Bảng Bang Chiến có loggedBy chuẩn hơn (ví dụ đã sửa "Lon Ton" trên Bảng nhưng Kho BC vẫn là "Lon")
+    const updatedPool = guildWarPersonnelPool.map((p) => {
+      const bm = boardMemberMap.get(normalizeName(p.ingame));
+      if (!bm) return p;
+      const bLog = (bm.loggedBy || bm.discord || '').trim();
+      const pLog = (p.loggedBy || '').trim();
+
+      if (bLog && bLog !== pLog) {
+        if (!pLog || pLog === p.ingame || bLog.length >= pLog.length || bLog.toLowerCase().includes(pLog.toLowerCase())) {
+          poolHasChanges = true;
+          return { ...p, loggedBy: bLog, className: bm.className || p.className };
+        }
+      }
+      return p;
+    });
+
+    if (poolHasChanges) {
+      setGuildWarPersonnelPool(updatedPool);
+      safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(updatedPool));
+      saveToIndexedDB('guildWarPersonnelPool', updatedPool);
+    }
+
+    // 2. Cập nhật Bảng Bang Chiến nếu Kho BC có loggedBy mà Bảng chỉ có fallback ingame hoặc trống
+    const updatedBoardMembers = activeGuildWarBoard.members.map((m) => {
+      const p = poolMemberMap.get(normalizeName(m.ingame));
+      if (!p) return m;
+      const pLog = (p.loggedBy || '').trim();
+      const mLog = (m.loggedBy || m.discord || '').trim();
+      if (pLog && pLog !== mLog && (!mLog || mLog === m.ingame)) {
+        boardHasChanges = true;
+        return { ...m, loggedBy: pLog, discord: pLog };
+      }
+      return m;
+    });
+
+    if (boardHasChanges) {
+      setGuildWarBoards((curr) =>
+        curr.map((b) =>
+          b.id === activeGuildWarBoard.id
+            ? { ...b, members: updatedBoardMembers }
+            : b
+        )
+      );
+    }
+  }, [isStorageHydrated, activeGuildWarBoardId]);
+
   // Synchronous flush on tab close / computer shutdown (beforeunload, pagehide & visibilitychange)
   useEffect(() => {
     const handleFlush = () => {
@@ -1216,6 +1277,23 @@ export default function App() {
               updatedMembers = [...updatedMembers, ...toAdd];
             }
           }
+
+          // 3. ĐỒNG BỘ CHI TIẾT (loggedBy, discord, className, note) TỪ KHO BC SANG BẢNG BANG CHIẾN
+          const poolMap = new Map(
+            newPool.map((p) => [normalizeName(p.ingame), p])
+          );
+          updatedMembers = updatedMembers.map((m) => {
+            const poolItem = poolMap.get(normalizeName(m.ingame));
+            if (!poolItem) return m;
+            const updatedLoggedBy = (poolItem.loggedBy && poolItem.loggedBy.trim()) || m.loggedBy || m.discord || m.ingame;
+            return {
+              ...m,
+              className: poolItem.className || m.className,
+              loggedBy: updatedLoggedBy,
+              discord: updatedLoggedBy,
+              note: poolItem.note !== undefined && poolItem.note !== '' ? poolItem.note : m.note,
+            };
+          });
 
           const reindexed = updatedMembers.map((m, idx) => ({ ...m, stt: idx + 1 }));
           return { ...b, members: reindexed };

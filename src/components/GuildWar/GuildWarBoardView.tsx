@@ -85,6 +85,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
 
   // Member CRUD
   const handleUpdateMember = (id: string, updates: Partial<GuildMember>) => {
+    const currentMember = board.members.find((m) => m.id === id);
     const updatedMembers = board.members.map((m) => {
       if (m.id !== id) return m;
       const updated: GuildMember = { ...m, ...updates, updatedAt: new Date().toISOString() };
@@ -95,6 +96,57 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
       return updated;
     });
     onUpdateBoard({ ...board, members: updatedMembers });
+
+    // Đồng bộ thuộc tính (loggedBy, discord, className, ingame, note) sang Kho BC
+    if (onUpdatePersonnelPool && currentMember && currentMember.ingame && personnelPool) {
+      const oldNorm = normalizeName(currentMember.ingame);
+      const hasRelevantUpdates =
+        'loggedBy' in updates ||
+        'discord' in updates ||
+        'className' in updates ||
+        'ingame' in updates ||
+        'note' in updates;
+
+      if (hasRelevantUpdates) {
+        const effectiveLoggedBy =
+          updates.loggedBy !== undefined
+            ? updates.loggedBy.trim()
+            : updates.discord !== undefined
+            ? updates.discord.trim()
+            : undefined;
+
+        let matched = false;
+        const updatedPool = personnelPool.map((p) => {
+          if (normalizeName(p.ingame) === oldNorm) {
+            matched = true;
+            return {
+              ...p,
+              ...(updates.ingame ? { ingame: updates.ingame.trim() } : {}),
+              ...(updates.className ? { className: updates.className } : {}),
+              ...(effectiveLoggedBy !== undefined ? { loggedBy: effectiveLoggedBy } : {}),
+              ...(updates.note !== undefined ? { note: updates.note.trim() } : {}),
+            };
+          }
+          return p;
+        });
+
+        if (!matched) {
+          const now = Date.now();
+          const targetIngame = (updates.ingame || currentMember.ingame).trim();
+          const newPoolMember: PersonnelMember = {
+            id: `p_gw_${now}_${Math.random().toString(36).substring(2, 6)}`,
+            ingame: targetIngame,
+            className: updates.className || currentMember.className || 'Cửu Linh',
+            loggedBy: effectiveLoggedBy || currentMember.loggedBy || currentMember.discord || targetIngame,
+            note: updates.note !== undefined ? updates.note.trim() : (currentMember.note || ''),
+            createdAt: now,
+          };
+          onUpdatePersonnelPool([newPoolMember, ...personnelPool]);
+        } else {
+          onUpdatePersonnelPool(updatedPool);
+        }
+      }
+    }
   };
 
   const handleUpdateMembers = (updatedMembers: GuildMember[]) => {
@@ -123,6 +175,18 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
           createdAt: timestamp,
         };
         onUpdatePersonnelPool([newPoolMember, ...personnelPool]);
+      } else {
+        const updatedPool = (personnelPool || []).map((p) =>
+          normalizeName(p.ingame) === norm
+            ? {
+                ...p,
+                className: newMember.className || p.className,
+                loggedBy: (newMember.loggedBy || newMember.discord || p.loggedBy || p.ingame).trim(),
+                note: newMember.note !== undefined ? newMember.note : p.note,
+              }
+            : p
+        );
+        onUpdatePersonnelPool(updatedPool);
       }
     }
   };

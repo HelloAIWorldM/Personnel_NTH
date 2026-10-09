@@ -896,9 +896,11 @@ export function syncGuildWarMembersToGuildWarPersonnelPool(
         newNote = p.note;
         changed = true;
       }
-      if ((!newLoggedBy || newLoggedBy === existing.ingame) && p.loggedBy && p.loggedBy !== p.ingame) {
-        newLoggedBy = p.loggedBy;
-        changed = true;
+      if (p.loggedBy && p.loggedBy !== existing.loggedBy) {
+        if (!newLoggedBy || newLoggedBy === existing.ingame || p.loggedBy.length >= newLoggedBy.length || p.loggedBy.toLowerCase().includes(newLoggedBy.toLowerCase())) {
+          newLoggedBy = p.loggedBy;
+          changed = true;
+        }
       }
       if ((!newClass || newClass === 'Toái Mộng') && p.className) {
         newClass = p.className;
