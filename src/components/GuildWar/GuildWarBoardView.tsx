@@ -121,32 +121,31 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
     handleUpdateMember(id, { team, party: undefined, slot: undefined });
   };
 
-  // Import from personnel pool (ưu tiên Kho Bang Chiến, nếu trống lấy từ Tổng Kho)
-  const handleImportFromPersonnel = () => {
-    const sourcePool =
-      personnelPool && personnelPool.length > 0
-        ? personnelPool
-        : masterPersonnelPool && masterPersonnelPool.length > 0
-        ? masterPersonnelPool
-        : [];
+  // Nhập những nhân sự được chọn từ Tổng kho nhân sự
+  const handleImportSelectedMembers = (selectedMembers: PersonnelMember[]) => {
+    if (!selectedMembers || selectedMembers.length === 0) return;
 
-    const existingNames = new Set(board.members.map((m) => m.ingame.toLowerCase().trim()));
+    const existingNames = new Set(
+      board.members.map((m) => (m.ingame || '').trim().toLowerCase())
+    );
     const newMembersToAdd: GuildMember[] = [];
     const timestamp = Date.now();
 
-    sourcePool.forEach((p) => {
-      if (p.ingame && !existingNames.has(p.ingame.toLowerCase().trim())) {
-        existingNames.add(p.ingame.toLowerCase().trim());
+    selectedMembers.forEach((p, idx) => {
+      const cleanName = (p.ingame || '').trim();
+      const norm = cleanName.toLowerCase();
+      if (cleanName && !existingNames.has(norm)) {
+        existingNames.add(norm);
         newMembersToAdd.push({
-          id: `gw_m_${timestamp}_${Math.random().toString(36).substring(2, 6)}`,
+          id: `gw_m_${timestamp}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
           stt: board.members.length + newMembersToAdd.length + 1,
-          ingame: p.ingame,
-          className: p.className,
+          ingame: cleanName,
+          className: p.className || 'Cửu Linh',
           guildRole: 'Thành Viên',
           participation: 'Cả hai',
           team: 'Chưa xếp',
           attendance: {},
-          note: p.note,
+          note: p.note || '',
         });
       }
     });
@@ -157,6 +156,17 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
         members: [...board.members, ...newMembersToAdd],
       });
     }
+  };
+
+  // Fallback: Import toàn bộ từ personnel pool nếu được gọi trực tiếp
+  const handleImportFromPersonnel = () => {
+    const sourcePool =
+      masterPersonnelPool && masterPersonnelPool.length > 0
+        ? masterPersonnelPool
+        : personnelPool && personnelPool.length > 0
+        ? personnelPool
+        : [];
+    handleImportSelectedMembers(sourcePool);
   };
 
   // Session CRUD for Attendance
@@ -387,11 +397,13 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
           members={board.members}
           customColors={customColors}
           personnelPool={personnelPool}
+          masterPersonnelPool={masterPersonnelPool}
           onUpdatePersonnelPool={onUpdatePersonnelPool}
           onUpdateMember={handleUpdateMember}
           onAddMember={handleAddMember}
           onDeleteMember={handleDeleteMember}
           onImportFromPersonnel={handleImportFromPersonnel}
+          onImportSelectedMembers={handleImportSelectedMembers}
           onMoveToTeam={handleMoveToTeam}
         />
       )}

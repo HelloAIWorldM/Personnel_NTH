@@ -24,15 +24,19 @@ import {
   ArrowUpDown,
 } from 'lucide-react';
 
+import { ImportFromMasterModal } from './ImportFromMasterModal';
+
 interface GuildRosterTabProps {
   members: GuildMember[];
   customColors?: CustomClassColors;
   personnelPool?: PersonnelMember[];
+  masterPersonnelPool?: PersonnelMember[];
   onUpdatePersonnelPool?: (pool: PersonnelMember[]) => void;
   onUpdateMember: (id: string, updates: Partial<GuildMember>) => void;
   onAddMember: (member: Omit<GuildMember, 'id'>) => void;
   onDeleteMember: (id: string) => void;
-  onImportFromPersonnel: () => void;
+  onImportFromPersonnel?: () => void;
+  onImportSelectedMembers: (selectedMembers: PersonnelMember[]) => void;
   onMoveToTeam: (id: string, team: GuildTeam) => void;
 }
 
@@ -55,13 +59,16 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
   members,
   customColors,
   personnelPool = [],
+  masterPersonnelPool = [],
   onUpdatePersonnelPool,
   onUpdateMember,
   onAddMember,
   onDeleteMember,
   onImportFromPersonnel,
+  onImportSelectedMembers,
   onMoveToTeam,
 }) => {
+  const [isImportFromMasterOpen, setIsImportFromMasterOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClass, setFilterClass] = useState<string>('ALL');
   const [filterRole, setFilterRole] = useState<string>('ALL');
@@ -355,12 +362,13 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
 
             <button
               type="button"
-              onClick={onImportFromPersonnel}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold transition-all"
-              title="Nhập thêm nhân sự từ Kho Nhân Sự Raid"
+              onClick={() => setIsImportFromMasterOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
+              title="Nhập thêm nhân sự từ Tổng kho nhân sự vào bảng Bang Chiến"
             >
               <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span className="hidden md:inline">Nhập từ Kho Raid</span>
+              <span className="hidden md:inline">Nhập từ Tổng kho nhân sự</span>
+              <span className="md:hidden">Nhập từ Tổng kho</span>
             </button>
           </div>
         </div>
@@ -848,6 +856,16 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Modal Chọn Nhân Sự Từ Tổng Kho */}
+      <ImportFromMasterModal
+        isOpen={isImportFromMasterOpen}
+        onClose={() => setIsImportFromMasterOpen(false)}
+        masterPersonnelPool={masterPersonnelPool}
+        currentBoardMembers={members}
+        customColors={customColors}
+        onImportSelected={onImportSelectedMembers}
+      />
     </div>
   );
 };

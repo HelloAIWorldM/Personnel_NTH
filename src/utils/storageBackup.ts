@@ -34,6 +34,7 @@ export const STORAGE_KEY_PERSONNEL_DI_BUI = 'raid_personnel_pool_di_bui_v1';
 export const STORAGE_KEY_MASTER_PERSONNEL = 'raid_roster_master_personnel_v1';
 export const STORAGE_KEY_GUILDWAR_PERSONNEL = 'guildwar_roster_personnel_pool_v1';
 export const STORAGE_KEY_MASTER_MIGRATION_FLAG = 'raid_roster_master_migration_done_v1';
+export const STORAGE_KEY_GW_TO_MASTER_SYNC_FLAG = 'raid_roster_gw_to_master_sync_v2';
 export const STORAGE_KEY_SNAPSHOTS = 'raid_roster_auto_snapshots_v2';
 
 export const LEGACY_STORAGE_KEY_MEMBERS = 'raid_roster_members_v1';
@@ -682,107 +683,310 @@ export function loadInitialDiBuiPersonnel(initialFallback: PersonnelMember[] = [
  *    - Đánh dấu migration flag đã hoàn thành.
  *    - Chia các kho con (Raid, Update, Bang Chiến) thành kho trống riêng biệt như yêu cầu.
  */
+/**
+ * Trích xuất tất cả thành viên hợp lệ từ các bảng Bang Chiến và kho Bang Chiến thành PersonnelMember
+ */
+export function extractGuildWarMembersAsPersonnel(
+  guildWarBoards?: GuildWarBoard[],
+  guildWarPersonnel?: PersonnelMember[]
+): PersonnelMember[] {
+  const result: PersonnelMember[] = [];
+  const visited = new Set<string>();
+
+  const addIfValid = (ingame?: string, className?: RaidClass, loggedBy?: string, note?: string, id?: string) => {
+    if (!ingame || typeof ingame !== 'string') return;
+    const cleanIngame = ingame.trim();
+    if (!cleanIngame) return;
+    const norm = normalizeName(cleanIngame);
+    if (!norm || visited.has(norm)) return;
+    visited.add(norm);
+
+    result.push({
+      id: id || `p_gw_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+      ingame: cleanIngame,
+      className: className || 'Cửu Linh',
+      loggedBy: (loggedBy && loggedBy.trim()) || cleanIngame,
+      note: note || '',
+      createdAt: Date.now(),
+    });
+  };
+
+  // 1. Từ mảng guildWarBoards truyền vào
+  if (Array.isArray(guildWarBoards)) {
+    for (const b of guildWarBoards) {
+      if (Array.isArray(b.members)) {
+        for (const m of b.members) {
+          addIfValid(m?.ingame, m?.className, (m as any)?.loggedBy, m?.note, m?.id);
+        }
+      }
+    }
+  }
+
+  // 2. Từ mảng guildWarPersonnel truyền vào
+  if (Array.isArray(guildWarPersonnel)) {
+    for (const p of guildWarPersonnel) {
+      addIfValid(p?.ingame, p?.className, p?.loggedBy, p?.note, p?.id);
+    }
+  }
+
+  // 3. Fallback đọc thêm từ localStorage
+  try {
+    const rawGwBoards = localStorage.getItem(STORAGE_KEY_GUILDWAR_BOARDS);
+    if (rawGwBoards) {
+      const parsedBoards = JSON.parse(rawGwBoards);
+      if (Array.isArray(parsedBoards)) {
+        for (const b of parsedBoards) {
+          if (Array.isArray(b?.members)) {
+            for (const m of b.members) {
+              addIfValid(m?.ingame, m?.className, (m as any)?.loggedBy, m?.note, m?.id);
+            }
+          }
+        }
+      }
+    }
+  } catch {}
+
+  try {
+    const rawGwPool = localStorage.getItem(STORAGE_KEY_GUILDWAR_PERSONNEL);
+    if (rawGwPool) {
+      const parsedPool = JSON.parse(rawGwPool);
+      if (Array.isArray(parsedPool)) {
+        for (const p of parsedPool) {
+          addIfValid(p?.ingame, p?.className, p?.loggedBy, p?.note, p?.id);
+        }
+      }
+    }
+  } catch {}
+
+  // 4. Fallback đọc thêm từ AutoSnapshots gần nhất
+  try {
+    const snaps = getAutoSnapshots();
+    if (Array.isArray(snaps)) {
+      for (const s of snaps.slice(0, 5)) {
+        if (Array.isArray(s.guildWarBoards)) {
+          for (const b of s.guildWarBoards) {
+            if (Array.isArray(b?.members)) {
+              for (const m of b.members) {
+                addIfValid(m?.ingame, m?.className, (m as any)?.loggedBy, m?.note, m?.id);
+              }
+            }
+          }
+        }
+        if (Array.isArray(s.guildWarPersonnelPool)) {
+          for (const p of s.guildWarPersonnelPool) {
+            addIfValid(p?.ingame, p?.className, p?.loggedBy, p?.note, p?.id);
+          }
+        }
+      }
+    }
+  } catch {}
+
+  return result;
+}
+
+/**
+ * Tự động đồng bộ các nhân sự từ Bang Chiến vào Tổng kho nhân sự nếu chưa có
+ * Đảm bảo Tổng kho nhận đủ 100% nhân sự mà không bao giờ làm trùng lặp hay mất dữ liệu.
+ */
+export function syncGuildWarMembersToMasterPool(
+  currentMasterPool: PersonnelMember[],
+  guildWarBoards?: GuildWarBoard[],
+  guildWarPersonnel?: PersonnelMember[]
+): { updatedPool: PersonnelMember[]; addedCount: number } {
+  const masterMap = new Map<string, PersonnelMember>();
+
+  for (const p of currentMasterPool) {
+    if (p && p.ingame && typeof p.ingame === 'string') {
+      const norm = normalizeName(p.ingame);
+      if (norm) {
+        masterMap.set(norm, { ...p });
+      }
+    }
+  }
+
+  const initialCount = masterMap.size;
+  const gwPersonnel = extractGuildWarMembersAsPersonnel(guildWarBoards, guildWarPersonnel);
+
+  for (const p of gwPersonnel) {
+    const norm = normalizeName(p.ingame);
+    if (!norm) continue;
+
+    const existing = masterMap.get(norm);
+    if (!existing) {
+      masterMap.set(norm, { ...p });
+    } else {
+      // Làm giàu thông tin nếu trong kho hiện tại còn thiếu note hoặc thông tin chi tiết
+      let changed = false;
+      let newNote = existing.note;
+      let newLoggedBy = existing.loggedBy;
+      let newClass = existing.className;
+
+      if (!newNote && p.note) {
+        newNote = p.note;
+        changed = true;
+      }
+      if ((!newLoggedBy || newLoggedBy === existing.ingame) && p.loggedBy && p.loggedBy !== p.ingame) {
+        newLoggedBy = p.loggedBy;
+        changed = true;
+      }
+      if ((!newClass || newClass === 'Toái Mộng') && p.className) {
+        newClass = p.className;
+        changed = true;
+      }
+
+      if (changed) {
+        masterMap.set(norm, {
+          ...existing,
+          note: newNote,
+          loggedBy: newLoggedBy,
+          className: newClass,
+        });
+      }
+    }
+  }
+
+  const updatedPool = Array.from(masterMap.values());
+  const addedCount = masterMap.size - initialCount;
+  return { updatedPool, addedCount };
+}
+
+/**
+ * Tải Tổng Kho Nhân Sự (Master Personnel Pool) với cơ chế tự động chuyển đổi an toàn (One-time Auto Migration)
+ * và tự động đồng bộ đầy đủ nhân sự từ Bang Chiến.
+ */
 export function loadInitialMasterPersonnel(initialFallback: PersonnelMember[] = []): PersonnelMember[] {
+  let loadedMaster: PersonnelMember[] = [];
+
   try {
     const saved = localStorage.getItem(STORAGE_KEY_MASTER_PERSONNEL);
     if (saved !== null) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed) && parsed.length > 0) {
-        return parsed;
+        loadedMaster = parsed;
       }
     }
   } catch (e) {
     console.error('[Storage] Error loading master personnel from localStorage:', e);
   }
 
-  // Nếu chưa có master pool trong localStorage, kiểm tra tiến hành gom từ các kho cũ
-  try {
-    const isDone = localStorage.getItem(STORAGE_KEY_MASTER_MIGRATION_FLAG) === 'true';
-    if (!isDone) {
-      console.info('[Storage] Tiến hành tự động gộp tất cả kho nhân sự vào Tổng kho nhân sự...');
-      const allOld: PersonnelMember[] = [];
+  // Nếu chưa có master pool trong localStorage, kiểm tra tiến hành gom từ các kho cũ và Bang Chiến
+  if (loadedMaster.length === 0) {
+    try {
+      const isDone = localStorage.getItem(STORAGE_KEY_MASTER_MIGRATION_FLAG) === 'true';
+      if (!isDone) {
+        console.info('[Storage] Tiến hành tự động gộp tất cả kho nhân sự vào Tổng kho nhân sự...');
+        const allOld: PersonnelMember[] = [];
 
-      // 1. Kho Raid cũ
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY_PERSONNEL);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) allOld.push(...parsed);
-        }
-      } catch {}
+        // 1. Kho Raid cũ
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY_PERSONNEL);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) allOld.push(...parsed);
+          }
+        } catch {}
 
-      // 2. Kho Raid Update cũ
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY_PERSONNEL_UPDATE);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) allOld.push(...parsed);
-        }
-      } catch {}
+        // 2. Kho Raid Update cũ
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY_PERSONNEL_UPDATE);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) allOld.push(...parsed);
+          }
+        } catch {}
 
-      // 3. Kho Đi Bụi cũ
-      try {
-        const raw = localStorage.getItem(STORAGE_KEY_PERSONNEL_DI_BUI);
-        if (raw) {
-          const parsed = JSON.parse(raw);
-          if (Array.isArray(parsed)) allOld.push(...parsed);
-        }
-      } catch {}
+        // 3. Kho Đi Bụi cũ
+        try {
+          const raw = localStorage.getItem(STORAGE_KEY_PERSONNEL_DI_BUI);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) allOld.push(...parsed);
+          }
+        } catch {}
 
-      // 4. Snapshots gần nhất
-      try {
-        const snaps = getAutoSnapshots();
-        if (snaps && snaps.length > 0) {
-          snaps.slice(0, 3).forEach((s) => {
-            if (Array.isArray(s.personnelPool)) allOld.push(...s.personnelPool);
-            if (Array.isArray(s.diBuiPersonnelPool)) allOld.push(...s.diBuiPersonnelPool);
-          });
-        }
-      } catch {}
+        // 4. Các thành viên từ Bang Chiến
+        try {
+          const gwMembers = extractGuildWarMembersAsPersonnel();
+          if (gwMembers.length > 0) allOld.push(...gwMembers);
+        } catch {}
 
-      // Deduplicate by normalizeName
-      const masterMap = new Map<string, PersonnelMember>();
-      for (const p of allOld) {
-        if (p && p.ingame && typeof p.ingame === 'string') {
-          const norm = normalizeName(p.ingame);
-          if (!norm) continue;
-          const existing = masterMap.get(norm);
-          if (!existing) {
-            masterMap.set(norm, { ...p });
-          } else {
-            // Ưu tiên giữ thông tin đầy đủ nhất
-            masterMap.set(norm, {
-              ...existing,
-              loggedBy: (existing.loggedBy && existing.loggedBy.trim()) || p.loggedBy || existing.ingame,
-              note: existing.note || p.note,
-              className: existing.className || p.className,
+        // 5. Snapshots gần nhất
+        try {
+          const snaps = getAutoSnapshots();
+          if (snaps && snaps.length > 0) {
+            snaps.slice(0, 3).forEach((s) => {
+              if (Array.isArray(s.personnelPool)) allOld.push(...s.personnelPool);
+              if (Array.isArray(s.diBuiPersonnelPool)) allOld.push(...s.diBuiPersonnelPool);
+              if (Array.isArray(s.guildWarPersonnelPool)) allOld.push(...s.guildWarPersonnelPool);
             });
           }
+        } catch {}
+
+        // Deduplicate by normalizeName
+        const masterMap = new Map<string, PersonnelMember>();
+        for (const p of allOld) {
+          if (p && p.ingame && typeof p.ingame === 'string') {
+            const norm = normalizeName(p.ingame);
+            if (!norm) continue;
+            const existing = masterMap.get(norm);
+            if (!existing) {
+              masterMap.set(norm, { ...p });
+            } else {
+              // Ưu tiên giữ thông tin đầy đủ nhất
+              masterMap.set(norm, {
+                ...existing,
+                loggedBy: (existing.loggedBy && existing.loggedBy.trim()) || p.loggedBy || existing.ingame,
+                note: existing.note || p.note,
+                className: existing.className || p.className,
+              });
+            }
+          }
+        }
+
+        const mergedMaster = Array.from(masterMap.values());
+        if (mergedMaster.length > 0) {
+          console.info(`[Storage] Đã gộp thành công ${mergedMaster.length} nhân sự vào Tổng kho nhân sự!`);
+          safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(mergedMaster));
+          saveToIndexedDB('masterPersonnelPool', mergedMaster);
+          safeLocalStorageSet(STORAGE_KEY_MASTER_MIGRATION_FLAG, 'true');
+
+          // Khởi tạo các kho con trống riêng biệt theo yêu cầu
+          safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify([]));
+          safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify([]));
+          safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify([]));
+          saveToIndexedDB('personnelPool', []);
+          saveToIndexedDB('updatePersonnelPool', []);
+          saveToIndexedDB('guildWarPersonnelPool', []);
+
+          loadedMaster = mergedMaster;
+        } else {
+          safeLocalStorageSet(STORAGE_KEY_MASTER_MIGRATION_FLAG, 'true');
         }
       }
+    } catch (err) {
+      console.error('[Storage] Error during master personnel migration:', err);
+    }
+  }
 
-      const mergedMaster = Array.from(masterMap.values());
-      if (mergedMaster.length > 0) {
-        console.info(`[Storage] Đã gộp thành công ${mergedMaster.length} nhân sự vào Tổng kho nhân sự!`);
-        safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(mergedMaster));
-        saveToIndexedDB('masterPersonnelPool', mergedMaster);
-        safeLocalStorageSet(STORAGE_KEY_MASTER_MIGRATION_FLAG, 'true');
-
-        // Khởi tạo các kho con trống riêng biệt theo yêu cầu
-        safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify([]));
-        safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify([]));
-        safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify([]));
-        saveToIndexedDB('personnelPool', []);
-        saveToIndexedDB('updatePersonnelPool', []);
-        saveToIndexedDB('guildWarPersonnelPool', []);
-
-        return mergedMaster;
-      } else {
-        safeLocalStorageSet(STORAGE_KEY_MASTER_MIGRATION_FLAG, 'true');
+  // Tự động kiểm tra & đồng bộ bổ sung từ Bang Chiến vào Tổng kho
+  try {
+    const isGwSyncDone = localStorage.getItem(STORAGE_KEY_GW_TO_MASTER_SYNC_FLAG) === 'true';
+    if (!isGwSyncDone || loadedMaster.length > 0) {
+      const { updatedPool, addedCount } = syncGuildWarMembersToMasterPool(loadedMaster);
+      if (addedCount > 0) {
+        console.info(`[Storage] Tự động đồng bộ bổ sung ${addedCount} nhân sự từ Bang Chiến vào Tổng kho!`);
+        loadedMaster = updatedPool;
+        safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(loadedMaster));
+        saveToIndexedDB('masterPersonnelPool', loadedMaster);
       }
+      safeLocalStorageSet(STORAGE_KEY_GW_TO_MASTER_SYNC_FLAG, 'true');
     }
   } catch (err) {
-    console.error('[Storage] Error during master personnel migration:', err);
+    console.warn('[Storage] Error during guild war sync to master:', err);
+  }
+
+  if (loadedMaster.length > 0) {
+    return loadedMaster;
   }
 
   // Thử khôi phục từ snapshot nếu có masterPersonnelPool
@@ -1067,10 +1271,12 @@ export function downloadBackupFile(
   personnelPool: PersonnelMember[],
   customColors?: CustomClassColors,
   guildWarBoards?: GuildWarBoard[],
-  diBuiPersonnelPool?: PersonnelMember[]
+  diBuiPersonnelPool?: PersonnelMember[],
+  masterPersonnelPool?: PersonnelMember[],
+  guildWarPersonnelPool?: PersonnelMember[]
 ): void {
   const data = {
-    version: 4,
+    version: 5,
     appName: 'Bảng Sắp Xếp Nhân Sự Raid & Bang Chiến NTH',
     exportedAt: new Date().toISOString(),
     boards,
@@ -1078,6 +1284,8 @@ export function downloadBackupFile(
     customColors,
     guildWarBoards: guildWarBoards || [],
     diBuiPersonnelPool: diBuiPersonnelPool || [],
+    masterPersonnelPool: masterPersonnelPool || [],
+    guildWarPersonnelPool: guildWarPersonnelPool || [],
   };
 
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1103,6 +1311,8 @@ export function parseBackupFile(
   customColors?: CustomClassColors;
   guildWarBoards?: GuildWarBoard[];
   diBuiPersonnelPool?: PersonnelMember[];
+  masterPersonnelPool?: PersonnelMember[];
+  guildWarPersonnelPool?: PersonnelMember[];
 } {
   const parsed = JSON.parse(jsonText);
   if (!parsed || typeof parsed !== 'object') {
@@ -1114,15 +1324,32 @@ export function parseBackupFile(
   const customColors = parsed.customColors || {};
   const rawGwBoards = Array.isArray(parsed.guildWarBoards) ? parsed.guildWarBoards : [];
   const diBuiPersonnelPool = Array.isArray(parsed.diBuiPersonnelPool) ? parsed.diBuiPersonnelPool : [];
+  const masterPersonnelPool = Array.isArray(parsed.masterPersonnelPool) ? parsed.masterPersonnelPool : [];
+  const guildWarPersonnelPool = Array.isArray(parsed.guildWarPersonnelPool) ? parsed.guildWarPersonnelPool : [];
 
-  if (rawBoards.length === 0 && personnelPool.length === 0 && rawGwBoards.length === 0 && diBuiPersonnelPool.length === 0) {
+  if (
+    rawBoards.length === 0 &&
+    personnelPool.length === 0 &&
+    rawGwBoards.length === 0 &&
+    diBuiPersonnelPool.length === 0 &&
+    masterPersonnelPool.length === 0 &&
+    guildWarPersonnelPool.length === 0
+  ) {
     throw new Error('File sao lưu không chứa dữ liệu bảng hoặc kho nhân sự.');
   }
 
   const boards = rawBoards.map((b: any, idx: number) => sanitizeRaidBoard(b, idx + 1));
   const guildWarBoards = rawGwBoards.map((b: any, idx: number) => sanitizeGuildWarBoard(b, idx + 1));
 
-  return { boards, personnelPool, customColors, guildWarBoards, diBuiPersonnelPool };
+  return {
+    boards,
+    personnelPool,
+    customColors,
+    guildWarBoards,
+    diBuiPersonnelPool,
+    masterPersonnelPool,
+    guildWarPersonnelPool,
+  };
 }
 
 /**

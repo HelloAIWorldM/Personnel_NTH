@@ -190,7 +190,7 @@ export const ImportRaidImageModal: React.FC<ImportRaidImageModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                Clone Dữ Liệu Raid Từ Ảnh
+                Import Dữ Liệu Raid Từ Ảnh
                 <span className="px-2 py-0.5 text-[10px] font-bold bg-sky-500/20 text-sky-700 dark:text-[#88DCFA] border border-sky-400/40 rounded-full">
                   AI & OCR Visual
                 </span>
@@ -477,7 +477,7 @@ export const ImportRaidImageModal: React.FC<ImportRaidImageModalProps> = ({
           <div className="text-xs text-slate-500 dark:text-slate-400">
             {parsedData
               ? `Đã nhận diện đủ ${parsedData.members.length} vị trí từ ảnh.`
-              : 'Chọn ảnh bảng Raid bất kỳ để bắt đầu clone.'}
+              : 'Chọn ảnh bảng Raid bất kỳ để bắt đầu import.'}
           </div>
 
           <div className="flex items-center gap-2.5 w-full sm:w-auto">

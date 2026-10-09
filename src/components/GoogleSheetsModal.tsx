@@ -354,7 +354,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
                 <div>
                   <div className="text-xs font-bold text-sky-900 dark:text-[#88DCFA] flex items-center gap-1.5 mb-0.5">
                     <span>🖼️</span>
-                    <span>Hoặc Clone trực tiếp từ ảnh chụp Bảng Raid</span>
+                    <span>Hoặc Import trực tiếp từ ảnh chụp Bảng Raid</span>
                   </div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">
                     Tải ảnh bảng bất kỳ để tự động nhận diện thành bảng Raid hoàn chỉnh
@@ -370,7 +370,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
                   className="w-full sm:w-auto flex items-center justify-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-sky-400 to-[#88DCFA] hover:from-sky-500 hover:to-[#68CEF6] text-slate-950 text-xs font-black rounded-xl shadow-xs transition-colors shrink-0 cursor-pointer"
                 >
                   <Sparkles className="w-3.5 h-3.5" />
-                  <span>Chọn ảnh để Clone</span>
+                  <span>Chọn ảnh để Import</span>
                 </button>
               </div>
             )}

@@ -70,6 +70,7 @@ interface PersonnelStorageProps {
   onQuickShareMember?: (member: PersonnelMember, target: PersonnelSubPool) => void;
   onPushToMaster?: () => void;
   onClearSubPool?: () => void;
+  onSyncFromGuildWar?: () => void;
   subPoolMembershipMap?: {
     inRaid: Set<string>;
     inUpdate: Set<string>;
@@ -101,6 +102,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   onQuickShareMember,
   onPushToMaster,
   onClearSubPool,
+  onSyncFromGuildWar,
   subPoolMembershipMap,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
@@ -456,6 +458,19 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               >
                 <Share2 className="w-3.5 h-3.5" />
                 <span>Chia sẻ sang Kho con</span>
+              </button>
+            )}
+
+            {/* Master Pool: Button Đồng bộ từ Bang Chiến */}
+            {isMasterPool && onSyncFromGuildWar && (
+              <button
+                type="button"
+                onClick={onSyncFromGuildWar}
+                title="Đồng bộ tất cả nhân sự từ các bảng Bang Chiến vào Tổng kho nhân sự"
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-amber-800 dark:text-amber-200 bg-amber-100/90 dark:bg-amber-950/50 hover:bg-amber-200 dark:hover:bg-amber-900/60 border border-amber-300 dark:border-amber-800 rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer"
+              >
+                <Swords className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Đồng bộ từ Bang Chiến</span>
               </button>
             )}
 

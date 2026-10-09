@@ -112,6 +112,7 @@ import {
   requestPersistentStorage,
   isSamplePersonnelPool,
   mergePersonnelPools,
+  syncGuildWarMembersToMasterPool,
 } from './utils/storageBackup';
 
 export default function App() {
@@ -719,6 +720,23 @@ export default function App() {
       saveToIndexedDB('updatePersonnelPool', cleaned);
     }
   }, [isStorageHydrated, personnelPool, updatePersonnelPool]);
+
+  // Tự động kiểm tra và đồng bộ bổ sung mọi nhân sự từ Bang Chiến vào Tổng kho nhân sự
+  useEffect(() => {
+    if (!isStorageHydrated) return;
+    const { updatedPool, addedCount } = syncGuildWarMembersToMasterPool(
+      masterPersonnelPool,
+      guildWarBoards,
+      guildWarPersonnelPool
+    );
+    if (addedCount > 0) {
+      console.info(`[MasterPoolSync] Đã tự động đồng bộ ${addedCount} nhân sự từ Bang Chiến vào Tổng kho nhân sự.`);
+      setMasterPersonnelPool(updatedPool);
+      safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(updatedPool));
+      saveToIndexedDB('masterPersonnelPool', updatedPool);
+      showToast(`Đã tự động đồng bộ thêm ${addedCount} nhân sự từ Bang Chiến vào Tổng kho!`);
+    }
+  }, [isStorageHydrated, masterPersonnelPool, guildWarBoards, guildWarPersonnelPool]);
 
   // Synchronous flush on tab close / computer shutdown (beforeunload, pagehide & visibilitychange)
   useEffect(() => {
@@ -1352,6 +1370,23 @@ export default function App() {
     });
 
     showToast(`Đã nạp toàn bộ nhân sự từ ${sourceName} vào Tổng kho nhân sự!`);
+  };
+
+  // Đồng bộ tất cả nhân sự từ các bảng Bang Chiến vào Tổng kho nhân sự
+  const handleSyncGuildWarToMaster = () => {
+    const { updatedPool, addedCount } = syncGuildWarMembersToMasterPool(
+      masterPersonnelPool,
+      guildWarBoards,
+      guildWarPersonnelPool
+    );
+    if (addedCount > 0) {
+      setMasterPersonnelPool(updatedPool);
+      safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(updatedPool));
+      saveToIndexedDB('masterPersonnelPool', updatedPool);
+      showToast(`Đã đồng bộ thêm ${addedCount} nhân sự từ Bang Chiến vào Tổng kho!`);
+    } else {
+      showToast('Tổng kho đã có đầy đủ tất cả nhân sự từ Bang Chiến!');
+    }
   };
 
   // Làm trống kho con hiện tại
@@ -2036,17 +2071,17 @@ export default function App() {
               )}
             </button>
 
-            {/* Clone Raid from Image Button */}
+            {/* Import Raid from Image Button */}
             <button
               type="button"
               id="btn-open-import-image-modal"
               onClick={() => setIsImportImageModalOpen(true)}
               className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/40 dark:to-teal-950/40 hover:from-emerald-100 hover:to-teal-100 dark:hover:from-emerald-900/50 dark:hover:to-teal-900/50 text-emerald-800 dark:text-emerald-300 border border-emerald-300/80 dark:border-emerald-800/60 rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
-              title="Clone dữ liệu bảng Raid từ ảnh bất kỳ (nhận diện tự động)"
+              title="Import dữ liệu bảng Raid từ ảnh bất kỳ (nhận diện tự động)"
             >
               <ImageIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden sm:inline font-bold">Clone ảnh</span>
-              <span className="sm:hidden font-bold text-[11px]">Clone</span>
+              <span className="hidden sm:inline font-bold">Import ảnh</span>
+              <span className="sm:hidden font-bold text-[11px]">Import</span>
             </button>
 
             {/* Export / Share Modal Button */}
@@ -2669,6 +2704,7 @@ export default function App() {
                       onQuickShareMember={handleQuickShareMember}
                       onPushToMaster={handlePushSubPoolToMaster}
                       onClearSubPool={handleClearCurrentSubPool}
+                      onSyncFromGuildWar={handleSyncGuildWarToMaster}
                       subPoolMembershipMap={subPoolMembershipMap}
                     />
 
@@ -2715,6 +2751,7 @@ export default function App() {
                   onQuickShareMember={handleQuickShareMember}
                   onPushToMaster={handlePushSubPoolToMaster}
                   onClearSubPool={handleClearCurrentSubPool}
+                  onSyncFromGuildWar={handleSyncGuildWarToMaster}
                   subPoolMembershipMap={subPoolMembershipMap}
                 />
 
@@ -2903,7 +2940,7 @@ export default function App() {
         showToast={showToast}
       />
 
-      {/* Clone Raid From Image Modal */}
+      {/* Import Raid From Image Modal */}
       <ImportRaidImageModal
         isOpen={isImportImageModalOpen}
         onClose={() => setIsImportImageModalOpen(false)}

@@ -337,7 +337,7 @@ export const CreateBoardModal: React.FC<CreateBoardModalProps> = ({
                       </div>
                       <div className="flex-1">
                         <div className="flex items-center justify-between font-black text-xs text-sky-800 dark:text-[#88DCFA]">
-                          <span>🖼️ Clone tự động từ ảnh chụp Bảng Raid</span>
+                          <span>🖼️ Import tự động từ ảnh chụp Bảng Raid</span>
                           <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-sky-200 dark:bg-sky-900 text-sky-950 dark:text-sky-200 font-bold">
                             Mới
                           </span>
