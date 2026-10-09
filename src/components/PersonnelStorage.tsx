@@ -918,7 +918,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                 draggable={true}
                 onDragStart={(e) => handleDragStart(e, person)}
                 onDragEnd={handleDragEnd}
-                className={`group flex items-center justify-between gap-2 p-2.5 rounded-xl border transition-all cursor-grab active:cursor-grabbing ${
+                className={`group flex items-start justify-between gap-2 p-2.5 rounded-xl border transition-all cursor-grab active:cursor-grabbing ${
                   isDragging
                     ? 'opacity-40 border-[#88DCFA] bg-[#88DCFA]/15'
                     : isAssigned
@@ -926,11 +926,11 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     : 'bg-white dark:bg-[#162230] border-slate-200 dark:border-[#1F3347] hover:border-sky-400 dark:hover:border-[#2C4863] shadow-2xs hover:shadow-xs'
                 }`}
               >
-                {/* Left side: Grip handle, Checkbox, Name, LoggedBy */}
-                <div className="flex items-center gap-2 min-w-0 flex-1">
+                {/* Left side: Grip handle, Checkbox, Name, Status, LoggedBy */}
+                <div className="flex items-start gap-2 min-w-0 flex-1">
                   {/* Drag Grip Handle */}
                   <span
-                    className="shrink-0 cursor-grab text-slate-400 dark:text-slate-500 hover:text-sky-600 dark:hover:text-[#88DCFA]"
+                    className="shrink-0 pt-0.5 cursor-grab text-slate-400 dark:text-slate-500 hover:text-sky-600 dark:hover:text-[#88DCFA]"
                     title={
                       isAssignedInActiveBoard
                         ? `Đã có trong ${activeBoardTitle || 'bảng hiện tại'} - Có thể kéo thả sang vị trí khác trong Bảng`
@@ -951,7 +951,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                         ? 'Đã đánh dấu có mặt (Click để bỏ gạch tên)'
                         : 'Đánh dấu có mặt / Điểm danh (Click để gạch tên)'
                     }
-                    className={`w-4 h-4 rounded shrink-0 flex items-center justify-center border transition-colors ${
+                    className={`w-4 h-4 mt-0.5 rounded shrink-0 flex items-center justify-center border transition-colors ${
                       person.checked
                         ? 'bg-[#88DCFA] border-[#88DCFA] text-slate-950 shadow-xs'
                         : 'border-slate-300 dark:border-[#1F3347] hover:border-[#88DCFA] bg-slate-50 dark:bg-[#0B1219]'
@@ -960,9 +960,10 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     {person.checked && <Check className="w-3 h-3 stroke-[3]" />}
                   </button>
 
-                  {/* Name and Logged by */}
+                  {/* Name, Status tag, and Logged by */}
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1.5 flex-wrap">
+                    {/* Row 1: Ingame name */}
+                    <div className="flex items-center gap-1.5 min-w-0">
                       <span
                         className={`text-xs sm:text-sm font-black truncate ${
                           isCrossedOut
@@ -973,55 +974,60 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                       >
                         {person.ingame || 'Chưa đặt tên'}
                       </span>
-
-                      {/* Status Tag: Assigned status across all boards */}
-                      {isAssigned && (
-                        <span
-                          className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-lg text-xs font-black bg-sky-100 dark:bg-[#152B3B] text-sky-900 dark:text-[#88DCFA] border border-sky-300 dark:border-[#1E435E] shrink-0 shadow-2xs"
-                          title={`Đã xếp ở: ${assignments.map((a) => `${a.boardTitle} (STT #${a.stt}${a.party ? ` - P${a.party}` : ''})`).join(', ')}`}
-                        >
-                          <Check className="w-3 h-3 stroke-[3]" />
-                          <span>
-                            {assignments.map((a) => a.boardTitle).join(', ')}
-                          </span>
-                        </span>
-                      )}
-
-                      {!isAssigned && person.checked && (
-                        <span
-                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-xs font-black bg-sky-100 dark:bg-sky-950/70 text-sky-900 dark:text-sky-300 border border-sky-300 dark:border-sky-800/70 shrink-0 shadow-2xs"
-                        >
-                          <Check className="w-3 h-3 stroke-[3]" />
-                          <span>Có mặt</span>
-                        </span>
-                      )}
-
-                      {/* Note Badge nếu đã có ghi chú */}
-                      {person.note?.trim() && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
-                            handleToggleNoteForPerson(
-                              person,
-                              card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
-                            );
-                          }}
-                          className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/80 shadow-2xs shrink-0 max-w-[130px] transition-all hover:scale-105 cursor-pointer"
-                          title={`Ghi chú: ${person.note} (Click để mở xem & sửa)`}
-                        >
-                          <span className="text-[11px]">📝</span>
-                          <span className="truncate">{person.note}</span>
-                        </button>
-                      )}
                     </div>
 
+                    {/* Row 2: Status Tag (Đã xếp ở các bảng nào) & Note Badge */}
+                    {(isAssigned || (!isAssigned && person.checked) || person.note?.trim()) && (
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                        {isAssigned && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-sky-100 dark:bg-[#152B3B] text-sky-900 dark:text-[#88DCFA] border border-sky-300 dark:border-[#1E435E] shadow-2xs max-w-full"
+                            title={`Đã xếp ở: ${assignments.map((a) => `${a.boardTitle} (STT #${a.stt}${a.party ? ` - P${a.party}` : ''})`).join(', ')}`}
+                          >
+                            <Check className="w-3 h-3 stroke-[3] shrink-0" />
+                            <span className="truncate max-w-[140px] sm:max-w-[200px] lg:max-w-[280px]">
+                              {assignments.map((a) => a.boardTitle).join(', ')}
+                            </span>
+                          </span>
+                        )}
+
+                        {!isAssigned && person.checked && (
+                          <span
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-sky-100 dark:bg-sky-950/70 text-sky-900 dark:text-sky-300 border border-sky-300 dark:border-sky-800/70 shadow-2xs"
+                          >
+                            <Check className="w-3 h-3 stroke-[3] shrink-0" />
+                            <span>Có mặt</span>
+                          </span>
+                        )}
+
+                        {/* Note Badge nếu đã có ghi chú */}
+                        {person.note?.trim() && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
+                              handleToggleNoteForPerson(
+                                person,
+                                card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
+                              );
+                            }}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/80 shadow-2xs max-w-[120px] transition-all hover:scale-105 cursor-pointer"
+                            title={`Ghi chú: ${person.note} (Click để mở xem & sửa)`}
+                          >
+                            <span className="text-[10px]">📝</span>
+                            <span className="truncate">{person.note}</span>
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Row 3: Logged by */}
                     <div className="text-[11px] truncate flex items-center gap-1 text-slate-500 dark:text-slate-400 mt-0.5">
                       <span className="font-semibold text-slate-500 dark:text-[#8CA4B8]">
                         Log:
                       </span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200">
+                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
                         {person.loggedBy || person.ingame}
                       </span>
                     </div>
@@ -1029,7 +1035,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                 </div>
 
                 {/* Right side: Class Pill & Actions */}
-                <div className="flex items-center gap-1.5 shrink-0">
+                <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
                   {/* Class Badge */}
                   <span
                     className="px-2 py-0.5 rounded-lg text-[11px] font-black shrink-0 shadow-2xs"

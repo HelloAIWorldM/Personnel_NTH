@@ -335,22 +335,42 @@ export default function App() {
     );
   }, [guildWarBoards, activeGuildWarBoardId]);
 
-  // Comprehensive boards representation for PersonnelStorage across both Raid and Bang Chiến
+  // Comprehensive boards representation for PersonnelStorage across Raid, Raid Update and Bang Chiến
   const allKnownBoardsForStorage = useMemo(() => {
-    const raidList = currentBoards.map((b) => ({
+    // 1. Bảng Raid thường
+    const raidList = boards.map((b) => ({
       id: b.id,
-      titlePrefix: b.titlePrefix,
+      titlePrefix: b.titlePrefix || 'Raid 1',
       createdAt: b.createdAt,
       members: b.members,
     }));
+
+    // 2. Bảng Raid Update - phân biệt rõ với Raid thường (ví dụ: Raid Up 1)
+    const updateList = updateBoards.map((b) => {
+      const raw = b.titlePrefix || 'Raid 1';
+      const displayTitle = raw.toLowerCase().startsWith('raid ')
+        ? raw.replace(/^raid\s+/i, 'Raid Up ')
+        : raw.toLowerCase().includes('up')
+        ? raw
+        : `Up ${raw}`;
+      return {
+        id: b.id,
+        titlePrefix: displayTitle,
+        createdAt: b.createdAt,
+        members: b.members,
+      };
+    });
+
+    // 3. Bảng Bang Chiến
     const gwList = guildWarBoards.map((b) => ({
       id: b.id,
-      titlePrefix: b.title,
+      titlePrefix: b.title ? b.title.replace(/^(Bang Chiến|BANG CHIẾN)\s*/i, 'BC ') : 'Bang Chiến',
       createdAt: b.createdAt,
       members: (b.members || []) as any,
     }));
-    return [...raidList, ...gwList];
-  }, [currentBoards, guildWarBoards]);
+
+    return [...raidList, ...updateList, ...gwList];
+  }, [boards, updateBoards, guildWarBoards]);
 
   // Sync Dark Mode with document.documentElement
   useEffect(() => {
@@ -2962,7 +2982,13 @@ export default function App() {
                       }
                       activeBoardTitle={
                         appMode === 'GUILD_WAR'
-                          ? activeGuildWarBoard.title
+                          ? (activeGuildWarBoard?.title ? activeGuildWarBoard.title.replace(/^(Bang Chiến|BANG CHIẾN)\s*/i, 'BC ') : 'Bang Chiến')
+                          : isRaidUpdate
+                          ? activeBoard.titlePrefix.toLowerCase().startsWith('raid ')
+                            ? activeBoard.titlePrefix.replace(/^raid\s+/i, 'Raid Up ')
+                            : activeBoard.titlePrefix.toLowerCase().includes('up')
+                            ? activeBoard.titlePrefix
+                            : `Up ${activeBoard.titlePrefix}`
                           : activeBoard.titlePrefix
                       }
                       onAssignToRaid={handleAssignPersonnelToRaid}
@@ -3021,7 +3047,13 @@ export default function App() {
                   }
                   activeBoardTitle={
                     appMode === 'GUILD_WAR'
-                      ? activeGuildWarBoard.title
+                      ? (activeGuildWarBoard?.title ? activeGuildWarBoard.title.replace(/^(Bang Chiến|BANG CHIẾN)\s*/i, 'BC ') : 'Bang Chiến')
+                      : isRaidUpdate
+                      ? activeBoard.titlePrefix.toLowerCase().startsWith('raid ')
+                        ? activeBoard.titlePrefix.replace(/^raid\s+/i, 'Raid Up ')
+                        : activeBoard.titlePrefix.toLowerCase().includes('up')
+                        ? activeBoard.titlePrefix
+                        : `Up ${activeBoard.titlePrefix}`
                       : activeBoard.titlePrefix
                   }
                   onAssignToRaid={handleAssignPersonnelToRaid}
