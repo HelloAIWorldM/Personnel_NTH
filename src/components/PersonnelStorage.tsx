@@ -178,9 +178,18 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   // This guarantees that when a new board is created, all personnel already assigned in previous boards maintain their "Đã xếp" status!
   const assignmentsByIngame = useMemo(() => {
     const map = new Map<string, PersonnelAssignment[]>();
+    const isGw = poolType === 'guild_war';
 
     const boardsToScan: Array<{ id: string; titlePrefix: string; members: RaidMember[] }> =
-      allBoards && allBoards.length > 0
+      isGw
+        ? [
+            {
+              id: activeBoardId || 'active',
+              titlePrefix: activeBoardTitle || 'Bang Chiến',
+              members: activeRaidMembers,
+            },
+          ]
+        : allBoards && allBoards.length > 0
         ? allBoards
         : [
             {
@@ -195,21 +204,35 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
       (board.members || []).forEach((m) => {
         const key = normalizeName(m.ingame);
         if (key) {
-          const list = map.get(key) || [];
-          list.push({
-            boardId: board.id,
-            boardTitle: board.titlePrefix,
-            stt: m.stt,
-            party: m.party,
-            isActiveBoard: isCurrentActive,
-          });
-          map.set(key, list);
+          // Đối với Bang Chiến: chỉ tính là "Đã xếp" nếu đã vào team (Mid/Cơ động/Đẩy trụ) hoặc có party
+          // Nếu team === 'Chưa xếp' hoặc không có team -> tính là "Chưa xếp"!
+          const isAssigned =
+            !isGw ||
+            Boolean(
+              (m as any).party !== undefined ||
+              ((m as any).team &&
+                (m as any).team !== 'Chưa xếp' &&
+                (m as any).team !== 'Top' &&
+                (m as any).team !== 'Bot')
+            );
+
+          if (isAssigned) {
+            const list = map.get(key) || [];
+            list.push({
+              boardId: board.id,
+              boardTitle: board.titlePrefix,
+              stt: m.stt,
+              party: m.party,
+              isActiveBoard: isCurrentActive,
+            });
+            map.set(key, list);
+          }
         }
       });
     });
 
     return map;
-  }, [allBoards, activeBoardId, activeBoardTitle, activeRaidMembers]);
+  }, [allBoards, activeBoardId, activeBoardTitle, activeRaidMembers, poolType]);
 
   // Filtered list
   const filteredPersonnel = useMemo(() => {

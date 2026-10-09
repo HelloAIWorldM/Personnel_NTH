@@ -128,10 +128,20 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
   };
 
   const handleDeleteMember = (id: string) => {
+    const memberToDelete = board.members.find((m) => m.id === id);
     const updatedMembers = board.members
       .filter((m) => m.id !== id)
       .map((m, idx) => ({ ...m, stt: idx + 1 }));
     onUpdateBoard({ ...board, members: updatedMembers });
+
+    // Đồng bộ bớt: Xoá khỏi Kho BC khi xoá ở Bảng Bang Chiến
+    if (onUpdatePersonnelPool && memberToDelete && memberToDelete.ingame) {
+      const norm = normalizeName(memberToDelete.ingame);
+      const updatedPool = (personnelPool || []).filter(
+        (p) => normalizeName(p.ingame) !== norm
+      );
+      onUpdatePersonnelPool(updatedPool);
+    }
   };
 
   // Move member to team

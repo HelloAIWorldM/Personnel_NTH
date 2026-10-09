@@ -200,33 +200,19 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
 
   const handleSyncToGuildWarPool = () => {
     if (!onUpdatePersonnelPool) return;
-    const existingSet = new Set(
-      personnelPool.map((p) => normalizeName(p.ingame)).filter(Boolean)
-    );
-    const newPersonnel: PersonnelMember[] = [];
     const now = Date.now();
-    members.forEach((m, idx) => {
-      const norm = normalizeName(m.ingame);
-      if (norm && !existingSet.has(norm)) {
-        existingSet.add(norm);
-        newPersonnel.push({
-          id: `p_gw_${now}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
-          ingame: m.ingame.trim(),
-          className: m.className || 'Cửu Linh',
-          loggedBy: (m.loggedBy || m.discord || m.ingame).trim(),
-          note: m.note || '',
-          createdAt: now,
-        });
-      }
-    });
+    // Đồng bộ chính xác danh sách nhân sự từ Bảng Bang Chiến hiện tại vào Kho BC (bao gồm cả thêm và bớt)
+    const syncedPool: PersonnelMember[] = members.map((m, idx) => ({
+      id: `p_gw_${now}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+      ingame: m.ingame.trim(),
+      className: m.className || 'Cửu Linh',
+      loggedBy: (m.loggedBy || m.discord || m.ingame).trim(),
+      note: m.note || '',
+      createdAt: now,
+    }));
 
-    if (newPersonnel.length > 0) {
-      const updated = [...newPersonnel, ...personnelPool];
-      onUpdatePersonnelPool(updated);
-      alert(`Đã đồng bộ ${newPersonnel.length} nhân sự từ Bảng Bang Chiến vào Kho BC thành công!`);
-    } else {
-      alert('Tất cả nhân sự trong Bảng Bang Chiến đã có đầy đủ trong Kho BC!');
-    }
+    onUpdatePersonnelPool(syncedPool);
+    alert(`Đã đồng bộ chính xác số lượng Kho BC theo Bảng Bang Chiến (${syncedPool.length} nhân sự)!`);
   };
 
   const handleCreateNew = (e: React.FormEvent) => {
