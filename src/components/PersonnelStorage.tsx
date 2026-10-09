@@ -178,23 +178,14 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   // This guarantees that when a new board is created, all personnel already assigned in previous boards maintain their "Đã xếp" status!
   const assignmentsByIngame = useMemo(() => {
     const map = new Map<string, PersonnelAssignment[]>();
-    const isGw = poolType === 'guild_war';
 
     const boardsToScan: Array<{ id: string; titlePrefix: string; members: RaidMember[] }> =
-      isGw
-        ? [
-            {
-              id: activeBoardId || 'active',
-              titlePrefix: activeBoardTitle || 'Bang Chiến',
-              members: activeRaidMembers,
-            },
-          ]
-        : allBoards && allBoards.length > 0
+      allBoards && allBoards.length > 0
         ? allBoards
         : [
             {
               id: activeBoardId || 'active',
-              titlePrefix: activeBoardTitle || 'Raid',
+              titlePrefix: activeBoardTitle || 'Bảng',
               members: activeRaidMembers,
             },
           ];
@@ -206,15 +197,16 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
         if (key) {
           // Đối với Bang Chiến: chỉ tính là "Đã xếp" nếu đã vào team (Mid/Cơ động/Đẩy trụ) hoặc có party
           // Nếu team === 'Chưa xếp' hoặc không có team -> tính là "Chưa xếp"!
-          const isAssigned =
-            !isGw ||
-            Boolean(
-              (m as any).party !== undefined ||
-              ((m as any).team &&
-                (m as any).team !== 'Chưa xếp' &&
-                (m as any).team !== 'Top' &&
-                (m as any).team !== 'Bot')
-            );
+          const isGwMember = typeof (m as any).team === 'string';
+          const isAssigned = isGwMember
+            ? Boolean(
+                (m as any).party !== undefined ||
+                ((m as any).team &&
+                  (m as any).team !== 'Chưa xếp' &&
+                  (m as any).team !== 'Top' &&
+                  (m as any).team !== 'Bot')
+              )
+            : Boolean(m.ingame && m.ingame.trim() !== '');
 
           if (isAssigned) {
             const list = map.get(key) || [];
@@ -232,7 +224,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
     });
 
     return map;
-  }, [allBoards, activeBoardId, activeBoardTitle, activeRaidMembers, poolType]);
+  }, [allBoards, activeBoardId, activeBoardTitle, activeRaidMembers]);
 
   // Filtered list
   const filteredPersonnel = useMemo(() => {
@@ -923,32 +915,28 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               <div
                 key={person.id}
                 data-person-card="true"
-                draggable={!isAssignedInActiveBoard}
+                draggable={true}
                 onDragStart={(e) => handleDragStart(e, person)}
                 onDragEnd={handleDragEnd}
-                className={`group flex items-center justify-between gap-2 p-2.5 rounded-xl border transition-all ${
+                className={`group flex items-center justify-between gap-2 p-2.5 rounded-xl border transition-all cursor-grab active:cursor-grabbing ${
                   isDragging
                     ? 'opacity-40 border-[#88DCFA] bg-[#88DCFA]/15'
                     : isAssigned
-                    ? 'bg-slate-100/90 dark:bg-[#121B24] border-slate-200 dark:border-[#1A2A38] opacity-80'
-                    : 'bg-white dark:bg-[#162230] border-slate-200 dark:border-[#1F3347] hover:border-sky-400 dark:hover:border-[#2C4863] shadow-2xs hover:shadow-xs cursor-grab active:cursor-grabbing'
+                    ? 'bg-slate-100/90 dark:bg-[#121B24] border-slate-200 dark:border-[#1A2A38] opacity-85 hover:border-sky-400 dark:hover:border-[#2C4863] shadow-2xs hover:shadow-xs'
+                    : 'bg-white dark:bg-[#162230] border-slate-200 dark:border-[#1F3347] hover:border-sky-400 dark:hover:border-[#2C4863] shadow-2xs hover:shadow-xs'
                 }`}
               >
                 {/* Left side: Grip handle, Checkbox, Name, LoggedBy */}
                 <div className="flex items-center gap-2 min-w-0 flex-1">
                   {/* Drag Grip Handle */}
                   <span
-                    className={`shrink-0 ${
-                      isAssignedInActiveBoard
-                        ? 'text-slate-400 dark:text-slate-600 cursor-not-allowed'
-                        : 'cursor-grab text-slate-400 dark:text-slate-500 hover:text-sky-600 dark:hover:text-[#88DCFA]'
-                    }`}
+                    className="shrink-0 cursor-grab text-slate-400 dark:text-slate-500 hover:text-sky-600 dark:hover:text-[#88DCFA]"
                     title={
                       isAssignedInActiveBoard
-                        ? `Nhân sự này đã có trong ${activeBoardTitle || 'bảng hiện tại'}`
+                        ? `Đã có trong ${activeBoardTitle || 'bảng hiện tại'} - Có thể kéo thả sang vị trí khác trong Bảng`
                         : isAssigned
-                        ? `Đã xếp ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Có thể kéo thả vào bảng hiện tại`
-                        : 'Kéo thẻ này thả vào hàng bất kỳ trong Bảng Raid'
+                        ? `Đã xếp ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Có thể kéo thả vào Bảng hiện tại`
+                        : 'Kéo thẻ này thả vào hàng bất kỳ trong Bảng'
                     }
                   >
                     <GripVertical className="w-4 h-4" />

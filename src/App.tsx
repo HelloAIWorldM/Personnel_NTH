@@ -334,6 +334,23 @@ export default function App() {
     );
   }, [guildWarBoards, activeGuildWarBoardId]);
 
+  // Comprehensive boards representation for PersonnelStorage across both Raid and Bang Chiến
+  const allKnownBoardsForStorage = useMemo(() => {
+    const raidList = currentBoards.map((b) => ({
+      id: b.id,
+      titlePrefix: b.titlePrefix,
+      createdAt: b.createdAt,
+      members: b.members,
+    }));
+    const gwList = guildWarBoards.map((b) => ({
+      id: b.id,
+      titlePrefix: b.title,
+      createdAt: b.createdAt,
+      members: (b.members || []) as any,
+    }));
+    return [...raidList, ...gwList];
+  }, [currentBoards, guildWarBoards]);
+
   // Sync Dark Mode with document.documentElement
   useEffect(() => {
     try {
@@ -1133,6 +1150,85 @@ export default function App() {
     showToast(`Đã tạo bảng "${newBoard.title}" thành công!`);
   };
 
+  // Helper đồng bộ dữ liệu giữa Kho BC và Bảng Bang Chiến hiện tại (Cả thêm và bớt)
+  const syncGuildWarPoolToBoard = useCallback(
+    (
+      newPool: PersonnelMember[],
+      type: 'add' | 'delete' | 'auto',
+      removedNorms?: Set<string>
+    ) => {
+      setGuildWarBoards((currBoards) => {
+        const targetId = currBoards.some((b) => b.id === activeGuildWarBoardId)
+          ? activeGuildWarBoardId
+          : currBoards[0]?.id;
+        if (!targetId) return currBoards;
+
+        const updatedBoards = currBoards.map((b) => {
+          if (b.id !== targetId) return b;
+
+          let updatedMembers = [...b.members];
+
+          // 1. Nếu có xoá (bớt), lọc bỏ khỏi bảng Bang Chiến
+          if (type === 'delete' || type === 'auto') {
+            const poolNorms = new Set(
+              newPool.map((p) => normalizeName(p.ingame)).filter(Boolean)
+            );
+            if (removedNorms && removedNorms.size > 0) {
+              updatedMembers = updatedMembers.filter(
+                (m) => !removedNorms.has(normalizeName(m.ingame))
+              );
+            } else if (type === 'delete') {
+              updatedMembers = updatedMembers.filter((m) =>
+                poolNorms.has(normalizeName(m.ingame))
+              );
+            }
+          }
+
+          // 2. Nếu có thêm mới, bổ sung vào bảng Bang Chiến với team: 'Chưa xếp'
+          if (type === 'add' || type === 'auto') {
+            const existingNorms = new Set(
+              updatedMembers.map((m) => normalizeName(m.ingame)).filter(Boolean)
+            );
+            const toAdd: GuildMember[] = [];
+            const timestamp = Date.now();
+
+            newPool.forEach((p, idx) => {
+              const norm = normalizeName(p.ingame);
+              if (norm && !existingNorms.has(norm)) {
+                existingNorms.add(norm);
+                toAdd.push({
+                  id: `gw_m_${timestamp}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+                  stt: updatedMembers.length + toAdd.length + 1,
+                  ingame: p.ingame.trim(),
+                  className: p.className || 'Cửu Linh',
+                  guildRole: 'Thành Viên',
+                  participation: 'Cả hai',
+                  team: 'Chưa xếp',
+                  attendance: {},
+                  loggedBy: (p.loggedBy || p.ingame).trim(),
+                  discord: (p.loggedBy || p.ingame).trim(),
+                  note: p.note || '',
+                });
+              }
+            });
+
+            if (toAdd.length > 0) {
+              updatedMembers = [...updatedMembers, ...toAdd];
+            }
+          }
+
+          const reindexed = updatedMembers.map((m, idx) => ({ ...m, stt: idx + 1 }));
+          return { ...b, members: reindexed };
+        });
+
+        safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(updatedBoards));
+        saveToIndexedDB('guildWarBoards', updatedBoards);
+        return updatedBoards;
+      });
+    },
+    [activeGuildWarBoardId]
+  );
+
   // Immediate synchronous & multi-layer persistent personnel pool updater
   const handleUpdatePersonnelPool = useCallback(
     (action: PersonnelMember[] | ((prev: PersonnelMember[]) => PersonnelMember[])) => {
@@ -1168,85 +1264,38 @@ export default function App() {
           return next;
         });
       } else if (activePoolView === 'guild_war') {
-        setGuildWarPersonnelPool((prev) => {
-          const next = typeof action === 'function' ? action(prev) : action;
-          try {
-            safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(next));
-          } catch (e) {
-            console.error('[Storage] Error persisting guild war personnel to localStorage:', e);
-          }
-          saveToIndexedDB('guildWarPersonnelPool', next);
-          saveAutoSnapshot(
-            boards,
-            personnelPool,
-            customColors,
-            guildWarBoards,
-            diBuiPersonnelPool,
-            masterPersonnelPool,
-            next
+        const prev = guildWarPersonnelPool;
+        const next = typeof action === 'function' ? action(prev) : action;
+
+        setGuildWarPersonnelPool(next);
+        try {
+          safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(next));
+        } catch (e) {
+          console.error('[Storage] Error persisting guild war personnel to localStorage:', e);
+        }
+        saveToIndexedDB('guildWarPersonnelPool', next);
+        saveAutoSnapshot(
+          boards,
+          personnelPool,
+          customColors,
+          guildWarBoards,
+          diBuiPersonnelPool,
+          masterPersonnelPool,
+          next
+        );
+
+        // Đồng bộ 2 chiều: Thêm & Bớt giữa Kho BC và Bảng Bang Chiến
+        if (next.length < prev.length) {
+          const nextNorms = new Set(next.map((p) => normalizeName(p.ingame)).filter(Boolean));
+          const removed = new Set(
+            prev.map((p) => normalizeName(p.ingame)).filter((n) => n && !nextNorms.has(n))
           );
+          syncGuildWarPoolToBoard(next, 'delete', removed);
+        } else {
+          syncGuildWarPoolToBoard(next, 'add');
+        }
 
-          // Đồng bộ 2 chiều: Khi xoá (bớt) ở Kho BC -> gỡ khỏi Bảng Bang Chiến hiện tại
-          if (next.length < prev.length) {
-            const nextNorms = new Set(next.map((p) => normalizeName(p.ingame)).filter(Boolean));
-            setGuildWarBoards((currBoards) => {
-              const updatedBoards = currBoards.map((b) => {
-                if (b.id === activeGuildWarBoardId) {
-                  const filtered = b.members
-                    .filter((m) => nextNorms.has(normalizeName(m.ingame)))
-                    .map((m, idx) => ({ ...m, stt: idx + 1 }));
-                  return { ...b, members: filtered };
-                }
-                return b;
-              });
-              safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(updatedBoards));
-              saveToIndexedDB('guildWarBoards', updatedBoards);
-              return updatedBoards;
-            });
-          } else if (next.length > prev.length) {
-            // Đồng bộ 2 chiều: Khi thêm mới ở Kho BC -> thêm vào Bảng Bang Chiến hiện tại (team: Chưa xếp)
-            const prevNorms = new Set(prev.map((p) => normalizeName(p.ingame)).filter(Boolean));
-            const newlyAdded = next.filter((p) => !prevNorms.has(normalizeName(p.ingame)));
-            if (newlyAdded.length > 0) {
-              setGuildWarBoards((currBoards) => {
-                const updatedBoards = currBoards.map((b) => {
-                  if (b.id === activeGuildWarBoardId) {
-                    const existingNorms = new Set(b.members.map((m) => normalizeName(m.ingame)).filter(Boolean));
-                    const newBoardMems: GuildMember[] = [];
-                    newlyAdded.forEach((p, idx) => {
-                      const norm = normalizeName(p.ingame);
-                      if (norm && !existingNorms.has(norm)) {
-                        existingNorms.add(norm);
-                        newBoardMems.push({
-                          id: `gw_m_${Date.now()}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
-                          stt: b.members.length + newBoardMems.length + 1,
-                          ingame: p.ingame.trim(),
-                          className: p.className || 'Cửu Linh',
-                          guildRole: 'Thành Viên',
-                          participation: 'Cả hai',
-                          team: 'Chưa xếp',
-                          attendance: {},
-                          loggedBy: (p.loggedBy || p.ingame).trim(),
-                          discord: (p.loggedBy || p.ingame).trim(),
-                          note: p.note || '',
-                        });
-                      }
-                    });
-                    if (newBoardMems.length > 0) {
-                      return { ...b, members: [...b.members, ...newBoardMems] };
-                    }
-                  }
-                  return b;
-                });
-                safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(updatedBoards));
-                saveToIndexedDB('guildWarBoards', updatedBoards);
-                return updatedBoards;
-              });
-            }
-          }
-
-          return next;
-        });
+        return next;
       } else {
         // activePoolView === 'raid'
         setPersonnelPool((prev) => {
@@ -1279,6 +1328,8 @@ export default function App() {
       diBuiPersonnelPool,
       masterPersonnelPool,
       guildWarPersonnelPool,
+      activeGuildWarBoardId,
+      syncGuildWarPoolToBoard,
     ]
   );
 
@@ -1317,12 +1368,12 @@ export default function App() {
         return next;
       });
     } else if (targetPool === 'GUILD_WAR') {
-      setGuildWarPersonnelPool((prev) => {
-        const next = updateFn(prev);
-        safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(next));
-        saveToIndexedDB('guildWarPersonnelPool', next);
-        return next;
-      });
+      const next = updateFn(guildWarPersonnelPool);
+      setGuildWarPersonnelPool(next);
+      safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(next));
+      saveToIndexedDB('guildWarPersonnelPool', next);
+      // Tự động đồng bộ ngay vào Bảng Bang Chiến hiện tại
+      syncGuildWarPoolToBoard(next, 'add');
     }
 
     showToast(
@@ -1366,20 +1417,24 @@ export default function App() {
         return next;
       });
     } else if (target === 'GUILD_WAR') {
-      setGuildWarPersonnelPool((prev) => {
-        const exists = prev.some((p) => normalizeName(p.ingame) === norm);
-        let next: PersonnelMember[];
-        if (exists) {
-          next = prev.filter((p) => normalizeName(p.ingame) !== norm);
-          showToast(`Đã gỡ "${member.ingame}" khỏi Kho Bang Chiến`);
-        } else {
-          next = [...prev, { ...member }];
-          showToast(`Đã thêm "${member.ingame}" vào Kho Bang Chiến`);
-        }
+      const exists = guildWarPersonnelPool.some((p) => normalizeName(p.ingame) === norm);
+      let next: PersonnelMember[];
+      if (exists) {
+        next = guildWarPersonnelPool.filter((p) => normalizeName(p.ingame) !== norm);
+        showToast(`Đã gỡ "${member.ingame}" khỏi Kho Bang Chiến`);
+        setGuildWarPersonnelPool(next);
         safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(next));
         saveToIndexedDB('guildWarPersonnelPool', next);
-        return next;
-      });
+        const removed = new Set([norm]);
+        syncGuildWarPoolToBoard(next, 'delete', removed);
+      } else {
+        next = [...guildWarPersonnelPool, { ...member }];
+        showToast(`Đã thêm "${member.ingame}" vào Kho Bang Chiến`);
+        setGuildWarPersonnelPool(next);
+        safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(next));
+        saveToIndexedDB('guildWarPersonnelPool', next);
+        syncGuildWarPoolToBoard(next, 'add');
+      }
     }
   };
 
@@ -1728,7 +1783,7 @@ export default function App() {
     person: PersonnelMember,
     targetStt?: number
   ) => {
-    if (activePoolView === 'guild_war' || appMode === 'GUILD_WAR') {
+    if (appMode === 'GUILD_WAR') {
       const norm = normalizeName(person.ingame);
       const exists = activeGuildWarBoard.members.some((m) => normalizeName(m.ingame) === norm);
       if (!exists) {
@@ -1820,7 +1875,7 @@ export default function App() {
     const targetNorm = normalizeName(ingame);
     if (!targetNorm) return;
 
-    if (activePoolView === 'guild_war' || appMode === 'GUILD_WAR') {
+    if (appMode === 'GUILD_WAR') {
       const updated = activeGuildWarBoard.members
         .filter((m) => normalizeName(m.ingame) !== targetNorm)
         .map((m, idx) => ({ ...m, stt: idx + 1 }));
@@ -2533,9 +2588,19 @@ export default function App() {
             personnelPool={guildWarPersonnelPool}
             masterPersonnelPool={masterPersonnelPool}
             onUpdatePersonnelPool={(next) => {
+              const prev = guildWarPersonnelPool;
               setGuildWarPersonnelPool(next);
               safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(next));
               saveToIndexedDB('guildWarPersonnelPool', next);
+              if (next.length < prev.length) {
+                const nextNorms = new Set(next.map((p) => normalizeName(p.ingame)).filter(Boolean));
+                const removed = new Set(
+                  prev.map((p) => normalizeName(p.ingame)).filter((n) => n && !nextNorms.has(n))
+                );
+                syncGuildWarPoolToBoard(next, 'delete', removed);
+              } else {
+                syncGuildWarPoolToBoard(next, 'add');
+              }
             }}
             raidMembers={activeBoard.members}
             onUpdateBoard={handleUpdateGuildWarBoard}
@@ -2807,27 +2872,18 @@ export default function App() {
                       personnelPool={currentPersonnelPool}
                       onUpdatePersonnelPool={handleUpdatePersonnelPool}
                       activeRaidMembers={
-                        activePoolView === 'guild_war'
+                        appMode === 'GUILD_WAR'
                           ? (activeGuildWarBoard?.members as any) || []
                           : activeBoard.members
                       }
-                      allBoards={
-                        activePoolView === 'guild_war'
-                          ? (guildWarBoards.map((b) => ({
-                              id: b.id,
-                              titlePrefix: b.title,
-                              createdAt: b.createdAt,
-                              members: (b.members || []) as any,
-                            })) as any)
-                          : currentBoards
-                      }
+                      allBoards={allKnownBoardsForStorage}
                       activeBoardId={
-                        activePoolView === 'guild_war'
+                        appMode === 'GUILD_WAR'
                           ? activeGuildWarBoard.id
                           : activeBoard.id
                       }
                       activeBoardTitle={
-                        activePoolView === 'guild_war'
+                        appMode === 'GUILD_WAR'
                           ? activeGuildWarBoard.title
                           : activeBoard.titlePrefix
                       }
@@ -2875,27 +2931,18 @@ export default function App() {
                   personnelPool={currentPersonnelPool}
                   onUpdatePersonnelPool={handleUpdatePersonnelPool}
                   activeRaidMembers={
-                    activePoolView === 'guild_war'
+                    appMode === 'GUILD_WAR'
                       ? (activeGuildWarBoard?.members as any) || []
                       : activeBoard.members
                   }
-                  allBoards={
-                    activePoolView === 'guild_war'
-                      ? (guildWarBoards.map((b) => ({
-                          id: b.id,
-                          titlePrefix: b.title,
-                          createdAt: b.createdAt,
-                          members: (b.members || []) as any,
-                        })) as any)
-                      : currentBoards
-                  }
+                  allBoards={allKnownBoardsForStorage}
                   activeBoardId={
-                    activePoolView === 'guild_war'
+                    appMode === 'GUILD_WAR'
                       ? activeGuildWarBoard.id
                       : activeBoard.id
                   }
                   activeBoardTitle={
-                    activePoolView === 'guild_war'
+                    appMode === 'GUILD_WAR'
                       ? activeGuildWarBoard.title
                       : activeBoard.titlePrefix
                   }
