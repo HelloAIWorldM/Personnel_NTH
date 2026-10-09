@@ -918,7 +918,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                 draggable={true}
                 onDragStart={(e) => handleDragStart(e, person)}
                 onDragEnd={handleDragEnd}
-                className={`group flex items-start justify-between gap-2 p-2.5 rounded-xl border transition-all cursor-grab active:cursor-grabbing ${
+                className={`group flex flex-col gap-1.5 p-2.5 rounded-xl border transition-all cursor-grab active:cursor-grabbing ${
                   isDragging
                     ? 'opacity-40 border-[#88DCFA] bg-[#88DCFA]/15'
                     : isAssigned
@@ -926,266 +926,264 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     : 'bg-white dark:bg-[#162230] border-slate-200 dark:border-[#1F3347] hover:border-sky-400 dark:hover:border-[#2C4863] shadow-2xs hover:shadow-xs'
                 }`}
               >
-                {/* Left side: Grip handle, Checkbox, Name, Status, LoggedBy */}
-                <div className="flex items-start gap-2 min-w-0 flex-1">
-                  {/* Drag Grip Handle */}
-                  <span
-                    className="shrink-0 pt-0.5 cursor-grab text-slate-400 dark:text-slate-500 hover:text-sky-600 dark:hover:text-[#88DCFA]"
-                    title={
-                      isAssignedInActiveBoard
-                        ? `Đã có trong ${activeBoardTitle || 'bảng hiện tại'} - Có thể kéo thả sang vị trí khác trong Bảng`
-                        : isAssigned
-                        ? `Đã xếp ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Có thể kéo thả vào Bảng hiện tại`
-                        : 'Kéo thẻ này thả vào hàng bất kỳ trong Bảng'
-                    }
-                  >
-                    <GripVertical className="w-4 h-4" />
-                  </span>
+                {/* 1. Top Row: Grip, Checkbox, Ingame Name (Left) & Class Pill, Actions (Right) */}
+                <div className="flex items-center justify-between gap-2 w-full min-w-0">
+                  {/* Left: Grip, Checkbox, Name */}
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {/* Drag Grip Handle */}
+                    <span
+                      className="shrink-0 cursor-grab text-slate-400 dark:text-slate-500 hover:text-sky-600 dark:hover:text-[#88DCFA]"
+                      title={
+                        isAssignedInActiveBoard
+                          ? `Đã có trong ${activeBoardTitle || 'bảng hiện tại'} - Có thể kéo thả sang vị trí khác trong Bảng`
+                          : isAssigned
+                          ? `Đã xếp ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Có thể kéo thả vào Bảng hiện tại`
+                          : 'Kéo thẻ này thả vào hàng bất kỳ trong Bảng'
+                      }
+                    >
+                      <GripVertical className="w-4 h-4" />
+                    </span>
 
-                  {/* Presence Checkbox (Điểm danh / Có mặt) */}
-                  <button
-                    type="button"
-                    onClick={() => handleToggleCheck(person.id)}
-                    title={
-                      person.checked
-                        ? 'Đã đánh dấu có mặt (Click để bỏ gạch tên)'
-                        : 'Đánh dấu có mặt / Điểm danh (Click để gạch tên)'
-                    }
-                    className={`w-4 h-4 mt-0.5 rounded shrink-0 flex items-center justify-center border transition-colors ${
-                      person.checked
-                        ? 'bg-[#88DCFA] border-[#88DCFA] text-slate-950 shadow-xs'
-                        : 'border-slate-300 dark:border-[#1F3347] hover:border-[#88DCFA] bg-slate-50 dark:bg-[#0B1219]'
-                    }`}
-                  >
-                    {person.checked && <Check className="w-3 h-3 stroke-[3]" />}
-                  </button>
+                    {/* Presence Checkbox (Điểm danh / Có mặt) */}
+                    <button
+                      type="button"
+                      onClick={() => handleToggleCheck(person.id)}
+                      title={
+                        person.checked
+                          ? 'Đã đánh dấu có mặt (Click để bỏ gạch tên)'
+                          : 'Đánh dấu có mặt / Điểm danh (Click để gạch tên)'
+                      }
+                      className={`w-4 h-4 rounded shrink-0 flex items-center justify-center border transition-colors ${
+                        person.checked
+                          ? 'bg-[#88DCFA] border-[#88DCFA] text-slate-950 shadow-xs'
+                          : 'border-slate-300 dark:border-[#1F3347] hover:border-[#88DCFA] bg-slate-50 dark:bg-[#0B1219]'
+                      }`}
+                    >
+                      {person.checked && <Check className="w-3 h-3 stroke-[3]" />}
+                    </button>
 
-                  {/* Name, Status tag, and Logged by */}
-                  <div className="min-w-0 flex-1">
-                    {/* Row 1: Ingame name */}
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span
-                        className={`text-xs sm:text-sm font-black truncate ${
-                          isCrossedOut
-                            ? 'line-through decoration-2 decoration-rose-500 text-slate-400 dark:text-slate-500'
-                            : 'text-slate-900 dark:text-white'
-                        }`}
-                        title={person.ingame}
-                      >
-                        {person.ingame || 'Chưa đặt tên'}
-                      </span>
-                    </div>
+                    {/* Ingame name */}
+                    <span
+                      className={`text-xs sm:text-sm font-black truncate ${
+                        isCrossedOut
+                          ? 'line-through decoration-2 decoration-rose-500 text-slate-400 dark:text-slate-500'
+                          : 'text-slate-900 dark:text-white'
+                      }`}
+                      title={person.ingame}
+                    >
+                      {person.ingame || 'Chưa đặt tên'}
+                    </span>
+                  </div>
 
-                    {/* Row 2: Status Tag (Đã xếp ở các bảng nào) & Note Badge */}
-                    {(isAssigned || (!isAssigned && person.checked) || person.note?.trim()) && (
-                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
-                        {isAssigned && (
+                  {/* Right side: Class Pill & Actions */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Class Badge */}
+                    <span
+                      className="px-2 py-0.5 rounded-lg text-[11px] font-black shrink-0 shadow-2xs"
+                      style={{
+                        backgroundColor: classMeta.bgColor,
+                        color: classMeta.textColor,
+                      }}
+                    >
+                      {person.className}
+                    </span>
+
+                    {/* Master Pool: Quick Share Distribution Badges */}
+                    {isMasterPool ? (
+                      <div className="flex items-center gap-1">
+                        {/* Raid */}
+                        {subPoolMembershipMap?.inRaid.has(normalizeName(person.ingame)) ? (
                           <span
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-sky-100 dark:bg-[#152B3B] text-sky-900 dark:text-[#88DCFA] border border-sky-300 dark:border-[#1E435E] shadow-2xs max-w-full"
-                            title={`Đã xếp ở: ${assignments.map((a) => `${a.boardTitle} (STT #${a.stt}${a.party ? ` - P${a.party}` : ''})`).join(', ')}`}
+                            title="Đã có trong Kho Raid"
+                            className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs"
                           >
-                            <Check className="w-3 h-3 stroke-[3] shrink-0" />
-                            <span className="truncate max-w-[140px] sm:max-w-[200px] lg:max-w-[280px]">
-                              {assignments.map((a) => a.boardTitle).join(', ')}
-                            </span>
+                            ✓ Raid
                           </span>
-                        )}
-
-                        {!isAssigned && person.checked && (
-                          <span
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-sky-100 dark:bg-sky-950/70 text-sky-900 dark:text-sky-300 border border-sky-300 dark:border-sky-800/70 shadow-2xs"
-                          >
-                            <Check className="w-3 h-3 stroke-[3] shrink-0" />
-                            <span>Có mặt</span>
-                          </span>
-                        )}
-
-                        {/* Note Badge nếu đã có ghi chú */}
-                        {person.note?.trim() && (
+                        ) : (
                           <button
                             type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
-                              handleToggleNoteForPerson(
-                                person,
-                                card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
-                              );
-                            }}
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/80 shadow-2xs max-w-[120px] transition-all hover:scale-105 cursor-pointer"
-                            title={`Ghi chú: ${person.note} (Click để mở xem & sửa)`}
+                            onClick={() => onQuickShareMember && onQuickShareMember(person, 'RAID')}
+                            title="Chia sẻ ngay sang Kho Raid"
+                            className="px-1.5 py-0.5 rounded text-[10px] font-black bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
                           >
-                            <span className="text-[10px]">📝</span>
-                            <span className="truncate">{person.note}</span>
+                            + Raid
+                          </button>
+                        )}
+
+                        {/* Update */}
+                        {subPoolMembershipMap?.inUpdate.has(normalizeName(person.ingame)) ? (
+                          <span
+                            title="Đã có trong Kho Raid Update"
+                            className="px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-800 shadow-2xs"
+                          >
+                            ✓ Update
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onQuickShareMember && onQuickShareMember(person, 'RAID_UPDATE')}
+                            title="Chia sẻ ngay sang Kho Raid Update"
+                            className="px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
+                          >
+                            + Update
+                          </button>
+                        )}
+
+                        {/* Guild War */}
+                        {subPoolMembershipMap?.inGuildWar.has(normalizeName(person.ingame)) ? (
+                          <span
+                            title="Đã có trong Kho Bang Chiến"
+                            className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 shadow-2xs"
+                          >
+                            ✓ BC
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => onQuickShareMember && onQuickShareMember(person, 'GUILD_WAR')}
+                            title="Chia sẻ ngay sang Kho Bang Chiến"
+                            className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
+                          >
+                            + BC
                           </button>
                         )}
                       </div>
+                    ) : (
+                      /* Sub-pools: Normal Assign / Remove Button */
+                      isAssignedInActiveBoard ? (
+                        <button
+                          type="button"
+                          onClick={() => onRemoveFromRaid(person.ingame)}
+                          title={`Bỏ nhân sự này khỏi ${activeBoardTitle || 'bảng hiện tại'}`}
+                          className="px-2.5 py-1 text-[11px] font-black rounded-lg bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800/60 transition-all hover:scale-105 active:scale-95 shadow-2xs"
+                        >
+                          Bỏ xếp
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onAssignToRaid(person)}
+                          title={
+                            isAssigned
+                              ? `Đã có ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Click để xếp vào bảng này`
+                              : 'Xếp vào ô trống kế tiếp hoặc thêm slot mới trong Raid'
+                          }
+                          className="flex items-center gap-0.5 px-2.5 py-1 text-[11px] font-black rounded-lg bg-[#88DCFA] hover:bg-[#68CEF6] active:bg-[#48bbf0] text-slate-950 shadow-[0_0_10px_rgba(136,220,250,0.3)] transition-all hover:scale-105 active:scale-95"
+                        >
+                          <Plus className="w-3 h-3 stroke-[2.5]" />
+                          <span>{isAssigned ? 'Xếp tiếp' : 'Xếp'}</span>
+                        </button>
+                      )
                     )}
 
-                    {/* Row 3: Logged by */}
-                    <div className="text-[11px] truncate flex items-center gap-1 text-slate-500 dark:text-slate-400 mt-0.5">
-                      <span className="font-semibold text-slate-500 dark:text-[#8CA4B8]">
-                        Log:
-                      </span>
-                      <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
-                        {person.loggedBy || person.ingame}
-                      </span>
+                    {/* Edit & Delete trigger buttons */}
+                    <div className="flex items-center gap-0.5 pl-0.5 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity">
+                      {onMoveToDiBui && (
+                        <button
+                          type="button"
+                          onClick={() => onMoveToDiBui(person)}
+                          title="Chuyển sang Kho Đi Bụi (Tạm nghỉ / chờ quay lại game)"
+                          className="p-1 text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 rounded transition-colors"
+                        >
+                          <Tent className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                      {/* Note button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
+                          handleToggleNoteForPerson(
+                            person,
+                            card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
+                          );
+                        }}
+                        title={person.note ? 'Xem & sửa ghi chú (Click để ẩn/hiện)' : 'Thêm ghi chú (Click để ẩn/hiện)'}
+                        className={`p-1 rounded transition-colors cursor-pointer ${
+                          activeNotePerson?.id === person.id
+                            ? 'text-amber-500 bg-amber-100 dark:bg-amber-950/70 ring-1 ring-amber-400'
+                            : person.note
+                            ? 'text-amber-500 hover:text-amber-600 bg-amber-50 dark:bg-amber-950/40'
+                            : 'text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                        }`}
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleStartEdit(person)}
+                        title="Chỉnh sửa thông tin"
+                        className="p-1 text-slate-400 hover:text-slate-800 dark:hover:text-white rounded transition-colors"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(person.id)}
+                        title="Xoá khỏi kho nhân sự"
+                        className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
                 </div>
 
-                {/* Right side: Class Pill & Actions */}
-                <div className="flex items-center gap-1.5 shrink-0 pt-0.5">
-                  {/* Class Badge */}
-                  <span
-                    className="px-2 py-0.5 rounded-lg text-[11px] font-black shrink-0 shadow-2xs"
-                    style={{
-                      backgroundColor: classMeta.bgColor,
-                      color: classMeta.textColor,
-                    }}
-                  >
-                    {person.className}
-                  </span>
-
-                  {/* Master Pool: Quick Share Distribution Badges */}
-                  {isMasterPool ? (
-                    <div className="flex items-center gap-1">
-                      {/* Raid */}
-                      {subPoolMembershipMap?.inRaid.has(normalizeName(person.ingame)) ? (
-                        <span
-                          title="Đã có trong Kho Raid"
-                          className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs"
-                        >
-                          ✓ Raid
+                {/* 2. Middle Row (Full Width): Status Tag (Kéo dài toàn bộ theo hướng ngang) & Note Badge */}
+                {(isAssigned || (!isAssigned && person.checked) || person.note?.trim()) && (
+                  <div className="flex items-center gap-1.5 flex-wrap w-full pl-6">
+                    {isAssigned && (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-sky-100 dark:bg-[#152B3B] text-sky-900 dark:text-[#88DCFA] border border-sky-300 dark:border-[#1E435E] shadow-2xs whitespace-nowrap max-w-full overflow-x-auto no-scrollbar"
+                        title={`Đã xếp ở: ${assignments.map((a) => `${a.boardTitle} (STT #${a.stt}${a.party ? ` - P${a.party}` : ''})`).join(', ')}`}
+                      >
+                        <Check className="w-3 h-3 stroke-[3] shrink-0" />
+                        <span className="whitespace-nowrap">
+                          {Array.from(new Set(assignments.map((a) => a.boardTitle))).join(', ')}
                         </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => onQuickShareMember && onQuickShareMember(person, 'RAID')}
-                          title="Chia sẻ ngay sang Kho Raid"
-                          className="px-1.5 py-0.5 rounded text-[10px] font-black bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
-                        >
-                          + Raid
-                        </button>
-                      )}
+                      </span>
+                    )}
 
-                      {/* Update */}
-                      {subPoolMembershipMap?.inUpdate.has(normalizeName(person.ingame)) ? (
-                        <span
-                          title="Đã có trong Kho Raid Update"
-                          className="px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-800 shadow-2xs"
-                        >
-                          ✓ Update
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => onQuickShareMember && onQuickShareMember(person, 'RAID_UPDATE')}
-                          title="Chia sẻ ngay sang Kho Raid Update"
-                          className="px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
-                        >
-                          + Update
-                        </button>
-                      )}
+                    {!isAssigned && person.checked && (
+                      <span
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-sky-100 dark:bg-sky-950/70 text-sky-900 dark:text-sky-300 border border-sky-300 dark:border-sky-800/70 shadow-2xs whitespace-nowrap"
+                      >
+                        <Check className="w-3 h-3 stroke-[3] shrink-0" />
+                        <span>Có mặt</span>
+                      </span>
+                    )}
 
-                      {/* Guild War */}
-                      {subPoolMembershipMap?.inGuildWar.has(normalizeName(person.ingame)) ? (
-                        <span
-                          title="Đã có trong Kho Bang Chiến"
-                          className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 shadow-2xs"
-                        >
-                          ✓ BC
-                        </span>
-                      ) : (
-                        <button
-                          type="button"
-                          onClick={() => onQuickShareMember && onQuickShareMember(person, 'GUILD_WAR')}
-                          title="Chia sẻ ngay sang Kho Bang Chiến"
-                          className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
-                        >
-                          + BC
-                        </button>
-                      )}
-                    </div>
-                  ) : (
-                    /* Sub-pools: Normal Assign / Remove Button */
-                    isAssignedInActiveBoard ? (
+                    {/* Note Badge nếu đã có ghi chú */}
+                    {person.note?.trim() && (
                       <button
                         type="button"
-                        onClick={() => onRemoveFromRaid(person.ingame)}
-                        title={`Bỏ nhân sự này khỏi ${activeBoardTitle || 'bảng hiện tại'}`}
-                        className="px-2.5 py-1 text-[11px] font-black rounded-lg bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800/60 transition-all hover:scale-105 active:scale-95 shadow-2xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
+                          handleToggleNoteForPerson(
+                            person,
+                            card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
+                          );
+                        }}
+                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/80 shadow-2xs whitespace-nowrap max-w-full overflow-x-auto no-scrollbar transition-all hover:scale-105 cursor-pointer"
+                        title={`Ghi chú: ${person.note} (Click để mở xem & sửa)`}
                       >
-                        Bỏ xếp
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onAssignToRaid(person)}
-                        title={
-                          isAssigned
-                            ? `Đã có ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Click để xếp vào bảng này`
-                            : 'Xếp vào ô trống kế tiếp hoặc thêm slot mới trong Raid'
-                        }
-                        className="flex items-center gap-0.5 px-2.5 py-1 text-[11px] font-black rounded-lg bg-[#88DCFA] hover:bg-[#68CEF6] active:bg-[#48bbf0] text-slate-950 shadow-[0_0_10px_rgba(136,220,250,0.3)] transition-all hover:scale-105 active:scale-95"
-                      >
-                        <Plus className="w-3 h-3 stroke-[2.5]" />
-                        <span>{isAssigned ? 'Xếp tiếp' : 'Xếp'}</span>
-                      </button>
-                    )
-                  )}
-
-                  {/* Edit & Delete trigger buttons */}
-                  <div className="flex items-center gap-0.5 pl-0.5 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                    {onMoveToDiBui && (
-                      <button
-                        type="button"
-                        onClick={() => onMoveToDiBui(person)}
-                        title="Chuyển sang Kho Đi Bụi (Tạm nghỉ / chờ quay lại game)"
-                        className="p-1 text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40 rounded transition-colors"
-                      >
-                        <Tent className="w-3.5 h-3.5" />
+                        <span className="text-[10px]">📝</span>
+                        <span className="whitespace-nowrap">{person.note}</span>
                       </button>
                     )}
-                    {/* Note button */}
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
-                        handleToggleNoteForPerson(
-                          person,
-                          card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
-                        );
-                      }}
-                      title={person.note ? 'Xem & sửa ghi chú (Click để ẩn/hiện)' : 'Thêm ghi chú (Click để ẩn/hiện)'}
-                      className={`p-1 rounded transition-colors cursor-pointer ${
-                        activeNotePerson?.id === person.id
-                          ? 'text-amber-500 bg-amber-100 dark:bg-amber-950/70 ring-1 ring-amber-400'
-                          : person.note
-                          ? 'text-amber-500 hover:text-amber-600 bg-amber-50 dark:bg-amber-950/40'
-                          : 'text-slate-400 hover:text-slate-800 dark:hover:text-white'
-                      }`}
-                    >
-                      <MessageSquare className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleStartEdit(person)}
-                      title="Chỉnh sửa thông tin"
-                      className="p-1 text-slate-400 hover:text-slate-800 dark:hover:text-white rounded transition-colors"
-                    >
-                      <Edit2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleDelete(person.id)}
-                      title="Xoá khỏi kho nhân sự"
-                      className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
                   </div>
+                )}
+
+                {/* 3. Bottom Row: Logged by */}
+                <div className="text-[11px] truncate flex items-center gap-1 text-slate-500 dark:text-slate-400 pl-6">
+                  <span className="font-semibold text-slate-500 dark:text-[#8CA4B8]">
+                    Log:
+                  </span>
+                  <span className="font-bold text-slate-800 dark:text-slate-200 truncate">
+                    {person.loggedBy || person.ingame}
+                  </span>
                 </div>
               </div>
             );

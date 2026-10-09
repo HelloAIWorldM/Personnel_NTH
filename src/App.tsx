@@ -2909,7 +2909,7 @@ export default function App() {
               <div className="flex flex-col lg:flex-row items-start gap-4">
                 {/* 1. Left Column: Vertical Scrollable Board Navigator */}
                 {isBoardNavOpen && (
-                  <div className="w-full lg:w-[230px] xl:w-[250px] shrink-0 sticky top-20 z-10">
+                  <nav aria-label="Danh sách các bảng Raid" className="w-full lg:w-[230px] xl:w-[250px] shrink-0 sticky top-20 z-10">
                     <VerticalBoardList
                       boards={currentBoards}
                       activeBoardId={activeBoard.id}
@@ -2926,11 +2926,12 @@ export default function App() {
                       onDeleteBoard={handleDeleteBoard}
                       isRaidUpdate={isRaidUpdate}
                     />
-                  </div>
+                  </nav>
                 )}
 
                 {/* 2. Center Column: Raid Table (Khung viền bo góc nhỏ gọn, ôm sát bảng vừa vặn) */}
-                <div
+                <section
+                  aria-label="Bảng sắp xếp Raid"
                   className={`transition-all ${
                     isPersonnelSidebarOpen
                       ? 'shrink-0 w-full lg:w-[620px] xl:w-[630px] max-w-[630px] mx-auto lg:mx-0'
@@ -2961,11 +2962,11 @@ export default function App() {
                       }}
                     />
                   </div>
-                </div>
+                </section>
 
                 {/* 3. Right Column: Draggable Personnel Pool Sidebar (Kho nhân sự to rộng cân đối) */}
                 {isPersonnelSidebarOpen && (
-                  <div className="flex-1 min-w-[340px] w-full sticky top-20 z-10 space-y-4 max-h-[calc(100vh-6rem)] overflow-y-auto pr-1">
+                  <aside aria-label="Kho nhân sự và Đi Bụi" className="flex-1 min-w-[340px] w-full sticky top-20 z-10 space-y-4 max-h-[calc(100vh-6rem)] overflow-y-auto pr-1">
                     <PersonnelStorage
                       personnelPool={currentPersonnelPool}
                       onUpdatePersonnelPool={handleUpdatePersonnelPool}
@@ -3023,7 +3024,7 @@ export default function App() {
                       isCompact={true}
                       activePoolName={isRaidUpdate ? 'Kho Raid Update' : 'Kho Raid'}
                     />
-                  </div>
+                  </aside>
                 )}
               </div>
             </div>
