@@ -22,7 +22,9 @@ import {
   FileSpreadsheet,
   ArrowRight,
   ArrowUpDown,
+  RefreshCw,
 } from 'lucide-react';
+import { normalizeName } from '../../utils/duplicates';
 
 import { ImportFromMasterModal } from './ImportFromMasterModal';
 
@@ -196,6 +198,37 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
     setEditingId(null);
   };
 
+  const handleSyncToGuildWarPool = () => {
+    if (!onUpdatePersonnelPool) return;
+    const existingSet = new Set(
+      personnelPool.map((p) => normalizeName(p.ingame)).filter(Boolean)
+    );
+    const newPersonnel: PersonnelMember[] = [];
+    const now = Date.now();
+    members.forEach((m, idx) => {
+      const norm = normalizeName(m.ingame);
+      if (norm && !existingSet.has(norm)) {
+        existingSet.add(norm);
+        newPersonnel.push({
+          id: `p_gw_${now}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+          ingame: m.ingame.trim(),
+          className: m.className || 'Cửu Linh',
+          loggedBy: (m.loggedBy || m.discord || m.ingame).trim(),
+          note: m.note || '',
+          createdAt: now,
+        });
+      }
+    });
+
+    if (newPersonnel.length > 0) {
+      const updated = [...newPersonnel, ...personnelPool];
+      onUpdatePersonnelPool(updated);
+      alert(`Đã đồng bộ ${newPersonnel.length} nhân sự từ Bảng Bang Chiến vào Kho BC thành công!`);
+    } else {
+      alert('Tất cả nhân sự trong Bảng Bang Chiến đã có đầy đủ trong Kho BC!');
+    }
+  };
+
   const handleCreateNew = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newIngame.trim()) return;
@@ -211,6 +244,26 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
       team: newTeam,
       attendance: {},
     });
+
+    if (onUpdatePersonnelPool) {
+      const norm = normalizeName(newIngame.trim());
+      const existsInPool = personnelPool.some((p) => normalizeName(p.ingame) === norm);
+      if (!existsInPool) {
+        const now = Date.now();
+        onUpdatePersonnelPool([
+          {
+            id: `p_gw_${now}_${Math.random().toString(36).substring(2, 6)}`,
+            ingame: newIngame.trim(),
+            className: newClass,
+            loggedBy: cleanLoggedBy,
+            note: '',
+            createdAt: now,
+          },
+          ...personnelPool,
+        ]);
+      }
+    }
+
     setNewIngame('');
     setNewLoggedBy('');
     setIsAddOpen(false);
@@ -220,6 +273,11 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
     if (!batchText.trim()) return;
     const lines = batchText.split('\n');
     let added = 0;
+    const newPoolEntries: PersonnelMember[] = [];
+    const poolNormSet = new Set(
+      personnelPool.map((p) => normalizeName(p.ingame)).filter(Boolean)
+    );
+    const now = Date.now();
 
     lines.forEach((line) => {
       const trimmed = line.trim();
@@ -248,9 +306,27 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
           team: 'Chưa xếp',
           attendance: {},
         });
+
+        const norm = normalizeName(ingame);
+        if (norm && !poolNormSet.has(norm)) {
+          poolNormSet.add(norm);
+          newPoolEntries.push({
+            id: `p_gw_${now}_${added}_${Math.random().toString(36).substring(2, 6)}`,
+            ingame,
+            className: matchedClass,
+            loggedBy,
+            note: '',
+            createdAt: now,
+          });
+        }
+
         added++;
       }
     });
+
+    if (onUpdatePersonnelPool && newPoolEntries.length > 0) {
+      onUpdatePersonnelPool([...newPoolEntries, ...personnelPool]);
+    }
 
     setBatchText('');
     setIsBatchOpen(false);
@@ -366,15 +442,27 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
               <span className="hidden sm:inline">Dán danh sách</span>
             </button>
 
+            {onUpdatePersonnelPool && (
+              <button
+                type="button"
+                onClick={handleSyncToGuildWarPool}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 dark:bg-amber-950/60 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-700/80 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer active:scale-95"
+                title="Đồng bộ toàn bộ danh sách thành viên trong Bảng Bang Chiến vào Kho BC"
+              >
+                <RefreshCw className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                <span>Đồng bộ Kho BC</span>
+              </button>
+            )}
+
             <button
               type="button"
               onClick={() => setIsImportFromMasterOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer"
-              title="Nhập thêm nhân sự từ Tổng kho nhân sự vào bảng Bang Chiến"
+              title="Nhập thêm nhân sự từ Tổng kho nhân sự hoặc Kho BC vào bảng Bang Chiến"
             >
               <Users className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400" />
-              <span className="hidden md:inline">Nhập từ Tổng kho nhân sự</span>
-              <span className="md:hidden">Nhập từ Tổng kho</span>
+              <span className="hidden md:inline">Nhập từ Kho nhân sự</span>
+              <span className="md:hidden">Nhập từ Kho</span>
             </button>
           </div>
         </div>
@@ -879,11 +967,12 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
         </div>
       </div>
 
-      {/* Modal Chọn Nhân Sự Từ Tổng Kho */}
+      {/* Modal Chọn Nhân Sự Từ Tổng Kho / Kho BC */}
       <ImportFromMasterModal
         isOpen={isImportFromMasterOpen}
         onClose={() => setIsImportFromMasterOpen(false)}
         masterPersonnelPool={masterPersonnelPool}
+        guildWarPersonnelPool={personnelPool}
         currentBoardMembers={members}
         customColors={customColors}
         onImportSelected={onImportSelectedMembers}

@@ -528,11 +528,26 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               <button
                 type="button"
                 onClick={onSyncFromActiveRaid}
-                title="Thêm các thành viên trong bảng Raid hiện tại vào Kho Nhân Sự (nếu chưa có)"
+                title={
+                  poolType === 'guild_war'
+                    ? 'Thêm các thành viên trong Bảng Bang Chiến hiện tại vào Kho BC (nếu chưa có)'
+                    : isRaidUpdate
+                    ? 'Thêm các thành viên trong bảng Raid Update hiện tại vào Kho Nhân Sự'
+                    : 'Thêm các thành viên trong bảng Raid hiện tại vào Kho Nhân Sự (nếu chưa có)'
+                }
                 className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white bg-white dark:bg-[#101A24] hover:bg-slate-100 dark:hover:bg-[#1D2D40] border border-slate-300 dark:border-[#1F3347] rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer"
               >
                 <RefreshCw className="w-3 h-3 text-sky-600 dark:text-[#88DCFA]" />
-                <span className="hidden sm:inline">Lấy từ Raid</span>
+                <span className="hidden sm:inline">
+                  {poolType === 'guild_war'
+                    ? 'Lấy từ Bang Chiến'
+                    : isRaidUpdate
+                    ? 'Lấy từ Update'
+                    : 'Lấy từ Raid'}
+                </span>
+                <span className="sm:hidden">
+                  {poolType === 'guild_war' ? 'Lấy từ BC' : 'Lấy từ bảng'}
+                </span>
               </button>
             )}
 
@@ -800,6 +815,10 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
             <p className="text-[11px] mt-0.5">
               {searchQuery || selectedClassFilter !== 'ALL' || statusFilter !== 'ALL'
                 ? 'Thử xóa bớt bộ lọc để hiển thị nhiều hơn'
+                : poolType === 'guild_war'
+                ? 'Bấm "+ Thêm" hoặc "Lấy từ Bang Chiến" để nạp danh sách nhân sự'
+                : isRaidUpdate
+                ? 'Bấm "+ Thêm" hoặc "Lấy từ Update" để nạp danh sách nhân sự'
                 : 'Bấm "+ Thêm" hoặc "Lấy từ Raid" để nạp danh sách nhân sự'}
             </p>
           </div>

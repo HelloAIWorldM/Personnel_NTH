@@ -25,6 +25,7 @@ interface ImportFromMasterModalProps {
   isOpen: boolean;
   onClose: () => void;
   masterPersonnelPool: PersonnelMember[];
+  guildWarPersonnelPool?: PersonnelMember[];
   currentBoardMembers: GuildMember[];
   customColors?: CustomClassColors;
   onImportSelected: (selectedMembers: PersonnelMember[]) => void;
@@ -34,13 +35,23 @@ export const ImportFromMasterModal: React.FC<ImportFromMasterModalProps> = ({
   isOpen,
   onClose,
   masterPersonnelPool,
+  guildWarPersonnelPool = [],
   currentBoardMembers,
   customColors,
   onImportSelected,
 }) => {
+  const [activeSource, setActiveSource] = useState<'master' | 'guild_war'>('master');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClass, setFilterClass] = useState<RaidClass | 'ALL'>('ALL');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  // Nguồn nhân sự hiện tại được chọn (Tổng kho hoặc Kho Bang Chiến)
+  const currentPool = useMemo(() => {
+    if (activeSource === 'guild_war') {
+      return guildWarPersonnelPool;
+    }
+    return masterPersonnelPool;
+  }, [activeSource, guildWarPersonnelPool, masterPersonnelPool]);
 
   // Tập hợp các tên đã có trong bảng Bang Chiến hiện tại (chuẩn hóa theo normalizeName)
   const existingNamesSet = useMemo(() => {
@@ -66,7 +77,7 @@ export const ImportFromMasterModal: React.FC<ImportFromMasterModalProps> = ({
   // Danh sách nhân sự sau khi lọc
   const filteredPersonnel = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
-    return masterPersonnelPool.filter((p) => {
+    return currentPool.filter((p) => {
       if (!p || !p.ingame) return false;
       if (filterClass !== 'ALL' && p.className !== filterClass) return false;
       if (q) {
@@ -78,13 +89,13 @@ export const ImportFromMasterModal: React.FC<ImportFromMasterModalProps> = ({
       }
       return true;
     });
-  }, [masterPersonnelPool, filterClass, searchQuery]);
+  }, [currentPool, filterClass, searchQuery]);
 
   // Thống kê
   const stats = useMemo(() => {
     let inBoardCount = 0;
     let availableCount = 0;
-    masterPersonnelPool.forEach((p) => {
+    currentPool.forEach((p) => {
       const norm = normalizeName(p.ingame);
       if (norm && existingNamesSet.has(norm)) {
         inBoardCount++;
@@ -93,11 +104,11 @@ export const ImportFromMasterModal: React.FC<ImportFromMasterModalProps> = ({
       }
     });
     return {
-      total: masterPersonnelPool.length,
+      total: currentPool.length,
       inBoard: inBoardCount,
       available: availableCount,
     };
-  }, [masterPersonnelPool, existingNamesSet]);
+  }, [currentPool, existingNamesSet]);
 
   if (!isOpen) return null;
 
@@ -137,7 +148,18 @@ export const ImportFromMasterModal: React.FC<ImportFromMasterModalProps> = ({
   // Xác nhận nhập
   const handleConfirmImport = () => {
     if (selectedIds.size === 0) return;
-    const selectedMembers = masterPersonnelPool.filter((p) => selectedIds.has(p.id));
+    const allPool = [
+      ...masterPersonnelPool,
+      ...guildWarPersonnelPool,
+    ];
+    const seen = new Set<string>();
+    const selectedMembers: PersonnelMember[] = [];
+    allPool.forEach((p) => {
+      if (selectedIds.has(p.id) && !seen.has(p.id)) {
+        seen.add(p.id);
+        selectedMembers.push(p);
+      }
+    });
     onImportSelected(selectedMembers);
     onClose();
   };
@@ -153,13 +175,16 @@ export const ImportFromMasterModal: React.FC<ImportFromMasterModalProps> = ({
             </div>
             <div>
               <h2 className="text-base sm:text-lg font-black text-slate-900 dark:text-white flex items-center gap-2">
-                Nhập Từ Tổng Kho Nhân Sự
+                {activeSource === 'master' ? 'Nhập Từ Tổng Kho Nhân Sự' : 'Nhập Từ Kho Bang Chiến'}
                 <span className="px-2 py-0.5 text-[10px] font-bold bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 border border-indigo-400/40 rounded-full">
                   Bang Chiến
                 </span>
               </h2>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Chọn từng nhân sự trong Tổng kho để đưa vào bảng Bang Chiến (không ghi đè thành viên hiện có)
+                {activeSource === 'master'
+                  ? 'Chọn từng nhân sự trong Tổng kho để đưa vào bảng Bang Chiến'
+                  : 'Chọn từng nhân sự trong Kho Bang Chiến để đưa vào bảng Bang Chiến'}{' '}
+                (không ghi đè thành viên hiện có)
               </p>
             </div>
           </div>
@@ -173,6 +198,46 @@ export const ImportFromMasterModal: React.FC<ImportFromMasterModalProps> = ({
           </button>
         </div>
 
+        {/* Nguồn kho chuyển đổi: Tổng kho vs Kho BC */}
+        <div className="px-6 py-2.5 bg-slate-100/90 dark:bg-[#101A24] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between gap-3 shrink-0 flex-wrap">
+          <div className="flex items-center gap-1.5 p-1 bg-white dark:bg-[#162230] border border-slate-200 dark:border-[#22364D] rounded-xl shadow-2xs">
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSource('master');
+                setSelectedIds(new Set());
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeSource === 'master'
+                  ? 'bg-gradient-to-r from-indigo-500 to-sky-500 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Tổng kho nhân sự ({masterPersonnelPool.length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setActiveSource('guild_war');
+                setSelectedIds(new Set());
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                activeSource === 'guild_war'
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 text-slate-950 font-black shadow-xs'
+                  : 'text-slate-600 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Kho Bang Chiến ({guildWarPersonnelPool.length})</span>
+            </button>
+          </div>
+
+          <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+            Đang chọn nguồn: <strong className="text-slate-800 dark:text-slate-200">{activeSource === 'master' ? 'Tổng kho' : 'Kho BC'}</strong>
+          </span>
+        </div>
+
         {/* Thống kê nhanh & Bộ lọc */}
         <div className="p-4 sm:p-5 border-b border-slate-200 dark:border-slate-800/80 bg-slate-50/60 dark:bg-[#131E2B] space-y-3 shrink-0">
           <div className="flex flex-wrap items-center justify-between gap-2.5">
@@ -180,7 +245,7 @@ export const ImportFromMasterModal: React.FC<ImportFromMasterModalProps> = ({
             <div className="flex items-center gap-2 flex-wrap">
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-white dark:bg-[#182637] border border-slate-200 dark:border-[#22364D] text-slate-700 dark:text-slate-300 shadow-2xs">
                 <Users className="w-3.5 h-3.5 text-indigo-500" />
-                Tổng kho: <strong className="text-slate-950 dark:text-white">{stats.total}</strong>
+                {activeSource === 'master' ? 'Tổng kho' : 'Kho BC'}: <strong className="text-slate-950 dark:text-white">{stats.total}</strong>
               </span>
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-bold bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 shadow-2xs">
                 <Check className="w-3.5 h-3.5 text-emerald-500" />
@@ -244,9 +309,9 @@ export const ImportFromMasterModal: React.FC<ImportFromMasterModalProps> = ({
                 onChange={(e) => setFilterClass(e.target.value as RaidClass | 'ALL')}
                 className="w-full pl-8 pr-3 py-2 text-xs bg-white dark:bg-[#162230] border border-slate-300 dark:border-[#22364D] rounded-xl text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 shadow-2xs font-bold cursor-pointer"
               >
-                <option value="ALL">Tất cả môn phái ({masterPersonnelPool.length})</option>
+                <option value="ALL">Tất cả môn phái ({currentPool.length})</option>
                 {CLASS_LIST.map((cls) => {
-                  const count = masterPersonnelPool.filter((p) => p.className === cls).length;
+                  const count = currentPool.filter((p) => p.className === cls).length;
                   return (
                     <option key={cls} value={cls}>
                       {cls} ({count})

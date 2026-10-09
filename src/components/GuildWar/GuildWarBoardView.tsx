@@ -25,6 +25,7 @@ import {
   Share2,
 } from 'lucide-react';
 import { generateGuildWarShareLink } from '../../utils/storageBackup';
+import { normalizeName } from '../../utils/duplicates';
 
 interface GuildWarBoardViewProps {
   board: GuildWarBoard;
@@ -108,6 +109,22 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
       stt: board.members.length + 1,
     };
     onUpdateBoard({ ...board, members: [...board.members, newMember] });
+
+    if (onUpdatePersonnelPool && newMember.ingame) {
+      const norm = normalizeName(newMember.ingame);
+      const exists = (personnelPool || []).some((p) => normalizeName(p.ingame) === norm);
+      if (!exists) {
+        const newPoolMember: PersonnelMember = {
+          id: `p_gw_${timestamp}_${Math.random().toString(36).substring(2, 6)}`,
+          ingame: newMember.ingame.trim(),
+          className: newMember.className || 'Cửu Linh',
+          loggedBy: (newMember.loggedBy || newMember.discord || newMember.ingame).trim(),
+          note: newMember.note || '',
+          createdAt: timestamp,
+        };
+        onUpdatePersonnelPool([newPoolMember, ...personnelPool]);
+      }
+    }
   };
 
   const handleDeleteMember = (id: string) => {
@@ -159,6 +176,28 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
         ...board,
         members: [...board.members, ...newMembersToAdd],
       });
+
+      if (onUpdatePersonnelPool) {
+        const existingPoolNorm = new Set((personnelPool || []).map((p) => normalizeName(p.ingame)).filter(Boolean));
+        const toAddPool: PersonnelMember[] = [];
+        newMembersToAdd.forEach((m, i) => {
+          const norm = normalizeName(m.ingame);
+          if (norm && !existingPoolNorm.has(norm)) {
+            existingPoolNorm.add(norm);
+            toAddPool.push({
+              id: `p_gw_${timestamp}_${i}_${Math.random().toString(36).substring(2, 6)}`,
+              ingame: m.ingame,
+              className: m.className,
+              loggedBy: m.loggedBy || m.ingame,
+              note: m.note || '',
+              createdAt: timestamp,
+            });
+          }
+        });
+        if (toAddPool.length > 0) {
+          onUpdatePersonnelPool([...toAddPool, ...personnelPool]);
+        }
+      }
     }
   };
 

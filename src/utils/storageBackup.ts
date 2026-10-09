@@ -856,6 +856,72 @@ export function syncGuildWarMembersToMasterPool(
 }
 
 /**
+ * Tự động đồng bộ các nhân sự từ các bảng Bang Chiến vào Kho Bang Chiến (guildWarPersonnelPool)
+ * Bảo toàn 100% tên ingame, môn phái, loggedBy, ghi chú.
+ */
+export function syncGuildWarMembersToGuildWarPersonnelPool(
+  currentGwPool: PersonnelMember[],
+  guildWarBoards?: GuildWarBoard[]
+): { updatedPool: PersonnelMember[]; addedCount: number } {
+  const poolMap = new Map<string, PersonnelMember>();
+
+  if (Array.isArray(currentGwPool)) {
+    for (const p of currentGwPool) {
+      if (p && p.ingame && typeof p.ingame === 'string') {
+        const norm = normalizeName(p.ingame);
+        if (norm) {
+          poolMap.set(norm, { ...p });
+        }
+      }
+    }
+  }
+
+  const initialCount = poolMap.size;
+  const gwPersonnel = extractGuildWarMembersAsPersonnel(guildWarBoards);
+
+  for (const p of gwPersonnel) {
+    const norm = normalizeName(p.ingame);
+    if (!norm) continue;
+
+    const existing = poolMap.get(norm);
+    if (!existing) {
+      poolMap.set(norm, { ...p });
+    } else {
+      let changed = false;
+      let newNote = existing.note;
+      let newLoggedBy = existing.loggedBy;
+      let newClass = existing.className;
+
+      if (!newNote && p.note) {
+        newNote = p.note;
+        changed = true;
+      }
+      if ((!newLoggedBy || newLoggedBy === existing.ingame) && p.loggedBy && p.loggedBy !== p.ingame) {
+        newLoggedBy = p.loggedBy;
+        changed = true;
+      }
+      if ((!newClass || newClass === 'Toái Mộng') && p.className) {
+        newClass = p.className;
+        changed = true;
+      }
+
+      if (changed) {
+        poolMap.set(norm, {
+          ...existing,
+          note: newNote,
+          loggedBy: newLoggedBy,
+          className: newClass,
+        });
+      }
+    }
+  }
+
+  const updatedPool = Array.from(poolMap.values());
+  const addedCount = updatedPool.length - initialCount;
+  return { updatedPool, addedCount };
+}
+
+/**
  * Tải Tổng Kho Nhân Sự (Master Personnel Pool) với cơ chế tự động chuyển đổi an toàn (One-time Auto Migration)
  * và tự động đồng bộ đầy đủ nhân sự từ Bang Chiến.
  */
