@@ -718,6 +718,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     return (
       normalize(m.ingame).includes(q) ||
       normalize(m.className).includes(q) ||
+      (m.loggedBy && normalize(m.loggedBy).includes(q)) ||
       (m.discord && normalize(m.discord).includes(q))
     );
   });

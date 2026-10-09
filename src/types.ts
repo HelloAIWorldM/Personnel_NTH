@@ -96,6 +96,7 @@ export interface GuildMember {
   className: RaidClass;
   guildRole: GuildRole;
   participation: GuildParticipation;
+  loggedBy?: string;
   discord?: string;
   team: GuildTeam; // 'Cơ động' | 'Đẩy trụ' | 'Mid' | 'Chưa xếp'
   party?: number; // 1, 2, 3, 4 (PT-1, PT-2, PT-3, PT-4)

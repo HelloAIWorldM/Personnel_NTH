@@ -81,7 +81,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
   const [newClass, setNewClass] = useState<RaidClass>('Toái Mộng');
   const [newRole, setNewRole] = useState<GuildRole>('Thành Viên');
   const [newParticipation, setNewParticipation] = useState<GuildParticipation>('Cả hai');
-  const [newDiscord, setNewDiscord] = useState('');
+  const [newLoggedBy, setNewLoggedBy] = useState('');
   const [newTeam, setNewTeam] = useState<GuildTeam>('Chưa xếp');
 
   // Batch Paste State
@@ -94,7 +94,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
   const [editClass, setEditClass] = useState<RaidClass>('Toái Mộng');
   const [editRole, setEditRole] = useState<GuildRole>('Thành Viên');
   const [editParticipation, setEditParticipation] = useState<GuildParticipation>('Cả hai');
-  const [editDiscord, setEditDiscord] = useState('');
+  const [editLoggedBy, setEditLoggedBy] = useState('');
   const [editTeam, setEditTeam] = useState<GuildTeam>('Chưa xếp');
 
   // Sorting state
@@ -135,6 +135,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
       const matchQuery =
         !searchQuery.trim() ||
         m.ingame.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (m.loggedBy && m.loggedBy.toLowerCase().includes(searchQuery.toLowerCase())) ||
         (m.discord && m.discord.toLowerCase().includes(searchQuery.toLowerCase()));
 
       const matchClass = filterClass === 'ALL' || m.className === filterClass;
@@ -173,7 +174,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
     setEditClass(m.className);
     setEditRole(m.guildRole);
     setEditParticipation(m.participation);
-    setEditDiscord(m.discord || '');
+    setEditLoggedBy(m.loggedBy || m.discord || m.ingame);
     setEditTeam(m.team);
   };
 
@@ -181,12 +182,14 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
     if (!editIngame.trim()) return;
     const currentMember = members.find((m) => m.id === id);
     const teamChanged = currentMember && currentMember.team !== editTeam;
+    const cleanLoggedBy = editLoggedBy.trim() || editIngame.trim();
     onUpdateMember(id, {
       ingame: editIngame.trim(),
       className: editClass,
       guildRole: editRole,
       participation: editParticipation,
-      discord: editDiscord.trim() || '',
+      loggedBy: cleanLoggedBy,
+      discord: cleanLoggedBy,
       team: editTeam,
       ...(teamChanged ? { party: undefined, slot: undefined } : {}),
     });
@@ -196,18 +199,20 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
   const handleCreateNew = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newIngame.trim()) return;
+    const cleanLoggedBy = newLoggedBy.trim() || newIngame.trim();
     onAddMember({
       stt: members.length + 1,
       ingame: newIngame.trim(),
       className: newClass,
       guildRole: newRole,
       participation: newParticipation,
-      discord: newDiscord.trim() || '',
+      loggedBy: cleanLoggedBy,
+      discord: cleanLoggedBy,
       team: newTeam,
       attendance: {},
     });
     setNewIngame('');
-    setNewDiscord('');
+    setNewLoggedBy('');
     setIsAddOpen(false);
   };
 
@@ -219,7 +224,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
     lines.forEach((line) => {
       const trimmed = line.trim();
       if (!trimmed) return;
-      // Patterns: "Ingame - Class - Discord" or "Ingame, Class" or tabs
+      // Patterns: "Ingame - Class - LoggedBy" or "Ingame, Class" or tabs
       const parts = trimmed.split(/[\t,-]/).map((p) => p.trim()).filter(Boolean);
       if (parts.length > 0) {
         const ingame = parts[0];
@@ -231,14 +236,15 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
           );
           if (found) matchedClass = found;
         }
-        const discord = parts[2] ? parts[2].trim() : '';
+        const loggedBy = parts[2] ? parts[2].trim() : ingame.trim();
         onAddMember({
           stt: members.length + added + 1,
           ingame,
           className: matchedClass,
           guildRole: 'Thành Viên',
           participation: 'Cả hai',
-          discord,
+          loggedBy,
+          discord: loggedBy,
           team: 'Chưa xếp',
           attendance: {},
         });
@@ -263,7 +269,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm Ingame, Discord..."
+                placeholder="Tìm Ingame, Logged by..."
                 className="w-full pl-8 pr-3 py-1.5 text-xs font-semibold border border-slate-300 dark:border-slate-700 rounded-xl bg-slate-50 dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
             </div>
@@ -400,7 +406,12 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                 type="text"
                 required
                 value={newIngame}
-                onChange={(e) => setNewIngame(e.target.value)}
+                onChange={(e) => {
+                  setNewIngame(e.target.value);
+                  if (!newLoggedBy) {
+                    setNewLoggedBy(e.target.value);
+                  }
+                }}
                 placeholder="Ví dụ: Nhập tên ingame..."
                 className="w-full px-3 py-1.5 text-xs font-bold border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
@@ -475,14 +486,25 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
             </div>
 
             <div className="sm:col-span-4">
-              <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300 mb-1">
-                Discord (Tag / ID)
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block text-[11px] font-bold text-slate-700 dark:text-slate-300">
+                  Logged by (Người log)
+                </label>
+                {newIngame && (
+                  <button
+                    type="button"
+                    onClick={() => setNewLoggedBy(newIngame)}
+                    className="text-[10px] font-bold text-amber-600 dark:text-amber-400 hover:underline"
+                  >
+                    Lấy theo Ingame
+                  </button>
+                )}
+              </div>
               <input
                 type="text"
-                value={newDiscord}
-                onChange={(e) => setNewDiscord(e.target.value)}
-                placeholder="cuuuvuong#0001"
+                value={newLoggedBy}
+                onChange={(e) => setNewLoggedBy(e.target.value)}
+                placeholder="VD: Tên người log hoặc Ingame"
                 className="w-full px-3 py-1.5 text-xs font-bold border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
             </div>
@@ -523,13 +545,13 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
             </button>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Hỗ trợ định dạng: <code>Tên_Ingame - Môn_Phái - Discord</code> hoặc copy từ Excel/Google Sheets.
+            Hỗ trợ định dạng: <code>Tên_Ingame - Môn_Phái - Logged_By</code> hoặc copy từ Excel/Google Sheets.
           </p>
           <textarea
             rows={5}
             value={batchText}
             onChange={(e) => setBatchText(e.target.value)}
-            placeholder={`Ingame1 - Cửu Linh - discord1#0001\nIngame2 - Huyết Hà\nIngame3 - Long Ngâm - discord3#8888\nIngame4 - Thần Tướng`}
+            placeholder={`Ingame1 - Cửu Linh - NgườiLog1\nIngame2 - Huyết Hà\nIngame3 - Long Ngâm - NgườiLog3\nIngame4 - Thần Tướng`}
             className="w-full p-3 text-xs font-mono border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-900 focus:outline-none focus:ring-1 focus:ring-amber-500"
           />
           <div className="flex justify-end gap-2">
@@ -608,7 +630,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                     {sortField === 'team' && <ArrowUpDown className="w-3 h-3 text-amber-500" />}
                   </div>
                 </th>
-                <th className="py-2.5 px-3 min-w-[140px]">Discord</th>
+                <th className="py-2.5 px-3 min-w-[140px]">Logged by</th>
                 <th className="py-2.5 px-3 text-center w-28">Thao Tác</th>
               </tr>
             </thead>
@@ -695,9 +717,9 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                         <td className="py-2 px-3">
                           <input
                             type="text"
-                            value={editDiscord}
-                            onChange={(e) => setEditDiscord(e.target.value)}
-                            placeholder="Tag Discord"
+                            value={editLoggedBy}
+                            onChange={(e) => setEditLoggedBy(e.target.value)}
+                            placeholder="Người log"
                             className="w-full px-2 py-1 text-xs font-bold border border-amber-400 rounded-lg bg-white dark:bg-slate-800"
                           />
                         </td>
@@ -811,8 +833,8 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                         </select>
                       </td>
                       <td className="py-2.5 px-3">
-                        <span className="text-slate-600 dark:text-slate-400 font-mono text-[11px]">
-                          {member.discord || '—'}
+                        <span className="text-slate-700 dark:text-slate-300 font-medium text-xs">
+                          {member.loggedBy || member.discord || member.ingame || '—'}
                         </span>
                       </td>
                       <td className="py-2.5 px-3 text-center">

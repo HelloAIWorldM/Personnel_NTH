@@ -257,6 +257,10 @@ export function sanitizeGuildWarBoard(board: any, index: number = 1): GuildWarBo
 
   let members: GuildMember[] = Array.isArray(board?.members)
     ? board.members.map((m: any, mIdx: number) => {
+        const rawLoggedBy = typeof m?.loggedBy === 'string' && m.loggedBy.trim()
+          ? m.loggedBy.trim()
+          : (typeof m?.discord === 'string' && m.discord.trim() ? m.discord.trim() : (typeof m?.ingame === 'string' ? m.ingame.trim() : ''));
+
         const mem: GuildMember = {
           id: typeof m?.id === 'string' && m.id ? m.id : `gw_m_${timestamp}_${mIdx + 1}`,
           stt: typeof m?.stt === 'number' ? m.stt : mIdx + 1,
@@ -264,7 +268,8 @@ export function sanitizeGuildWarBoard(board: any, index: number = 1): GuildWarBo
           className: (m?.className || 'Cửu Linh') as RaidClass,
           guildRole: (m?.guildRole || 'Thành Viên') as GuildRole,
           participation: m?.participation || 'Cả hai',
-          discord: typeof m?.discord === 'string' ? m.discord : '',
+          loggedBy: rawLoggedBy,
+          discord: typeof m?.discord === 'string' ? m.discord : rawLoggedBy,
           team: (m?.team || 'Chưa xếp') as GuildTeam,
           attendance: typeof m?.attendance === 'object' && m.attendance ? { ...m.attendance } : {},
           note: typeof m?.note === 'string' ? m.note : '',
@@ -716,7 +721,7 @@ export function extractGuildWarMembersAsPersonnel(
     for (const b of guildWarBoards) {
       if (Array.isArray(b.members)) {
         for (const m of b.members) {
-          addIfValid(m?.ingame, m?.className, (m as any)?.loggedBy, m?.note, m?.id);
+          addIfValid(m?.ingame, m?.className, m?.loggedBy || m?.discord || m?.ingame, m?.note, m?.id);
         }
       }
     }
@@ -738,7 +743,7 @@ export function extractGuildWarMembersAsPersonnel(
         for (const b of parsedBoards) {
           if (Array.isArray(b?.members)) {
             for (const m of b.members) {
-              addIfValid(m?.ingame, m?.className, (m as any)?.loggedBy, m?.note, m?.id);
+              addIfValid(m?.ingame, m?.className, m?.loggedBy || m?.discord || m?.ingame, m?.note, m?.id);
             }
           }
         }
@@ -767,7 +772,7 @@ export function extractGuildWarMembersAsPersonnel(
           for (const b of s.guildWarBoards) {
             if (Array.isArray(b?.members)) {
               for (const m of b.members) {
-                addIfValid(m?.ingame, m?.className, (m as any)?.loggedBy, m?.note, m?.id);
+                addIfValid(m?.ingame, m?.className, m?.loggedBy || m?.discord || m?.ingame, m?.note, m?.id);
               }
             }
           }
@@ -1478,6 +1483,7 @@ export function generateGuildWarShareLink(board: GuildWarBoard): string {
         sl: m.slot,
         at: m.attendance || {},
         n: m.note || '',
+        l: m.loggedBy || m.discord || m.ingame,
       })),
     };
     const encoded = utf8ToBase64(JSON.stringify(compactData));
@@ -1510,6 +1516,8 @@ export function parseGuildWarShareHash(hash: string): GuildWarBoard | null {
       className: item.c || 'Cửu Linh',
       guildRole: item.r || 'Thành Viên',
       participation: item.p || 'Cả hai',
+      loggedBy: item.l || item.i || '',
+      discord: item.l || '',
       team: item.tm || 'Chưa xếp',
       party: item.pt,
       slot: item.sl,

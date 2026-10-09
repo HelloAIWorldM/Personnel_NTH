@@ -90,6 +90,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
       if (updates.party === undefined && 'party' in updates) delete updated.party;
       if (updates.slot === undefined && 'slot' in updates) delete updated.slot;
       if (updates.discord === undefined && 'discord' in updates) delete updated.discord;
+      if (updates.loggedBy === undefined && 'loggedBy' in updates) delete updated.loggedBy;
       return updated;
     });
     onUpdateBoard({ ...board, members: updatedMembers });
@@ -136,6 +137,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
       const norm = cleanName.toLowerCase();
       if (cleanName && !existingNames.has(norm)) {
         existingNames.add(norm);
+        const effectiveLoggedBy = (p.loggedBy && p.loggedBy.trim()) || cleanName;
         newMembersToAdd.push({
           id: `gw_m_${timestamp}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
           stt: board.members.length + newMembersToAdd.length + 1,
@@ -145,6 +147,8 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
           participation: 'Cả hai',
           team: 'Chưa xếp',
           attendance: {},
+          loggedBy: effectiveLoggedBy,
+          discord: effectiveLoggedBy,
           note: p.note || '',
         });
       }
