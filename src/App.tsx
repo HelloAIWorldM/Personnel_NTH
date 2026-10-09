@@ -525,29 +525,27 @@ export default function App() {
             });
           }
 
-          // F. Phục hồi Tổng Kho Nhân Sự từ IndexedDB:
+          // F. Phục hồi Tổng Kho Nhân Sự từ IndexedDB nếu LocalStorage hiện rỗng:
           if (recovered.masterPersonnelPool && recovered.masterPersonnelPool.length > 0) {
             setMasterPersonnelPool((currentPool) => {
-              const merged = mergePersonnelPools(currentPool, recovered.masterPersonnelPool!);
-              if (merged.length !== currentPool.length) {
-                console.info('[Storage] Tự động phục hồi Tổng Kho Nhân Sự từ IndexedDB:', merged.length);
-                safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(merged));
+              if (currentPool.length === 0) {
+                console.info('[Storage] Tự động phục hồi Tổng Kho Nhân Sự từ IndexedDB:', recovered.masterPersonnelPool!.length);
+                safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(recovered.masterPersonnelPool!));
                 hasRestoredAny = true;
-                return merged;
+                return recovered.masterPersonnelPool!;
               }
               return currentPool;
             });
           }
 
-          // G. Phục hồi Kho Bang Chiến từ IndexedDB:
+          // G. Phục hồi Kho Bang Chiến từ IndexedDB nếu LocalStorage hiện rỗng:
           if (recovered.guildWarPersonnelPool && recovered.guildWarPersonnelPool.length > 0) {
             setGuildWarPersonnelPool((currentPool) => {
-              const merged = mergePersonnelPools(currentPool, recovered.guildWarPersonnelPool!);
-              if (merged.length !== currentPool.length) {
-                console.info('[Storage] Tự động phục hồi Kho Bang Chiến từ IndexedDB:', merged.length);
-                safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(merged));
+              if (currentPool.length === 0) {
+                console.info('[Storage] Tự động phục hồi Kho Bang Chiến từ IndexedDB:', recovered.guildWarPersonnelPool!.length);
+                safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(recovered.guildWarPersonnelPool!));
                 hasRestoredAny = true;
-                return merged;
+                return recovered.guildWarPersonnelPool!;
               }
               return currentPool;
             });
@@ -725,38 +723,6 @@ export default function App() {
       saveToIndexedDB('updatePersonnelPool', cleaned);
     }
   }, [isStorageHydrated, personnelPool, updatePersonnelPool]);
-
-  // Tự động kiểm tra và đồng bộ bổ sung mọi nhân sự từ Bang Chiến vào Tổng kho nhân sự
-  useEffect(() => {
-    if (!isStorageHydrated) return;
-    const { updatedPool, addedCount } = syncGuildWarMembersToMasterPool(
-      masterPersonnelPool,
-      guildWarBoards,
-      guildWarPersonnelPool
-    );
-    if (addedCount > 0) {
-      console.info(`[MasterPoolSync] Đã tự động đồng bộ ${addedCount} nhân sự từ Bang Chiến vào Tổng kho nhân sự.`);
-      setMasterPersonnelPool(updatedPool);
-      safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(updatedPool));
-      saveToIndexedDB('masterPersonnelPool', updatedPool);
-      showToast(`Đã tự động đồng bộ thêm ${addedCount} nhân sự từ Bang Chiến vào Tổng kho!`);
-    }
-  }, [isStorageHydrated, masterPersonnelPool, guildWarBoards, guildWarPersonnelPool]);
-
-  // Tự động kiểm tra và đồng bộ bổ sung mọi nhân sự từ Bảng Bang Chiến vào Kho Bang Chiến (Kho BC)
-  useEffect(() => {
-    if (!isStorageHydrated) return;
-    const { updatedPool, addedCount } = syncGuildWarMembersToGuildWarPersonnelPool(
-      guildWarPersonnelPool,
-      guildWarBoards
-    );
-    if (addedCount > 0) {
-      console.info(`[GuildWarPoolSync] Đã tự động đồng bộ ${addedCount} nhân sự từ Bảng Bang Chiến vào Kho BC.`);
-      setGuildWarPersonnelPool(updatedPool);
-      safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(updatedPool));
-      saveToIndexedDB('guildWarPersonnelPool', updatedPool);
-    }
-  }, [isStorageHydrated, guildWarPersonnelPool, guildWarBoards]);
 
   // Synchronous flush on tab close / computer shutdown (beforeunload, pagehide & visibilitychange)
   useEffect(() => {

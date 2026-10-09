@@ -1039,13 +1039,13 @@ export function loadInitialMasterPersonnel(initialFallback: PersonnelMember[] = 
     }
   }
 
-  // Tự động kiểm tra & đồng bộ bổ sung từ Bang Chiến vào Tổng kho
+  // Tự động kiểm tra & đồng bộ bổ sung từ Bang Chiến vào Tổng kho một lần duy nhất khi khởi tạo migration
   try {
     const isGwSyncDone = localStorage.getItem(STORAGE_KEY_GW_TO_MASTER_SYNC_FLAG) === 'true';
-    if (!isGwSyncDone || loadedMaster.length > 0) {
+    if (!isGwSyncDone) {
       const { updatedPool, addedCount } = syncGuildWarMembersToMasterPool(loadedMaster);
       if (addedCount > 0) {
-        console.info(`[Storage] Tự động đồng bộ bổ sung ${addedCount} nhân sự từ Bang Chiến vào Tổng kho!`);
+        console.info(`[Storage] Tự động đồng bộ bổ sung ${addedCount} nhân sự từ Bang Chiến vào Tổng kho lần đầu!`);
         loadedMaster = updatedPool;
         safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(loadedMaster));
         saveToIndexedDB('masterPersonnelPool', loadedMaster);
