@@ -19,6 +19,7 @@ import {
   PersonnelMember,
   GuildWarBoard,
   AppMode,
+  PersonnelSubPool,
 } from './types';
 import { createEmptyGuildWarBoard } from './constants/guildWarDefaults';
 import { CreateGuildWarModal } from './components/GuildWar/CreateGuildWarModal';
@@ -26,6 +27,7 @@ import { GuildWarBoardView } from './components/GuildWar/GuildWarBoardView';
 import { normalizeName } from './utils/duplicates';
 import { RaidTable } from './components/RaidTable';
 import { PersonnelStorage } from './components/PersonnelStorage';
+import { SharePersonnelModal } from './components/SharePersonnelModal';
 import { PartyManager } from './components/PartyManager';
 import { ClassStatsBar } from './components/ClassStatsBar';
 import { MatchaBackground } from './components/MatchaBackground';
@@ -88,12 +90,16 @@ import {
   STORAGE_KEY_ACTIVE_BOARD_UPDATE,
   STORAGE_KEY_PERSONNEL_UPDATE,
   STORAGE_KEY_PERSONNEL_DI_BUI,
+  STORAGE_KEY_MASTER_PERSONNEL,
+  STORAGE_KEY_GUILDWAR_PERSONNEL,
   loadInitialBoards,
   loadInitialPersonnel,
   loadInitialGuildWarBoards,
   loadInitialUpdateBoards,
   loadInitialUpdatePersonnel,
   loadInitialDiBuiPersonnel,
+  loadInitialMasterPersonnel,
+  loadInitialGuildWarPersonnel,
   saveAutoSnapshot,
   flushAllStorageSync,
   parseShareHash,
@@ -135,7 +141,12 @@ export default function App() {
     return init.activeBoardId;
   });
 
-  // Personnel Storage Pool (Ingame, Class, Logged by) - Multi-layer persistence
+  // Master Personnel Storage Pool (Tổng Kho Nhân Sự) - Multi-layer persistence
+  const [masterPersonnelPool, setMasterPersonnelPool] = useState<PersonnelMember[]>(() => {
+    return loadInitialMasterPersonnel([]);
+  });
+
+  // Personnel Storage Pool (Kho con Raid) - Multi-layer persistence
   const [personnelPool, setPersonnelPool] = useState<PersonnelMember[]>(() => {
     return loadInitialPersonnel([]);
   });
@@ -204,7 +215,7 @@ export default function App() {
     return init.activeBoardId;
   });
 
-  // Separate Personnel Pool for Raid Update (tách riêng từ kho nhân sự Raid và Bang chiến)
+  // Separate Personnel Pool for Raid Update (Kho con Raid Update)
   const [updatePersonnelPool, setUpdatePersonnelPool] = useState<PersonnelMember[]>(() => {
     return loadInitialUpdatePersonnel([]);
   });
@@ -213,6 +224,18 @@ export default function App() {
   const [diBuiPersonnelPool, setDiBuiPersonnelPool] = useState<PersonnelMember[]>(() => {
     return loadInitialDiBuiPersonnel([]);
   });
+
+  // Separate Personnel Pool for Bang Chiến (Kho con Bang Chiến)
+  const [guildWarPersonnelPool, setGuildWarPersonnelPool] = useState<PersonnelMember[]>(() => {
+    return loadInitialGuildWarPersonnel([]);
+  });
+
+  // Active pool view in Personnel Storage: 'master' | 'raid' | 'raid_update' | 'guild_war'
+  const [activePoolView, setActivePoolView] = useState<'master' | 'raid' | 'raid_update' | 'guild_war'>('master');
+
+  // Share Personnel Modal State
+  const [isSharePersonnelModalOpen, setIsSharePersonnelModalOpen] = useState<boolean>(false);
+  const [shareModalTargetPool, setShareModalTargetPool] = useState<PersonnelSubPool | undefined>(undefined);
 
   const [isCopyModalOpen, setIsCopyModalOpen] = useState(false);
 
@@ -253,7 +276,50 @@ export default function App() {
   // Dynamic pointers based on whether we are in Raid or Raid Update
   const activeBoard = isRaidUpdate ? activeUpdateBoard : activeRaidBoard;
   const currentBoards = isRaidUpdate ? updateBoards : boards;
-  const currentPersonnelPool = isRaidUpdate ? updatePersonnelPool : personnelPool;
+
+  // Personnel pool currently displayed and operated on in PersonnelStorage
+  const currentPersonnelPool = useMemo(() => {
+    switch (activePoolView) {
+      case 'master':
+        return masterPersonnelPool;
+      case 'raid':
+        return personnelPool;
+      case 'raid_update':
+        return updatePersonnelPool;
+      case 'guild_war':
+        return guildWarPersonnelPool;
+      default:
+        return masterPersonnelPool;
+    }
+  }, [
+    activePoolView,
+    masterPersonnelPool,
+    personnelPool,
+    updatePersonnelPool,
+    guildWarPersonnelPool,
+  ]);
+
+  const subPoolMembershipMap = useMemo(() => {
+    return {
+      inRaid: new Set(personnelPool.map((p) => normalizeName(p.ingame)).filter(Boolean)),
+      inUpdate: new Set(updatePersonnelPool.map((p) => normalizeName(p.ingame)).filter(Boolean)),
+      inGuildWar: new Set(guildWarPersonnelPool.map((p) => normalizeName(p.ingame)).filter(Boolean)),
+    };
+  }, [personnelPool, updatePersonnelPool, guildWarPersonnelPool]);
+
+  const poolCounts = useMemo(() => {
+    return {
+      master: masterPersonnelPool.length,
+      raid: personnelPool.length,
+      update: updatePersonnelPool.length,
+      guildWar: guildWarPersonnelPool.length,
+    };
+  }, [
+    masterPersonnelPool.length,
+    personnelPool.length,
+    updatePersonnelPool.length,
+    guildWarPersonnelPool.length,
+  ]);
 
   // Active Guild War Board Resolver
   const activeGuildWarBoard = useMemo(() => {
@@ -455,6 +521,34 @@ export default function App() {
             });
           }
 
+          // F. Phục hồi Tổng Kho Nhân Sự từ IndexedDB:
+          if (recovered.masterPersonnelPool && recovered.masterPersonnelPool.length > 0) {
+            setMasterPersonnelPool((currentPool) => {
+              const merged = mergePersonnelPools(currentPool, recovered.masterPersonnelPool!);
+              if (merged.length !== currentPool.length) {
+                console.info('[Storage] Tự động phục hồi Tổng Kho Nhân Sự từ IndexedDB:', merged.length);
+                safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(merged));
+                hasRestoredAny = true;
+                return merged;
+              }
+              return currentPool;
+            });
+          }
+
+          // G. Phục hồi Kho Bang Chiến từ IndexedDB:
+          if (recovered.guildWarPersonnelPool && recovered.guildWarPersonnelPool.length > 0) {
+            setGuildWarPersonnelPool((currentPool) => {
+              const merged = mergePersonnelPools(currentPool, recovered.guildWarPersonnelPool!);
+              if (merged.length !== currentPool.length) {
+                console.info('[Storage] Tự động phục hồi Kho Bang Chiến từ IndexedDB:', merged.length);
+                safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(merged));
+                hasRestoredAny = true;
+                return merged;
+              }
+              return currentPool;
+            });
+          }
+
           if (hasRestoredAny) {
             showToast('Đã tự động bảo toàn & phục hồi dữ liệu an toàn từ IndexedDB!');
           }
@@ -551,6 +645,28 @@ export default function App() {
               return curr;
             });
 
+            // Phục hồi Tổng Kho Nhân Sự từ Cloud nếu máy hiện tại trống
+            setMasterPersonnelPool((curr) => {
+              if (curr.length === 0 && cd.masterPersonnelPool && cd.masterPersonnelPool.length > 0) {
+                safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(cd.masterPersonnelPool));
+                saveToIndexedDB('masterPersonnelPool', cd.masterPersonnelPool);
+                restoredFromCloud = true;
+                return cd.masterPersonnelPool;
+              }
+              return curr;
+            });
+
+            // Phục hồi Kho Bang Chiến từ Cloud nếu máy hiện tại trống
+            setGuildWarPersonnelPool((curr) => {
+              if (curr.length === 0 && cd.guildWarPersonnelPool && cd.guildWarPersonnelPool.length > 0) {
+                safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(cd.guildWarPersonnelPool));
+                saveToIndexedDB('guildWarPersonnelPool', cd.guildWarPersonnelPool);
+                restoredFromCloud = true;
+                return cd.guildWarPersonnelPool;
+              }
+              return curr;
+            });
+
             if (cd.updatedAt) {
               setLastCloudSyncTime(cd.updatedAt);
             }
@@ -620,6 +736,8 @@ export default function App() {
         activeUpdateBoardId,
         updatePersonnelPool,
         diBuiPersonnelPool,
+        masterPersonnelPool,
+        guildWarPersonnelPool,
         appMode,
       });
     };
@@ -650,6 +768,8 @@ export default function App() {
     activeUpdateBoardId,
     updatePersonnelPool,
     diBuiPersonnelPool,
+    masterPersonnelPool,
+    guildWarPersonnelPool,
     appMode,
     isStorageHydrated,
   ]);
@@ -660,7 +780,15 @@ export default function App() {
     try {
       safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(boards));
       saveToIndexedDB('boards', boards);
-      saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
+      saveAutoSnapshot(
+        boards,
+        personnelPool,
+        customColors,
+        guildWarBoards,
+        diBuiPersonnelPool,
+        masterPersonnelPool,
+        guildWarPersonnelPool
+      );
     } catch (e) {
       console.error('Failed to save boards:', e);
     }
@@ -683,11 +811,39 @@ export default function App() {
     try {
       safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(personnelPool));
       saveToIndexedDB('personnelPool', personnelPool);
-      saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
+      saveAutoSnapshot(
+        boards,
+        personnelPool,
+        customColors,
+        guildWarBoards,
+        diBuiPersonnelPool,
+        masterPersonnelPool,
+        guildWarPersonnelPool
+      );
     } catch (e) {
       console.error('Failed to save personnel pool:', e);
     }
   }, [personnelPool, isStorageHydrated]);
+
+  // Save master personnel pool to localStorage and IndexedDB
+  useEffect(() => {
+    if (!isStorageHydrated) return;
+    try {
+      safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(masterPersonnelPool));
+      saveToIndexedDB('masterPersonnelPool', masterPersonnelPool);
+      saveAutoSnapshot(
+        boards,
+        personnelPool,
+        customColors,
+        guildWarBoards,
+        diBuiPersonnelPool,
+        masterPersonnelPool,
+        guildWarPersonnelPool
+      );
+    } catch (e) {
+      console.error('Failed to save master personnel pool:', e);
+    }
+  }, [masterPersonnelPool, isStorageHydrated]);
 
   // Save custom colors to localStorage and IndexedDB
   useEffect(() => {
@@ -717,7 +873,15 @@ export default function App() {
         JSON.stringify(guildWarBoards)
       );
       saveToIndexedDB('guildWarBoards', guildWarBoards);
-      saveAutoSnapshot(boards, personnelPool, customColors, guildWarBoards);
+      saveAutoSnapshot(
+        boards,
+        personnelPool,
+        customColors,
+        guildWarBoards,
+        diBuiPersonnelPool,
+        masterPersonnelPool,
+        guildWarPersonnelPool
+      );
     } catch (e) {
       console.error('Failed to save guild war boards:', e);
     }
@@ -776,6 +940,26 @@ export default function App() {
     }
   }, [diBuiPersonnelPool, isStorageHydrated]);
 
+  // Save Guild War personnel pool to localStorage and IndexedDB
+  useEffect(() => {
+    if (!isStorageHydrated) return;
+    try {
+      safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(guildWarPersonnelPool));
+      saveToIndexedDB('guildWarPersonnelPool', guildWarPersonnelPool);
+      saveAutoSnapshot(
+        boards,
+        personnelPool,
+        customColors,
+        guildWarBoards,
+        diBuiPersonnelPool,
+        masterPersonnelPool,
+        guildWarPersonnelPool
+      );
+    } catch (e) {
+      console.error('Failed to save guild war personnel pool:', e);
+    }
+  }, [guildWarPersonnelPool, isStorageHydrated]);
+
   // Debounced Auto-sync to Firebase Firestore Cloud
   useEffect(() => {
     if (!isStorageHydrated || !isAutoCloudSyncEnabled()) return;
@@ -786,7 +970,9 @@ export default function App() {
       guildWarBoards.length > 0 ||
       updateBoards.length > 0 ||
       updatePersonnelPool.length > 0 ||
-      diBuiPersonnelPool.length > 0;
+      diBuiPersonnelPool.length > 0 ||
+      masterPersonnelPool.length > 0 ||
+      guildWarPersonnelPool.length > 0;
     if (!hasData) return;
 
     const timer = setTimeout(async () => {
@@ -804,6 +990,8 @@ export default function App() {
           updatePersonnelPool,
           activeUpdateBoardId,
           diBuiPersonnelPool,
+          masterPersonnelPool,
+          guildWarPersonnelPool,
         });
         if (res.success) {
           setLastCloudSyncTime(Date.now());
@@ -827,6 +1015,8 @@ export default function App() {
     updatePersonnelPool,
     activeUpdateBoardId,
     diBuiPersonnelPool,
+    masterPersonnelPool,
+    guildWarPersonnelPool,
     isStorageHydrated,
   ]);
 
@@ -844,6 +1034,8 @@ export default function App() {
         updatePersonnelPool,
         activeUpdateBoardId,
         diBuiPersonnelPool,
+        masterPersonnelPool,
+        guildWarPersonnelPool,
       });
       if (res.success) {
         setLastCloudSyncTime(Date.now());
@@ -874,6 +1066,11 @@ export default function App() {
           safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(cd.personnelPool));
           saveToIndexedDB('personnelPool', cd.personnelPool);
         }
+        if (cd.masterPersonnelPool) {
+          setMasterPersonnelPool(cd.masterPersonnelPool);
+          safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(cd.masterPersonnelPool));
+          saveToIndexedDB('masterPersonnelPool', cd.masterPersonnelPool);
+        }
         if (cd.guildWarBoards && cd.guildWarBoards.length > 0) {
           setGuildWarBoards(cd.guildWarBoards);
           safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(cd.guildWarBoards));
@@ -882,6 +1079,11 @@ export default function App() {
             setActiveGuildWarBoardId(cd.activeGuildWarBoardId);
             safeLocalStorageSet(STORAGE_KEY_ACTIVE_GUILDWAR, cd.activeGuildWarBoardId);
           }
+        }
+        if (cd.guildWarPersonnelPool) {
+          setGuildWarPersonnelPool(cd.guildWarPersonnelPool);
+          safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(cd.guildWarPersonnelPool));
+          saveToIndexedDB('guildWarPersonnelPool', cd.guildWarPersonnelPool);
         }
         if (cd.updateBoards && cd.updateBoards.length > 0) {
           setUpdateBoards(cd.updateBoards);
@@ -926,7 +1128,27 @@ export default function App() {
   // Immediate synchronous & multi-layer persistent personnel pool updater
   const handleUpdatePersonnelPool = useCallback(
     (action: PersonnelMember[] | ((prev: PersonnelMember[]) => PersonnelMember[])) => {
-      if (isRaidUpdate) {
+      if (activePoolView === 'master') {
+        setMasterPersonnelPool((prev) => {
+          const next = typeof action === 'function' ? action(prev) : action;
+          try {
+            safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(next));
+          } catch (e) {
+            console.error('[Storage] Error persisting master personnel to localStorage:', e);
+          }
+          saveToIndexedDB('masterPersonnelPool', next);
+          saveAutoSnapshot(
+            boards,
+            personnelPool,
+            customColors,
+            guildWarBoards,
+            diBuiPersonnelPool,
+            next,
+            guildWarPersonnelPool
+          );
+          return next;
+        });
+      } else if (activePoolView === 'raid_update') {
         setUpdatePersonnelPool((prev) => {
           const next = typeof action === 'function' ? action(prev) : action;
           try {
@@ -937,7 +1159,28 @@ export default function App() {
           saveToIndexedDB('updatePersonnelPool', next);
           return next;
         });
+      } else if (activePoolView === 'guild_war') {
+        setGuildWarPersonnelPool((prev) => {
+          const next = typeof action === 'function' ? action(prev) : action;
+          try {
+            safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(next));
+          } catch (e) {
+            console.error('[Storage] Error persisting guild war personnel to localStorage:', e);
+          }
+          saveToIndexedDB('guildWarPersonnelPool', next);
+          saveAutoSnapshot(
+            boards,
+            personnelPool,
+            customColors,
+            guildWarBoards,
+            diBuiPersonnelPool,
+            masterPersonnelPool,
+            next
+          );
+          return next;
+        });
       } else {
+        // activePoolView === 'raid'
         setPersonnelPool((prev) => {
           const next = typeof action === 'function' ? action(prev) : action;
           try {
@@ -946,13 +1189,197 @@ export default function App() {
             console.error('[Storage] Error persisting personnel to localStorage:', e);
           }
           saveToIndexedDB('personnelPool', next);
-          saveAutoSnapshot(boards, next, customColors, guildWarBoards);
+          saveAutoSnapshot(
+            boards,
+            next,
+            customColors,
+            guildWarBoards,
+            diBuiPersonnelPool,
+            masterPersonnelPool,
+            guildWarPersonnelPool
+          );
           return next;
         });
       }
     },
-    [isRaidUpdate, boards, customColors, guildWarBoards]
+    [
+      activePoolView,
+      boards,
+      personnelPool,
+      customColors,
+      guildWarBoards,
+      diBuiPersonnelPool,
+      masterPersonnelPool,
+      guildWarPersonnelPool,
+    ]
   );
+
+  // Chia sẻ nhân sự từ Tổng kho sang các kho con
+  const handleSharePersonnel = (
+    targetPool: PersonnelSubPool,
+    membersToShare: PersonnelMember[],
+    mode: 'merge' | 'overwrite'
+  ) => {
+    const targetName =
+      targetPool === 'RAID'
+        ? 'Kho Raid'
+        : targetPool === 'RAID_UPDATE'
+        ? 'Kho Raid Update'
+        : 'Kho Bang Chiến';
+
+    const updateFn = (prev: PersonnelMember[]) => {
+      if (mode === 'overwrite') {
+        return membersToShare.map((m) => ({ ...m }));
+      }
+      return mergePersonnelPools(prev, membersToShare);
+    };
+
+    if (targetPool === 'RAID') {
+      setPersonnelPool((prev) => {
+        const next = updateFn(prev);
+        safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(next));
+        saveToIndexedDB('personnelPool', next);
+        return next;
+      });
+    } else if (targetPool === 'RAID_UPDATE') {
+      setUpdatePersonnelPool((prev) => {
+        const next = updateFn(prev);
+        safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(next));
+        saveToIndexedDB('updatePersonnelPool', next);
+        return next;
+      });
+    } else if (targetPool === 'GUILD_WAR') {
+      setGuildWarPersonnelPool((prev) => {
+        const next = updateFn(prev);
+        safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(next));
+        saveToIndexedDB('guildWarPersonnelPool', next);
+        return next;
+      });
+    }
+
+    showToast(
+      `Đã chia sẻ thành công ${membersToShare.length} nhân sự sang ${targetName} (${mode === 'overwrite' ? 'Ghi đè' : 'Gộp thêm'})!`
+    );
+  };
+
+  // Chia sẻ nhanh 1-click từng thành viên từ Tổng kho sang kho con
+  const handleQuickShareMember = (member: PersonnelMember, target: PersonnelSubPool) => {
+    const norm = normalizeName(member.ingame);
+    if (!norm) return;
+
+    if (target === 'RAID') {
+      setPersonnelPool((prev) => {
+        const exists = prev.some((p) => normalizeName(p.ingame) === norm);
+        let next: PersonnelMember[];
+        if (exists) {
+          next = prev.filter((p) => normalizeName(p.ingame) !== norm);
+          showToast(`Đã gỡ "${member.ingame}" khỏi Kho Raid`);
+        } else {
+          next = [...prev, { ...member }];
+          showToast(`Đã thêm "${member.ingame}" vào Kho Raid`);
+        }
+        safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(next));
+        saveToIndexedDB('personnelPool', next);
+        return next;
+      });
+    } else if (target === 'RAID_UPDATE') {
+      setUpdatePersonnelPool((prev) => {
+        const exists = prev.some((p) => normalizeName(p.ingame) === norm);
+        let next: PersonnelMember[];
+        if (exists) {
+          next = prev.filter((p) => normalizeName(p.ingame) !== norm);
+          showToast(`Đã gỡ "${member.ingame}" khỏi Kho Raid Update`);
+        } else {
+          next = [...prev, { ...member }];
+          showToast(`Đã thêm "${member.ingame}" vào Kho Raid Update`);
+        }
+        safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(next));
+        saveToIndexedDB('updatePersonnelPool', next);
+        return next;
+      });
+    } else if (target === 'GUILD_WAR') {
+      setGuildWarPersonnelPool((prev) => {
+        const exists = prev.some((p) => normalizeName(p.ingame) === norm);
+        let next: PersonnelMember[];
+        if (exists) {
+          next = prev.filter((p) => normalizeName(p.ingame) !== norm);
+          showToast(`Đã gỡ "${member.ingame}" khỏi Kho Bang Chiến`);
+        } else {
+          next = [...prev, { ...member }];
+          showToast(`Đã thêm "${member.ingame}" vào Kho Bang Chiến`);
+        }
+        safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(next));
+        saveToIndexedDB('guildWarPersonnelPool', next);
+        return next;
+      });
+    }
+  };
+
+  // Nạp toàn bộ nhân sự từ kho con hiện tại vào Tổng kho
+  const handlePushSubPoolToMaster = () => {
+    let sourcePool: PersonnelMember[] = [];
+    let sourceName = '';
+    if (activePoolView === 'raid') {
+      sourcePool = personnelPool;
+      sourceName = 'Kho Raid';
+    } else if (activePoolView === 'raid_update') {
+      sourcePool = updatePersonnelPool;
+      sourceName = 'Kho Raid Update';
+    } else if (activePoolView === 'guild_war') {
+      sourcePool = guildWarPersonnelPool;
+      sourceName = 'Kho Bang Chiến';
+    }
+
+    if (sourcePool.length === 0) {
+      showToast(`${sourceName} đang trống, không có nhân sự để nạp.`);
+      return;
+    }
+
+    setMasterPersonnelPool((prev) => {
+      const merged = mergePersonnelPools(prev, sourcePool);
+      safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(merged));
+      saveToIndexedDB('masterPersonnelPool', merged);
+      saveAutoSnapshot(
+        boards,
+        personnelPool,
+        customColors,
+        guildWarBoards,
+        diBuiPersonnelPool,
+        merged,
+        guildWarPersonnelPool
+      );
+      return merged;
+    });
+
+    showToast(`Đã nạp toàn bộ nhân sự từ ${sourceName} vào Tổng kho nhân sự!`);
+  };
+
+  // Làm trống kho con hiện tại
+  const handleClearCurrentSubPool = () => {
+    let poolName = '';
+    if (activePoolView === 'raid') poolName = 'Kho Raid';
+    else if (activePoolView === 'raid_update') poolName = 'Kho Raid Update';
+    else if (activePoolView === 'guild_war') poolName = 'Kho Bang Chiến';
+
+    if (!poolName) return;
+
+    if (window.confirm(`Bạn có chắc muốn làm trống ${poolName}? Dữ liệu trong Tổng kho nhân sự vẫn được giữ nguyên an toàn 100%.`)) {
+      if (activePoolView === 'raid') {
+        setPersonnelPool([]);
+        safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify([]));
+        saveToIndexedDB('personnelPool', []);
+      } else if (activePoolView === 'raid_update') {
+        setUpdatePersonnelPool([]);
+        safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify([]));
+        saveToIndexedDB('updatePersonnelPool', []);
+      } else if (activePoolView === 'guild_war') {
+        setGuildWarPersonnelPool([]);
+        safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify([]));
+        saveToIndexedDB('guildWarPersonnelPool', []);
+      }
+      showToast(`Đã làm trống ${poolName}.`);
+    }
+  };
 
   const handleUpdateGuildWarBoard = (updated: GuildWarBoard) => {
     setGuildWarBoards((prev) => {
@@ -1943,8 +2370,13 @@ export default function App() {
           <GuildWarBoardView
             board={activeGuildWarBoard}
             customColors={customColors}
-            personnelPool={personnelPool}
-            onUpdatePersonnelPool={setPersonnelPool}
+            personnelPool={guildWarPersonnelPool}
+            masterPersonnelPool={masterPersonnelPool}
+            onUpdatePersonnelPool={(next) => {
+              setGuildWarPersonnelPool(next);
+              safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(next));
+              saveToIndexedDB('guildWarPersonnelPool', next);
+            }}
             raidMembers={activeBoard.members}
             onUpdateBoard={handleUpdateGuildWarBoard}
             onDeleteBoard={handleDeleteGuildWarBoard}
@@ -2021,26 +2453,58 @@ export default function App() {
 
                 <button
                   type="button"
-                  id="tab-view-personnel"
-                  onClick={() => setActiveTab('personnel')}
+                  id="tab-view-master-personnel"
+                  onClick={() => {
+                    setActiveTab('personnel');
+                    setActivePoolView('master');
+                  }}
+                  title="Tổng Kho Nhân Sự: Lưu trữ tập trung và chia sẻ sang các kho con"
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
-                    activeTab === 'personnel'
+                    activeTab === 'personnel' && activePoolView === 'master'
+                      ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white shadow-md font-black'
+                      : 'bg-white/80 hover:bg-white dark:bg-[#162230] text-slate-800 dark:text-[#CADEEA] hover:bg-slate-50 dark:hover:bg-[#1D2D40] border border-sky-300/80 dark:border-[#1F3347] shadow-2xs'
+                  }`}
+                >
+                  <span className="text-sm">🏛️</span>
+                  <span>Tổng Kho</span>
+                  <span
+                    className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
+                      activeTab === 'personnel' && activePoolView === 'master'
+                        ? 'bg-white/25 text-white'
+                        : 'bg-sky-100 dark:bg-[#1B2A3B] text-sky-800 dark:text-[#88DCFA]'
+                    }`}
+                  >
+                    {masterPersonnelPool.length}
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  id="tab-view-personnel"
+                  onClick={() => {
+                    setActiveTab('personnel');
+                    if (activePoolView === 'master') {
+                      setActivePoolView(isRaidUpdate ? 'raid_update' : 'raid');
+                    }
+                  }}
+                  className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
+                    activeTab === 'personnel' && activePoolView !== 'master'
                       ? 'bg-slate-950 text-white dark:bg-[#88DCFA] dark:text-slate-950 shadow-md font-black'
                       : 'bg-white/80 hover:bg-white dark:bg-[#162230] text-slate-800 dark:text-[#CADEEA] hover:bg-slate-50 dark:hover:bg-[#1D2D40] border border-sky-300/80 dark:border-[#1F3347] shadow-2xs'
                   }`}
                 >
                   <Users className="w-4 h-4 shrink-0" />
-                  <span>{isRaidUpdate ? '👥 Kho Nhân Sự (Update)' : '👥 Kho Nhân Sự'}</span>
+                  <span>{isRaidUpdate ? '👥 Kho Update' : '👥 Kho Raid'}</span>
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
-                      activeTab === 'personnel'
+                      activeTab === 'personnel' && activePoolView !== 'master'
                         ? 'bg-white/20 text-white dark:bg-slate-950/20 dark:text-slate-950'
                         : isRaidUpdate
                         ? 'bg-emerald-100 dark:bg-[#1B2A3B] text-emerald-800 dark:text-emerald-300'
                         : 'bg-sky-100 dark:bg-[#1B2A3B] text-sky-800 dark:text-[#88DCFA]'
                     }`}
                   >
-                    {currentPersonnelPool.length}
+                    {isRaidUpdate ? updatePersonnelPool.length : personnelPool.length}
                   </span>
                 </button>
 
@@ -2195,6 +2659,17 @@ export default function App() {
                       isRaidUpdate={isRaidUpdate}
                       onOpenCopyModal={() => setIsCopyModalOpen(true)}
                       onMoveToDiBui={handleMoveToDiBui}
+                      poolType={activePoolView}
+                      poolCounts={poolCounts}
+                      onSwitchPoolType={(pt) => setActivePoolView(pt)}
+                      onOpenShareModal={(target) => {
+                        setShareModalTargetPool(target);
+                        setIsSharePersonnelModalOpen(true);
+                      }}
+                      onQuickShareMember={handleQuickShareMember}
+                      onPushToMaster={handlePushSubPoolToMaster}
+                      onClearSubPool={handleClearCurrentSubPool}
+                      subPoolMembershipMap={subPoolMembershipMap}
                     />
 
                     {/* Kho Đi Bụi - Vị trí phía dưới Kho Nhân Sự */}
@@ -2230,6 +2705,17 @@ export default function App() {
                   isRaidUpdate={isRaidUpdate}
                   onOpenCopyModal={() => setIsCopyModalOpen(true)}
                   onMoveToDiBui={handleMoveToDiBui}
+                  poolType={activePoolView}
+                  poolCounts={poolCounts}
+                  onSwitchPoolType={(pt) => setActivePoolView(pt)}
+                  onOpenShareModal={(target) => {
+                    setShareModalTargetPool(target);
+                    setIsSharePersonnelModalOpen(true);
+                  }}
+                  onQuickShareMember={handleQuickShareMember}
+                  onPushToMaster={handlePushSubPoolToMaster}
+                  onClearSubPool={handleClearCurrentSubPool}
+                  subPoolMembershipMap={subPoolMembershipMap}
                 />
 
                 {/* Kho Đi Bụi - Vị trí phía dưới Kho Nhân Sự */}
@@ -2407,6 +2893,7 @@ export default function App() {
         onPullFromCloud={handlePullFromCloudManual}
         lastSyncTime={lastCloudSyncTime}
         isSyncing={isCloudSyncing}
+        masterPersonnelCount={masterPersonnelPool.length}
         personnelCount={personnelPool.length}
         raidBoardsCount={boards.length}
         guildWarBoardsCount={guildWarBoards.length}
@@ -2463,7 +2950,7 @@ export default function App() {
         isOpen={isCopyModalOpen}
         onClose={() => setIsCopyModalOpen(false)}
         currentUpdatePool={updatePersonnelPool}
-        raidPersonnelPool={personnelPool}
+        raidPersonnelPool={masterPersonnelPool.length > 0 ? masterPersonnelPool : personnelPool}
         raidBoards={boards}
         guildWarBoards={guildWarBoards}
         customColors={customColors}
@@ -2475,9 +2962,22 @@ export default function App() {
         isOpen={isCreateGuildWarModalOpen}
         onClose={() => setIsCreateGuildWarModalOpen(false)}
         nextBoardNumber={guildWarBoards.length + 1}
-        personnelPool={personnelPool}
+        personnelPool={guildWarPersonnelPool.length > 0 ? guildWarPersonnelPool : masterPersonnelPool}
         raidMembers={activeBoard.members}
         onCreateBoard={handleCreateGuildWarBoard}
+      />
+
+      {/* Modal Chia Sẻ Nhân Sự từ Tổng Kho sang các Kho Con */}
+      <SharePersonnelModal
+        isOpen={isSharePersonnelModalOpen}
+        onClose={() => setIsSharePersonnelModalOpen(false)}
+        masterPool={masterPersonnelPool}
+        raidPool={personnelPool}
+        updatePool={updatePersonnelPool}
+        guildWarPool={guildWarPersonnelPool}
+        customColors={customColors}
+        initialTargetPool={shareModalTargetPool}
+        onShare={handleSharePersonnel}
       />
 
       {/* Delete Board Confirmation Modal */}

@@ -61,7 +61,9 @@ service cloud.firestore {
         'updateBoards',
         'updatePersonnelPool',
         'activeUpdateBoardId',
-        'diBuiPersonnelPool'
+        'diBuiPersonnelPool',
+        'masterPersonnelPool',
+        'guildWarPersonnelPool'
       ]);
     }
 
@@ -104,7 +106,10 @@ service cloud.firestore {
         && (!('updateBoards' in data) || (data.updateBoards is list && data.updateBoards.size() <= 100))
         && (!('updatePersonnelPool' in data) || (data.updatePersonnelPool is list && data.updatePersonnelPool.size() <= 1000))
         && (!('activeUpdateBoardId' in data) || (data.activeUpdateBoardId is string && data.activeUpdateBoardId.size() <= 128))
-        && (!('diBuiPersonnelPool' in data) || (data.diBuiPersonnelPool is list && data.diBuiPersonnelPool.size() <= 1000));
+        && (!('diBuiPersonnelPool' in data) || (data.diBuiPersonnelPool is list && data.diBuiPersonnelPool.size() <= 1000))
+        // Optional Master Personnel Pool & Guild War Personnel Pool fields
+        && (!('masterPersonnelPool' in data) || (data.masterPersonnelPool is list && data.masterPersonnelPool.size() <= 1000))
+        && (!('guildWarPersonnelPool' in data) || (data.guildWarPersonnelPool is list && data.guildWarPersonnelPool.size() <= 1000));
     }
 
     // =========================================================================

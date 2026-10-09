@@ -15,6 +15,7 @@ interface CloudSyncModalProps {
   onPullFromCloud: (guildId: string) => Promise<{ success: boolean; data?: CloudGuildData; error?: string }>;
   lastSyncTime: number | null;
   isSyncing: boolean;
+  masterPersonnelCount?: number;
   personnelCount: number;
   raidBoardsCount: number;
   guildWarBoardsCount: number;
@@ -31,6 +32,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
   onPullFromCloud,
   lastSyncTime,
   isSyncing,
+  masterPersonnelCount = 0,
   personnelCount,
   raidBoardsCount,
   guildWarBoardsCount,
@@ -139,7 +141,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
               </div>
             </div>
             <div className="text-right text-[11px] text-slate-400 space-y-0.5">
-              <div>Kho Raid: <strong className="text-amber-400">{personnelCount}</strong> | Đi Bụi: <strong className="text-amber-300">{diBuiCount}</strong></div>
+              <div>Tổng kho: <strong className="text-sky-400">{masterPersonnelCount}</strong> | Raid: <strong className="text-amber-400">{personnelCount}</strong></div>
               <div>Bảng: <strong className="text-blue-400">{raidBoardsCount} Raid</strong> | <strong className="text-purple-400">{guildWarBoardsCount} Bang chiến</strong></div>
               <div>Raid Update: <strong className="text-emerald-400">{updateBoardsCount} bảng</strong> • <strong className="text-emerald-300">{updatePersonnelCount} người</strong></div>
             </div>

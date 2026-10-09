@@ -22,6 +22,8 @@ export interface CloudGuildData {
   updatePersonnelPool?: PersonnelMember[];
   activeUpdateBoardId?: string;
   diBuiPersonnelPool?: PersonnelMember[];
+  masterPersonnelPool?: PersonnelMember[];
+  guildWarPersonnelPool?: PersonnelMember[];
   updatedAt: number;
   title?: string;
 }
@@ -106,6 +108,8 @@ export async function pushToCloud(
     updatePersonnelPool?: PersonnelMember[];
     activeUpdateBoardId?: string;
     diBuiPersonnelPool?: PersonnelMember[];
+    masterPersonnelPool?: PersonnelMember[];
+    guildWarPersonnelPool?: PersonnelMember[];
     title?: string;
   }
 ): Promise<{ success: boolean; error?: string }> {
@@ -136,6 +140,12 @@ export async function pushToCloud(
     }
     if (payload.diBuiPersonnelPool && Array.isArray(payload.diBuiPersonnelPool)) {
       rawData.diBuiPersonnelPool = payload.diBuiPersonnelPool.slice(0, 1000);
+    }
+    if (payload.masterPersonnelPool && Array.isArray(payload.masterPersonnelPool)) {
+      rawData.masterPersonnelPool = payload.masterPersonnelPool.slice(0, 1000);
+    }
+    if (payload.guildWarPersonnelPool && Array.isArray(payload.guildWarPersonnelPool)) {
+      rawData.guildWarPersonnelPool = payload.guildWarPersonnelPool.slice(0, 1000);
     }
 
     // Làm sạch 100% undefined ở mọi cấp độ trước khi gửi Firestore

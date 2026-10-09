@@ -30,6 +30,7 @@ interface GuildWarBoardViewProps {
   board: GuildWarBoard;
   customColors?: CustomClassColors;
   personnelPool?: PersonnelMember[];
+  masterPersonnelPool?: PersonnelMember[];
   onUpdatePersonnelPool?: (pool: PersonnelMember[]) => void;
   raidMembers?: RaidMember[];
   onUpdateBoard: (updatedBoard: GuildWarBoard) => void;
@@ -44,6 +45,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
   board,
   customColors,
   personnelPool = [],
+  masterPersonnelPool = [],
   onUpdatePersonnelPool,
   raidMembers = [],
   onUpdateBoard,
@@ -119,13 +121,20 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
     handleUpdateMember(id, { team, party: undefined, slot: undefined });
   };
 
-  // Import from Raid personnel
+  // Import from personnel pool (ưu tiên Kho Bang Chiến, nếu trống lấy từ Tổng Kho)
   const handleImportFromPersonnel = () => {
+    const sourcePool =
+      personnelPool && personnelPool.length > 0
+        ? personnelPool
+        : masterPersonnelPool && masterPersonnelPool.length > 0
+        ? masterPersonnelPool
+        : [];
+
     const existingNames = new Set(board.members.map((m) => m.ingame.toLowerCase().trim()));
     const newMembersToAdd: GuildMember[] = [];
     const timestamp = Date.now();
 
-    personnelPool.forEach((p) => {
+    sourcePool.forEach((p) => {
       if (p.ingame && !existingNames.has(p.ingame.toLowerCase().trim())) {
         existingNames.add(p.ingame.toLowerCase().trim());
         newMembersToAdd.push({

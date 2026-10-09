@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
-import { CustomClassColors, PersonnelMember, RaidBoard, RaidClass, RaidMember } from '../types';
+import { CustomClassColors, PersonnelMember, RaidBoard, RaidClass, RaidMember, PersonnelSubPool } from '../types';
 import { normalizeName } from '../utils/duplicates';
 import { PixelSquad } from './PixelSquad';
 import { PixelNoteBubble } from './PixelNoteBubble';
@@ -26,6 +26,9 @@ import {
   Swords,
   Tent,
   MessageSquare,
+  Share2,
+  Layers,
+  RotateCcw,
 } from 'lucide-react';
 
 export interface PersonnelAssignment {
@@ -52,6 +55,26 @@ interface PersonnelStorageProps {
   isRaidUpdate?: boolean;
   onOpenCopyModal?: () => void;
   onMoveToDiBui?: (person: PersonnelMember) => void;
+
+  // Master & Sub-pool architecture
+  poolType?: 'master' | 'raid' | 'raid_update' | 'guild_war';
+  poolTitle?: string;
+  poolCounts?: {
+    master: number;
+    raid: number;
+    update: number;
+    guildWar: number;
+  };
+  onSwitchPoolType?: (poolType: 'master' | 'raid' | 'raid_update' | 'guild_war') => void;
+  onOpenShareModal?: (targetPool?: PersonnelSubPool) => void;
+  onQuickShareMember?: (member: PersonnelMember, target: PersonnelSubPool) => void;
+  onPushToMaster?: () => void;
+  onClearSubPool?: () => void;
+  subPoolMembershipMap?: {
+    inRaid: Set<string>;
+    inUpdate: Set<string>;
+    inGuildWar: Set<string>;
+  };
 }
 
 export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
@@ -70,6 +93,15 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   isRaidUpdate = false,
   onOpenCopyModal,
   onMoveToDiBui,
+  poolType = 'raid',
+  poolTitle,
+  poolCounts,
+  onSwitchPoolType,
+  onOpenShareModal,
+  onQuickShareMember,
+  onPushToMaster,
+  onClearSubPool,
+  subPoolMembershipMap,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState<RaidClass | 'ALL'>('ALL');
@@ -298,60 +330,239 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
     setDraggedPersonnelId(null);
   };
 
+  const isMasterPool = poolType === 'master';
+  const effectiveTitle =
+    poolTitle ||
+    (isMasterPool
+      ? 'Tổng Kho Nhân Sự'
+      : poolType === 'raid'
+      ? 'Kho Raid'
+      : poolType === 'raid_update'
+      ? 'Kho Raid Update'
+      : poolType === 'guild_war'
+      ? 'Kho Bang Chiến'
+      : 'Kho Nhân Sự');
+
   return (
     <div className="w-full flex flex-col h-full bg-white dark:bg-[#101A24] border border-sky-300/80 dark:border-[#1F3347] rounded-2xl shadow-sm overflow-hidden transition-colors">
       {/* Header bar - Tactical Operations Console */}
       <div className="p-3 sm:p-3.5 border-b border-sky-200/80 dark:border-[#1F3347] bg-slate-50/90 dark:bg-[#162230]">
-        <div className="flex items-center justify-between gap-2 mb-2">
+        {/* Pool Switcher Tabs */}
+        {onSwitchPoolType && (
+          <div className="flex items-center gap-1 p-1 bg-slate-200/70 dark:bg-[#0B1219] rounded-xl mb-2.5 overflow-x-auto no-scrollbar border border-slate-200 dark:border-[#1F3347]">
+            <button
+              type="button"
+              onClick={() => onSwitchPoolType('master')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                poolType === 'master'
+                  ? 'bg-gradient-to-r from-sky-500 to-indigo-600 text-white font-black shadow-xs'
+                  : 'text-slate-600 dark:text-[#8CA4B8] hover:bg-slate-300/50 dark:hover:bg-[#162230]'
+              }`}
+            >
+              <Layers className="w-3.5 h-3.5" />
+              <span>🏛️ Tổng Kho</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${poolType === 'master' ? 'bg-white/25' : 'bg-slate-300 dark:bg-[#1B2A3B]'}`}>
+                {poolCounts?.master ?? totalCount}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSwitchPoolType('raid')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                poolType === 'raid'
+                  ? 'bg-sky-500 text-white font-black shadow-xs'
+                  : 'text-slate-600 dark:text-[#8CA4B8] hover:bg-slate-300/50 dark:hover:bg-[#162230]'
+              }`}
+            >
+              <Users className="w-3.5 h-3.5" />
+              <span>Kho Raid</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${poolType === 'raid' ? 'bg-white/25' : 'bg-slate-300 dark:bg-[#1B2A3B]'}`}>
+                {poolCounts?.raid ?? 0}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSwitchPoolType('raid_update')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                poolType === 'raid_update'
+                  ? 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white font-black shadow-xs'
+                  : 'text-slate-600 dark:text-[#8CA4B8] hover:bg-slate-300/50 dark:hover:bg-[#162230]'
+              }`}
+            >
+              <Sparkles className="w-3.5 h-3.5" />
+              <span>Kho Update</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${poolType === 'raid_update' ? 'bg-white/25' : 'bg-slate-300 dark:bg-[#1B2A3B]'}`}>
+                {poolCounts?.update ?? 0}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => onSwitchPoolType('guild_war')}
+              className={`flex-1 sm:flex-none flex items-center justify-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all shrink-0 cursor-pointer ${
+                poolType === 'guild_war'
+                  ? 'bg-gradient-to-r from-amber-500 to-rose-600 text-white font-black shadow-xs'
+                  : 'text-slate-600 dark:text-[#8CA4B8] hover:bg-slate-300/50 dark:hover:bg-[#162230]'
+              }`}
+            >
+              <Swords className="w-3.5 h-3.5" />
+              <span>Kho BC</span>
+              <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${poolType === 'guild_war' ? 'bg-white/25' : 'bg-slate-300 dark:bg-[#1B2A3B]'}`}>
+                {poolCounts?.guildWar ?? 0}
+              </span>
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-xl bg-sky-100 dark:bg-[#88DCFA]/15 border border-sky-300 dark:border-[#88DCFA]/40 text-sky-700 dark:text-[#88DCFA] flex items-center justify-center font-bold text-xs shadow-xs">
-              <Users className="w-4 h-4" />
+            <div className={`w-7 h-7 rounded-xl flex items-center justify-center font-bold text-xs shadow-xs ${
+              isMasterPool
+                ? 'bg-gradient-to-br from-sky-400 to-indigo-600 text-white'
+                : poolType === 'raid_update'
+                ? 'bg-emerald-500 text-white'
+                : poolType === 'guild_war'
+                ? 'bg-amber-500 text-white'
+                : 'bg-sky-100 dark:bg-[#88DCFA]/15 border border-sky-300 dark:border-[#88DCFA]/40 text-sky-700 dark:text-[#88DCFA]'
+            }`}>
+              {isMasterPool ? <Layers className="w-4 h-4" /> : poolType === 'guild_war' ? <Swords className="w-4 h-4" /> : poolType === 'raid_update' ? <Sparkles className="w-4 h-4" /> : <Users className="w-4 h-4" />}
             </div>
             <div>
               <h3 className="font-black text-xs sm:text-sm flex items-center gap-2">
-                <span className="text-slate-900 dark:text-white tracking-tight">Kho Nhân Sự</span>
-                <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 dark:bg-[#88DCFA]/15 text-sky-800 dark:text-[#88DCFA] border border-sky-300 dark:border-[#88DCFA]/30 shadow-2xs">
-                  {assignedCount}/{totalCount} đã xếp
-                </span>
+                <span className="text-slate-900 dark:text-white tracking-tight">{effectiveTitle}</span>
+                {isMasterPool ? (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 dark:bg-[#88DCFA]/15 text-sky-800 dark:text-[#88DCFA] border border-sky-300 dark:border-[#88DCFA]/30 shadow-2xs">
+                    {totalCount} nhân sự
+                  </span>
+                ) : (
+                  <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-sky-100 dark:bg-[#88DCFA]/15 text-sky-800 dark:text-[#88DCFA] border border-sky-300 dark:border-[#88DCFA]/30 shadow-2xs">
+                    {assignedCount}/{totalCount} đã xếp
+                  </span>
+                )}
               </h3>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Master Pool: Button Chia Sẻ Sang Kho Con */}
+            {isMasterPool && onOpenShareModal && (
+              <button
+                type="button"
+                onClick={() => onOpenShareModal()}
+                title="Mở hộp thoại chia sẻ nhân sự từ Tổng kho sang các kho con"
+                className="flex items-center gap-1 px-3 py-1 text-[11px] font-black text-white bg-gradient-to-r from-sky-500 to-indigo-600 hover:from-sky-600 hover:to-indigo-700 rounded-lg shadow-[0_0_12px_rgba(99,102,241,0.35)] transition-all active:scale-95 cursor-pointer"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>Chia sẻ sang Kho con</span>
+              </button>
+            )}
+
+            {/* Sub-pools: Nhận từ Tổng Kho */}
+            {!isMasterPool && onOpenShareModal && (
+              <button
+                type="button"
+                onClick={() => onOpenShareModal(poolType === 'raid_update' ? 'RAID_UPDATE' : poolType === 'guild_war' ? 'GUILD_WAR' : 'RAID')}
+                title="Nhận / Nhập nhân sự từ Tổng kho vào kho con này"
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-sky-700 dark:text-sky-300 bg-sky-50 dark:bg-sky-950/40 hover:bg-sky-100 dark:hover:bg-sky-900/50 border border-sky-300 dark:border-sky-800 rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer"
+              >
+                <Share2 className="w-3 h-3 text-sky-600 dark:text-sky-400" />
+                <span>Nhận từ Tổng kho</span>
+              </button>
+            )}
+
+            {/* Sub-pools: Nạp ngược vào Tổng Kho */}
+            {!isMasterPool && onPushToMaster && (
+              <button
+                type="button"
+                onClick={onPushToMaster}
+                title="Đồng bộ những nhân sự mới trong kho này lên Tổng kho nhân sự"
+                className="flex items-center gap-1 px-2 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 bg-white dark:bg-[#101A24] hover:bg-slate-100 dark:hover:bg-[#1D2D40] border border-slate-300 dark:border-[#1F3347] rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer"
+              >
+                <Layers className="w-3 h-3 text-indigo-600 dark:text-indigo-400" />
+                <span className="hidden sm:inline">Nạp vào Tổng kho</span>
+              </button>
+            )}
+
+            {/* Sub-pools: Làm trống kho */}
+            {!isMasterPool && onClearSubPool && (
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(true)}
+                title="Làm trống kho con này (dữ liệu vẫn còn nguyên vẹn trong Tổng kho)"
+                className="p-1 text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 rounded transition-all cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            )}
+
             {isRaidUpdate && onOpenCopyModal && (
               <button
                 type="button"
                 onClick={onOpenCopyModal}
                 title="Sao chép nhân sự từ Kho Raid và Bang Chiến vào Kho Raid Update này"
-                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-purple-700 dark:text-purple-300 hover:text-purple-950 dark:hover:text-white bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-300 dark:border-purple-800/80 rounded-lg shadow-2xs transition-all active:scale-95"
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-purple-700 dark:text-purple-300 hover:text-purple-950 dark:hover:text-white bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 border border-purple-300 dark:border-purple-800/80 rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer"
               >
                 <Copy className="w-3 h-3 text-purple-600 dark:text-purple-400" />
-                <span className="hidden sm:inline">Sao chép từ Raid/BC</span>
-                <span className="sm:hidden">Sao chép</span>
+                <span className="hidden sm:inline">Sao chép</span>
+              </button>
+            )}
+
+            {!isMasterPool && (
+              <button
+                type="button"
+                onClick={onSyncFromActiveRaid}
+                title="Thêm các thành viên trong bảng Raid hiện tại vào Kho Nhân Sự (nếu chưa có)"
+                className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white bg-white dark:bg-[#101A24] hover:bg-slate-100 dark:hover:bg-[#1D2D40] border border-slate-300 dark:border-[#1F3347] rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer"
+              >
+                <RefreshCw className="w-3 h-3 text-sky-600 dark:text-[#88DCFA]" />
+                <span className="hidden sm:inline">Lấy từ Raid</span>
               </button>
             )}
 
             <button
               type="button"
-              onClick={onSyncFromActiveRaid}
-              title="Thêm các thành viên trong bảng Raid hiện tại vào Kho Nhân Sự (nếu chưa có)"
-              className="flex items-center gap-1 px-2.5 py-1 text-[11px] font-bold text-slate-700 dark:text-slate-300 hover:text-slate-950 dark:hover:text-white bg-white dark:bg-[#101A24] hover:bg-slate-100 dark:hover:bg-[#1D2D40] border border-slate-300 dark:border-[#1F3347] rounded-lg shadow-2xs transition-all active:scale-95"
-            >
-              <RefreshCw className="w-3 h-3 text-sky-600 dark:text-[#88DCFA]" />
-              <span className="hidden sm:inline">Lấy từ Raid</span>
-            </button>
-
-            <button
-              type="button"
               id="btn-add-personnel-open"
               onClick={() => setIsAddingNew(!isAddingNew)}
-              className="flex items-center gap-1 px-3 py-1 text-[11px] font-bold text-slate-950 bg-[#88DCFA] hover:bg-[#68CEF6] rounded-lg shadow-[0_0_12px_rgba(136,220,250,0.3)] transition-all active:scale-95 font-black"
+              className="flex items-center gap-1 px-3 py-1 text-[11px] font-bold text-slate-950 bg-[#88DCFA] hover:bg-[#68CEF6] rounded-lg shadow-[0_0_12px_rgba(136,220,250,0.3)] transition-all active:scale-95 font-black cursor-pointer"
             >
               <UserPlus className="w-3.5 h-3.5" />
               <span>{isAddingNew ? 'Đóng' : '+ Thêm'}</span>
             </button>
           </div>
         </div>
+
+        {/* Confirmation modal for clearing subpool */}
+        {showResetConfirm && (
+          <div className="mt-2.5 p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded-xl text-xs space-y-2 animate-in fade-in">
+            <div className="font-bold text-rose-900 dark:text-rose-200">
+              Xác nhận làm trống {effectiveTitle}?
+            </div>
+            <div className="text-[11px] text-rose-700 dark:text-rose-300">
+              Thao tác này chỉ làm trống kho con hiện tại. Toàn bộ nhân sự vẫn được lưu giữ 100% an toàn trong Tổng Kho Nhân Sự!
+            </div>
+            <div className="flex justify-end gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="px-2.5 py-1 text-slate-600 dark:text-slate-400 font-bold hover:text-black dark:hover:text-white cursor-pointer"
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onClearSubPool && onClearSubPool();
+                  setShowResetConfirm(false);
+                }}
+                className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg font-black cursor-pointer"
+              >
+                Làm trống kho
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Add New Personnel Form */}
         {isAddingNew && (
@@ -785,30 +996,92 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     {person.className}
                   </span>
 
-                  {/* Assign / Remove Button */}
-                  {isAssignedInActiveBoard ? (
-                    <button
-                      type="button"
-                      onClick={() => onRemoveFromRaid(person.ingame)}
-                      title={`Bỏ nhân sự này khỏi ${activeBoardTitle || 'bảng hiện tại'}`}
-                      className="px-2.5 py-1 text-[11px] font-black rounded-lg bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800/60 transition-all hover:scale-105 active:scale-95 shadow-2xs"
-                    >
-                      Bỏ xếp
-                    </button>
+                  {/* Master Pool: Quick Share Distribution Badges */}
+                  {isMasterPool ? (
+                    <div className="flex items-center gap-1">
+                      {/* Raid */}
+                      {subPoolMembershipMap?.inRaid.has(normalizeName(person.ingame)) ? (
+                        <span
+                          title="Đã có trong Kho Raid"
+                          className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs"
+                        >
+                          ✓ Raid
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onQuickShareMember && onQuickShareMember(person, 'RAID')}
+                          title="Chia sẻ ngay sang Kho Raid"
+                          className="px-1.5 py-0.5 rounded text-[10px] font-black bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
+                        >
+                          + Raid
+                        </button>
+                      )}
+
+                      {/* Update */}
+                      {subPoolMembershipMap?.inUpdate.has(normalizeName(person.ingame)) ? (
+                        <span
+                          title="Đã có trong Kho Raid Update"
+                          className="px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-800 shadow-2xs"
+                        >
+                          ✓ Update
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onQuickShareMember && onQuickShareMember(person, 'RAID_UPDATE')}
+                          title="Chia sẻ ngay sang Kho Raid Update"
+                          className="px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
+                        >
+                          + Update
+                        </button>
+                      )}
+
+                      {/* Guild War */}
+                      {subPoolMembershipMap?.inGuildWar.has(normalizeName(person.ingame)) ? (
+                        <span
+                          title="Đã có trong Kho Bang Chiến"
+                          className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 shadow-2xs"
+                        >
+                          ✓ BC
+                        </span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onQuickShareMember && onQuickShareMember(person, 'GUILD_WAR')}
+                          title="Chia sẻ ngay sang Kho Bang Chiến"
+                          className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
+                        >
+                          + BC
+                        </button>
+                      )}
+                    </div>
                   ) : (
-                    <button
-                      type="button"
-                      onClick={() => onAssignToRaid(person)}
-                      title={
-                        isAssigned
-                          ? `Đã có ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Click để xếp vào bảng này`
-                          : 'Xếp vào ô trống kế tiếp hoặc thêm slot mới trong Raid'
-                      }
-                      className="flex items-center gap-0.5 px-2.5 py-1 text-[11px] font-black rounded-lg bg-[#88DCFA] hover:bg-[#68CEF6] active:bg-[#48bbf0] text-slate-950 shadow-[0_0_10px_rgba(136,220,250,0.3)] transition-all hover:scale-105 active:scale-95"
-                    >
-                      <Plus className="w-3 h-3 stroke-[2.5]" />
-                      <span>{isAssigned ? 'Xếp tiếp' : 'Xếp'}</span>
-                    </button>
+                    /* Sub-pools: Normal Assign / Remove Button */
+                    isAssignedInActiveBoard ? (
+                      <button
+                        type="button"
+                        onClick={() => onRemoveFromRaid(person.ingame)}
+                        title={`Bỏ nhân sự này khỏi ${activeBoardTitle || 'bảng hiện tại'}`}
+                        className="px-2.5 py-1 text-[11px] font-black rounded-lg bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 border border-rose-300 dark:border-rose-800/60 transition-all hover:scale-105 active:scale-95 shadow-2xs"
+                      >
+                        Bỏ xếp
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => onAssignToRaid(person)}
+                        title={
+                          isAssigned
+                            ? `Đã có ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Click để xếp vào bảng này`
+                            : 'Xếp vào ô trống kế tiếp hoặc thêm slot mới trong Raid'
+                        }
+                        className="flex items-center gap-0.5 px-2.5 py-1 text-[11px] font-black rounded-lg bg-[#88DCFA] hover:bg-[#68CEF6] active:bg-[#48bbf0] text-slate-950 shadow-[0_0_10px_rgba(136,220,250,0.3)] transition-all hover:scale-105 active:scale-95"
+                      >
+                        <Plus className="w-3 h-3 stroke-[2.5]" />
+                        <span>{isAssigned ? 'Xếp tiếp' : 'Xếp'}</span>
+                      </button>
+                    )
                   )}
 
                   {/* Edit & Delete trigger buttons */}
