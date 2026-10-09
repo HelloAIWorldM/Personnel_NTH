@@ -70,6 +70,7 @@ import {
 import { CloudSyncModal } from './components/CloudSyncModal';
 import { DonateModal } from './components/DonateModal';
 import { ImportRaidImageModal } from './components/ImportRaidImageModal';
+import { PublicRoomNoticeModal } from './components/PublicRoomNoticeModal';
 import {
   getSavedGuildId,
   pushToCloud,
@@ -192,6 +193,7 @@ export default function App() {
   const [selectedClassFilter, setSelectedClassFilter] = useState<RaidClass | null>(null);
   const [boardToDelete, setBoardToDelete] = useState<RaidBoard | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [isPublicNoticeOpen, setIsPublicNoticeOpen] = useState(true);
 
   // App Mode: 'RAID' (Bảng Raid), 'RAID_UPDATE' (Bảng Raid Update), or 'GUILD_WAR' (Bảng Bang Chiến)
   const [appMode, setAppMode] = useState<AppMode>(() => {
@@ -556,11 +558,12 @@ export default function App() {
         }
 
         // 4. Nếu thiết bị vừa bị xoá sạch dữ liệu (Brave "Forget me", ẩn danh, thiết bị mới),
-        // tự động kiểm tra và phục hồi từ Firebase Firestore Cloud
+        // tự động kiểm tra và phục hồi từ Firebase Firestore Cloud (chỉ áp dụng cho phòng riêng, không áp dụng cho mã public nth_guild)
         try {
           const currentGid = getSavedGuildId();
-          const cloudRes = await pullFromCloud(currentGid);
-          if (cloudRes.success && cloudRes.data && isMounted) {
+          if (currentGid !== 'nth_guild') {
+            const cloudRes = await pullFromCloud(currentGid);
+            if (cloudRes.success && cloudRes.data && isMounted) {
             const cd = cloudRes.data;
             let restoredFromCloud = false;
 
@@ -675,7 +678,8 @@ export default function App() {
               showToast('☁️ Đã tự động phục hồi toàn bộ dữ liệu từ Cloud Firestore!');
             }
           }
-        } catch (cloudErr) {
+        }
+      } catch (cloudErr) {
           console.warn('[CloudSync] Initial check error:', cloudErr);
         }
       } catch (err) {
@@ -995,8 +999,12 @@ export default function App() {
 
     const timer = setTimeout(async () => {
       try {
-        setIsCloudSyncing(true);
         const currentGid = getSavedGuildId();
+        // Không tự động lưu lên mã phòng public nth_guild (luôn để trống)
+        if (currentGid === 'nth_guild') {
+          return;
+        }
+        setIsCloudSyncing(true);
         const res = await pushToCloud(currentGid, {
           boards,
           personnelPool,
@@ -1972,6 +1980,18 @@ export default function App() {
                     {isCloudSyncing ? 'Đang lưu...' : 'Cloud An Toàn'}
                   </span>
                 </div>
+
+                {/* Public Room Notice Pill */}
+                {getSavedGuildId() === 'nth_guild' && (
+                  <button
+                    type="button"
+                    onClick={() => setIsPublicNoticeOpen(true)}
+                    title="Nhấn để xem lại thông báo & hướng dẫn đổi mã phòng public nth_guild"
+                    className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700/60 transition-all cursor-pointer shadow-2xs"
+                  >
+                    <span>⚠️ Phòng public: nth_guild</span>
+                  </button>
+                )}
               </div>
               <p className="text-[11px] text-slate-500 dark:text-[#8CA4B8] hidden sm:flex items-center gap-2 truncate font-medium">
                 <span>
@@ -2966,6 +2986,14 @@ export default function App() {
       <DonateModal
         isOpen={isDonateModalOpen}
         onClose={() => setIsDonateModalOpen(false)}
+      />
+
+      {/* Public Room Notice Modal */}
+      <PublicRoomNoticeModal
+        isOpen={isPublicNoticeOpen}
+        onClose={() => setIsPublicNoticeOpen(false)}
+        onOpenCloudModal={() => setIsCloudModalOpen(true)}
+        onOpenDonateModal={() => setIsDonateModalOpen(true)}
       />
 
       {/* Create Board Modal */}

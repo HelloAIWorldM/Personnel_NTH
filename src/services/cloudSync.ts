@@ -93,6 +93,75 @@ export function cleanForFirestore<T>(input: T): T {
 }
 
 /**
+ * Tạo dữ liệu phòng trống chuẩn mẫu cho nth_guild
+ */
+export function getEmptyCloudGuildData(guildId: string = DEFAULT_GUILD_ID): CloudGuildData {
+  const timestamp = Date.now();
+  const emptyRaidBoard: RaidBoard = {
+    id: 'board_1',
+    titlePrefix: 'RAID 1',
+    scheduleTime: 'MON 20:30',
+    bossName: 'NIÊN DU',
+    members: Array.from({ length: 12 }, (_, i) => ({
+      slot: i + 1,
+      ingame: '',
+      className: 'Toái Mộng',
+      party: i < 6 ? 1 : 2,
+    })),
+    parties: [
+      { id: 1, name: 'PT 1' },
+      { id: 2, name: 'PT 2' },
+    ],
+    minAttendanceRequired: 1,
+    reportDate: new Date().toISOString().split('T')[0],
+    createdAt: timestamp,
+    partyNotes: {},
+  };
+
+  const emptyGuildWarBoard: GuildWarBoard = {
+    id: 'gw_board_1',
+    title: 'Bang Chiến Mẫu',
+    members: [],
+    minAttendanceRequired: 1,
+    reportDate: new Date().toISOString().split('T')[0],
+    createdAt: timestamp,
+    partyNotes: {},
+  };
+
+  return {
+    boards: [emptyRaidBoard],
+    personnelPool: [],
+    guildWarBoards: [emptyGuildWarBoard],
+    activeBoardId: 'board_1',
+    activeGuildWarBoardId: 'gw_board_1',
+    customColors: {},
+    updateBoards: [],
+    updatePersonnelPool: [],
+    activeUpdateBoardId: '',
+    diBuiPersonnelPool: [],
+    masterPersonnelPool: [],
+    guildWarPersonnelPool: [],
+    title: 'Phòng Mẫu (Public)',
+    updatedAt: timestamp,
+  };
+}
+
+/**
+ * Reset trực tiếp mã phòng nth_guild trên Firestore về dữ liệu sạch trống
+ */
+export async function resetNthGuildOnCloud(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const docRef = doc(db, 'guilds', DEFAULT_GUILD_ID);
+    const emptyData = getEmptyCloudGuildData(DEFAULT_GUILD_ID);
+    await setDoc(docRef, cleanForFirestore(emptyData));
+    return { success: true };
+  } catch (err: any) {
+    console.error('[CloudSync] Reset nth_guild error:', err);
+    return { success: false, error: err?.message || 'Không thể reset nth_guild' };
+  }
+}
+
+/**
  * Lưu dữ liệu lên Firestore an toàn tuân thủ chặt chẽ firestore.rules
  */
 export async function pushToCloud(
@@ -115,6 +184,16 @@ export async function pushToCloud(
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const targetId = sanitizeGuildId(guildId);
+
+    // Bảo vệ mã phòng public nth_guild: Luôn luôn giữ trống, không cho lưu đè dữ liệu cá nhân
+    if (targetId === DEFAULT_GUILD_ID) {
+      return {
+        success: false,
+        error:
+          'Mã "nth_guild" là phòng public và sẽ tự reset dữ liệu. Vui lòng đổi tên nth_guild thành tên bạn muốn rồi ấn Đổi mã & Lưu lên cloud ngay!',
+      };
+    }
+
     const docRef = doc(db, 'guilds', targetId);
 
     // Chuẩn hóa và giới hạn kích thước theo firestore.rules
@@ -170,6 +249,12 @@ export async function pullFromCloud(guildId: string): Promise<{
 }> {
   try {
     const targetId = sanitizeGuildId(guildId);
+
+    // Mã phòng public nth_guild: Luôn luôn trả về dữ liệu mẫu trống
+    if (targetId === DEFAULT_GUILD_ID) {
+      return { success: true, data: getEmptyCloudGuildData(DEFAULT_GUILD_ID) };
+    }
+
     const docRef = doc(db, 'guilds', targetId);
     const snap = await getDoc(docRef);
 

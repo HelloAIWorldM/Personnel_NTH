@@ -59,6 +59,10 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
   };
 
   const handlePush = async () => {
+    if (guildId.trim() === 'nth_guild') {
+      showToast('⚠️ "nth_guild" là phòng public và tự reset. Vui lòng đổi sang tên mã phòng riêng của bạn rồi ấn Đổi mã & Lưu lên cloud ngay!');
+      return;
+    }
     setIsProcessing(true);
     try {
       const res = await onPushToCloud(guildId);
@@ -73,14 +77,19 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
   };
 
   const handlePull = async () => {
-    if (!window.confirm('Hành động này sẽ nạp dữ liệu từ Cloud về máy bạn và thay thế dữ liệu hiện tại trên màn hình. Bạn có chắc chắn muốn nạp?')) {
+    const isPublic = guildId.trim() === 'nth_guild';
+    const confirmMsg = isPublic
+      ? 'Mã "nth_guild" là phòng public mẫu và luôn là dữ liệu trống. Hành động này sẽ nạp dữ liệu trống về máy bạn. Bạn có chắc chắn muốn nạp?'
+      : 'Hành động này sẽ nạp dữ liệu từ Cloud về máy bạn và thay thế dữ liệu hiện tại trên màn hình. Bạn có chắc chắn muốn nạp?';
+
+    if (!window.confirm(confirmMsg)) {
       return;
     }
     setIsProcessing(true);
     try {
       const res = await onPullFromCloud(guildId);
       if (res.success) {
-        showToast('✅ Đã nạp dữ liệu từ Cloud về máy thành công!');
+        showToast(isPublic ? '✅ Đã nạp bảng trống mẫu từ Cloud về máy thành công!' : '✅ Đã nạp dữ liệu từ Cloud về máy thành công!');
         onClose();
       } else {
         showToast(`❌ Không thể tải: ${res.error || 'Phòng chưa có dữ liệu'}`);
@@ -163,11 +172,23 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
               />
               <button
                 onClick={handleSaveGuildId}
-                className="px-3 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition-colors"
+                className="px-3 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition-colors cursor-pointer"
               >
                 Đổi mã
               </button>
             </div>
+
+            {guildId.trim() === 'nth_guild' && (
+              <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5 mt-2">
+                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <div className="font-bold text-amber-300">Phòng public & tự động làm trống</div>
+                  <p className="text-[11px] text-amber-200/90 leading-relaxed">
+                    Mã <code>nth_guild</code> là phòng public và sẽ tự reset dữ liệu. Hãy đổi tên <code>nth_guild</code> thành tên mà bạn muốn sau đó ấn <strong>Đổi mã</strong> và ấn <strong>Lưu lên cloud ngay</strong> để tạo một database riêng nhé!
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Auto Sync Toggle */}
