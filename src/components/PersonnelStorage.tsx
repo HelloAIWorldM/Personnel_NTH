@@ -377,7 +377,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               }`}
             >
               <Layers className="w-3.5 h-3.5" />
-              <span>🏛️ Tổng Kho</span>
+              <span>Tổng Kho</span>
               <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-black ${poolType === 'master' ? 'bg-white/25' : 'bg-slate-300 dark:bg-[#1B2A3B]'}`}>
                 {poolCounts?.master ?? totalCount}
               </span>
@@ -995,18 +995,20 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                         {subPoolMembershipMap?.inRaid.has(normalizeName(person.ingame)) ? (
                           <span
                             title="Đã có trong Kho Raid"
-                            className="px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800 shadow-2xs"
                           >
-                            ✓ Raid
+                            <Check className="w-2.5 h-2.5" />
+                            <span>Raid</span>
                           </span>
                         ) : (
                           <button
                             type="button"
                             onClick={() => onQuickShareMember && onQuickShareMember(person, 'RAID')}
                             title="Chia sẻ ngay sang Kho Raid"
-                            className="px-1.5 py-0.5 rounded text-[10px] font-black bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-sky-50 hover:bg-sky-100 dark:bg-sky-950/40 dark:hover:bg-sky-900/50 text-sky-700 dark:text-sky-300 border border-sky-300 dark:border-sky-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
                           >
-                            + Raid
+                            <Plus className="w-2.5 h-2.5" />
+                            <span>Raid</span>
                           </button>
                         )}
 
@@ -1014,18 +1016,20 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                         {subPoolMembershipMap?.inUpdate.has(normalizeName(person.ingame)) ? (
                           <span
                             title="Đã có trong Kho Raid Update"
-                            className="px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-800 shadow-2xs"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-100 dark:bg-teal-950/60 text-teal-800 dark:text-teal-300 border border-teal-300 dark:border-teal-800 shadow-2xs"
                           >
-                            ✓ Update
+                            <Check className="w-2.5 h-2.5" />
+                            <span>Update</span>
                           </span>
                         ) : (
                           <button
                             type="button"
                             onClick={() => onQuickShareMember && onQuickShareMember(person, 'RAID_UPDATE')}
                             title="Chia sẻ ngay sang Kho Raid Update"
-                            className="px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-teal-50 hover:bg-teal-100 dark:bg-teal-950/40 dark:hover:bg-teal-900/50 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
                           >
-                            + Update
+                            <Plus className="w-2.5 h-2.5" />
+                            <span>Update</span>
                           </button>
                         )}
 
@@ -1033,18 +1037,20 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                         {subPoolMembershipMap?.inGuildWar.has(normalizeName(person.ingame)) ? (
                           <span
                             title="Đã có trong Kho Bang Chiến"
-                            className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 shadow-2xs"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-300 border border-amber-300 dark:border-amber-800 shadow-2xs"
                           >
-                            ✓ BC
+                            <Check className="w-2.5 h-2.5" />
+                            <span>BC</span>
                           </span>
                         ) : (
                           <button
                             type="button"
                             onClick={() => onQuickShareMember && onQuickShareMember(person, 'GUILD_WAR')}
                             title="Chia sẻ ngay sang Kho Bang Chiến"
-                            className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
+                            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-800/60 transition-all hover:scale-105 active:scale-95 cursor-pointer shadow-2xs"
                           >
-                            + BC
+                            <Plus className="w-2.5 h-2.5" />
+                            <span>BC</span>
                           </button>
                         )}
                       </div>
@@ -1169,7 +1175,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/80 shadow-2xs whitespace-nowrap max-w-full overflow-x-auto no-scrollbar transition-all hover:scale-105 cursor-pointer"
                         title={`Ghi chú: ${person.note} (Click để mở xem & sửa)`}
                       >
-                        <span className="text-[10px]">📝</span>
+                        <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-300" />
                         <span className="whitespace-nowrap">{person.note}</span>
                       </button>
                     )}

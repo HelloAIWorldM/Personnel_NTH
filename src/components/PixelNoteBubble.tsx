@@ -139,7 +139,7 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
         {/* Header Bar */}
         <div className="flex items-center justify-between gap-1.5 pb-2 mb-2 border-b-2 border-black/15">
           <div className="flex items-center gap-1.5 min-w-0">
-            <span className="text-sm shrink-0">💬</span>
+            <MessageSquare className="w-3.5 h-3.5 text-black shrink-0" />
             <span
               className="text-xs font-black text-black truncate max-w-[140px]"
               title={title || person?.ingame}

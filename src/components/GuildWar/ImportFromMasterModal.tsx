@@ -400,7 +400,7 @@ export const ImportFromMasterModal: React.FC<ImportFromMasterModalProps> = ({
                             </span>
                           )}
                           {person.note && (
-                            <span className="truncate italic text-[10px] text-amber-600 dark:text-amber-400" title={person.note}>
+                            <span className="italic text-[10px] text-amber-600 dark:text-amber-400 break-words" title={person.note}>
                               • {person.note}
                             </span>
                           )}

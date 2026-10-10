@@ -526,11 +526,11 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
                                   card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
                                 );
                               }}
-                              className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 truncate max-w-[200px] cursor-pointer"
+                              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 whitespace-normal break-words cursor-pointer"
                               title={`Ghi chú: ${person.note} (Click để ẩn/hiện)`}
                             >
-                              <span>📝</span>
-                              <span className="truncate">{person.note}</span>
+                              <MessageSquare className="w-3 h-3 text-amber-700 dark:text-amber-300 shrink-0" />
+                              <span className="break-words">{person.note}</span>
                             </button>
                           )}
                         </div>

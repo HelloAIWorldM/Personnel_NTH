@@ -43,7 +43,7 @@ export const DonateModal: React.FC<DonateModalProps> = ({ isOpen, onClose }) => 
         <div className="flex items-center justify-center gap-2 mb-4">
           <h3 className="text-base sm:text-lg font-black text-amber-400 tracking-wide flex items-center gap-1.5">
             <span>Ủng hộ tác giả</span>
-            <span className="text-lg">☕</span>
+            <Coffee className="w-5 h-5 text-amber-400 shrink-0" />
           </h3>
         </div>
 

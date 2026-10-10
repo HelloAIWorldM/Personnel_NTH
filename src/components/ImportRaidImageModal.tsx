@@ -12,6 +12,7 @@ import {
   RefreshCw,
   FileCheck,
   ArrowRight,
+  Shield,
 } from 'lucide-react';
 import { RaidBoard, RaidMember, RaidClass, CustomClassColors } from '../types';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
@@ -111,7 +112,7 @@ export const ImportRaidImageModal: React.FC<ImportRaidImageModalProps> = ({
       }
 
       setParsedData(result);
-      showToast('🎉 Nhận diện cấu trúc bảng Raid từ ảnh thành công!');
+      showToast('Nhận diện cấu trúc bảng Raid từ ảnh thành công!');
     } catch (err: any) {
       console.error('Failed to parse raid image:', err);
       setErrorMsg(err.message || 'Không thể trích xuất dữ liệu từ ảnh. Vui lòng thử lại với ảnh rõ nét hơn.');
@@ -154,7 +155,7 @@ export const ImportRaidImageModal: React.FC<ImportRaidImageModalProps> = ({
     };
 
     onCreateNewBoard(newBoard);
-    showToast(`✅ Đã tạo bảng "${newBoard.titlePrefix}" từ ảnh thành công!`);
+    showToast(`Đã tạo bảng "${newBoard.titlePrefix}" từ ảnh thành công!`);
     onClose();
   };
 
@@ -175,7 +176,7 @@ export const ImportRaidImageModal: React.FC<ImportRaidImageModalProps> = ({
       bossName: parsedData.bossName.trim() || currentActiveBoard.bossName,
       members: parsedData.members,
     });
-    showToast(`✅ Đã cập nhật bảng "${currentActiveBoard.titlePrefix}" từ ảnh!`);
+    showToast(`Đã cập nhật bảng "${currentActiveBoard.titlePrefix}" từ ảnh!`);
     onClose();
   };
 
@@ -294,7 +295,8 @@ export const ImportRaidImageModal: React.FC<ImportRaidImageModalProps> = ({
               {/* Guide tips */}
               <div className="p-4 rounded-2xl bg-amber-50/80 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 text-xs text-amber-900 dark:text-amber-200 space-y-1">
                 <div className="font-bold flex items-center gap-1.5">
-                  <span>💡</span> Mẹo để nhận diện chính xác 100%:
+                  <Sparkles className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>Mẹo để nhận diện chính xác 100%:</span>
                 </div>
                 <ul className="list-disc list-inside text-[11px] space-y-0.5 text-amber-800/90 dark:text-amber-300/80 pl-1">
                   <li>Ảnh xuất từ nút "Xuất ảnh" của web cho độ chính xác cao nhất (màu phái & chữ sắc nét).</li>
@@ -390,7 +392,8 @@ export const ImportRaidImageModal: React.FC<ImportRaidImageModalProps> = ({
                       <React.Fragment key={m.id || idx}>
                         {isPtDivider && (
                           <div className="bg-sky-50/90 dark:bg-sky-950/40 px-4 py-1.5 text-[11px] font-extrabold text-sky-800 dark:text-sky-300 border-y border-sky-200 dark:border-sky-800/60 flex items-center gap-1.5">
-                            <span>🛡️ PT 2 (VỊ TRÍ 7 - 12)</span>
+                            <Shield className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+                            <span>PT 2 (VỊ TRÍ 7 - 12)</span>
                           </div>
                         )}
 

@@ -319,7 +319,7 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
           <div className="flex items-center gap-2 font-black text-rose-700 dark:text-rose-400 text-xs sm:text-sm mb-1.5">
             <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 animate-pulse shrink-0" />
             <span>
-              🚨 CẢNH BÁO TRÙNG NHÂN SỰ ĐIỂM DANH ({duplicateGroups.length} tên nhân sự bị trùng lặp)
+              CẢNH BÁO TRÙNG NHÂN SỰ ĐIỂM DANH ({duplicateGroups.length} tên nhân sự bị trùng lặp)
             </span>
           </div>
           <p className="text-[11px] text-rose-800 dark:text-rose-300 mb-2">
@@ -398,9 +398,10 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
                         <button
                           type="button"
                           onClick={() => handleSaveEditSession(session.id)}
-                          className="text-emerald-400 hover:text-emerald-200"
+                          className="text-emerald-400 hover:text-emerald-200 inline-flex items-center"
+                          title="Lưu"
                         >
-                          ✓
+                          <Check className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     ) : (
@@ -490,7 +491,7 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
                           <span>{member.ingame}</span>
                           {isDuplicate && (
                             <span
-                              title={`🚨 Nhân sự này bị trùng lặp ${dupGroup?.count} dòng trong danh sách điểm danh!`}
+                              title={`CẢNH BÁO: Nhân sự này bị trùng lặp ${dupGroup?.count} dòng trong danh sách điểm danh!`}
                               className="text-rose-500 animate-pulse cursor-help shrink-0"
                             >
                               <AlertTriangle className="w-3.5 h-3.5" />

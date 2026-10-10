@@ -507,7 +507,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
 
   // Copy Discord format
   const handleCopyDiscordFormat = () => {
-    let text = `⚔️ **SƠ ĐỒ PHÂN TEAM BANG CHIẾN** ⚔️\n\n`;
+    let text = `**SƠ ĐỒ PHÂN TEAM BANG CHIẾN**\n\n`;
 
     EXCEL_TEAMS.forEach((team) => {
       const grid = getTeamSlots(team.id);
@@ -532,7 +532,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
         const noteKey = `${team.id}-${p}`;
         const pNote = partyNotes?.[noteKey]?.trim();
         if (pNote) {
-          text += `  ↳ 📝 *Ghi chú: ${pNote.replace(/\n+/g, ' ')}*\n`;
+          text += `  ↳ *Ghi chú: ${pNote.replace(/\n+/g, ' ')}*\n`;
         }
       }
       text += `\n`;
@@ -798,7 +798,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
           <div className="flex items-center gap-2 font-black text-rose-700 dark:text-rose-400 text-xs sm:text-sm mb-1.5">
             <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 animate-pulse shrink-0" />
             <span>
-              🚨 CẢNH BÁO TRÙNG NHÂN SỰ BANG CHIẾN ({duplicateGroups.length} trường hợp bị xếp trùng)
+              CẢNH BÁO TRÙNG NHÂN SỰ BANG CHIẾN ({duplicateGroups.length} trường hợp bị xếp trùng)
             </span>
           </div>
           <p className="text-[11px] text-rose-800 dark:text-rose-300 mb-2">
@@ -892,9 +892,9 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                               : `Click vào PT-${partyNum} để ghi chú chiến thuật`
                           }
                         >
-                          <div className="flex items-center justify-center gap-1.5 min-w-0">
+                          <div className="flex items-center justify-center gap-1.5 flex-wrap min-w-0">
                             <span
-                              className={`transition-colors text-xs font-black ${
+                              className={`transition-colors text-xs font-black shrink-0 ${
                                 hasNote
                                   ? 'text-amber-600 dark:text-amber-400'
                                   : 'text-slate-800 dark:text-slate-200 group-hover:text-amber-600 dark:group-hover:text-amber-300'
@@ -905,11 +905,11 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
 
                             {hasNote ? (
                               <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-amber-200/90 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 border border-amber-400/80 dark:border-amber-700/80 shadow-2xs max-w-[110px] truncate"
+                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-amber-200/90 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 border border-amber-400/80 dark:border-amber-700/80 shadow-2xs whitespace-normal break-words text-left"
                                 title={`Ghi chú: ${pNote}`}
                               >
-                                <span className="text-[10px]">📝</span>
-                                <span className="truncate">{pNote}</span>
+                                <MessageSquare className="w-3 h-3 shrink-0 text-amber-800 dark:text-amber-300 self-center" />
+                                <span className="break-words">{pNote}</span>
                               </span>
                             ) : (
                               <span
@@ -1003,7 +1003,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                                     {isDuplicate && (
                                       <span
                                         data-html2canvas-ignore="true"
-                                        title={`🚨 TRÙNG NHÂN SỰ: "${member.ingame}" xuất hiện ${dupGroup?.count} lần trong danh sách Bang Chiến!`}
+                                        title={`TRÙNG NHÂN SỰ: "${member.ingame}" xuất hiện ${dupGroup?.count} lần trong danh sách Bang Chiến!`}
                                         className="text-rose-500 hover:text-rose-600 animate-pulse shrink-0 cursor-help"
                                       >
                                         <AlertTriangle className="w-3.5 h-3.5" />
@@ -1174,7 +1174,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                   }`}
                   title={
                     isDuplicate
-                      ? `🚨 TRÙNG NHÂN SỰ: "${member.ingame}" xuất hiện ${dupGroup?.count} lần trong danh sách Bang Chiến!`
+                      ? `TRÙNG NHÂN SỰ: "${member.ingame}" xuất hiện ${dupGroup?.count} lần trong danh sách Bang Chiến!`
                       : 'Kéo và thả vào một vị trí trong bảng'
                   }
                 >

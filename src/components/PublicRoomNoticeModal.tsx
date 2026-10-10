@@ -74,7 +74,7 @@ export const PublicRoomNoticeModal: React.FC<PublicRoomNoticeModalProps> = ({
               <strong className="text-sky-300">Nạp từ cloud về máy</strong> để đồng bộ dữ liệu đã chỉnh sửa nhé!
             </p>
             <p className="text-xs sm:text-[13px] font-medium leading-relaxed text-amber-200/90 pt-1">
-              Nếu thấy bổ ích hãy ấn vào button <strong className="text-amber-400">Cà phê</strong> ☕ và donate để mình có thể phát triển thêm tính năng mới nha.
+              Nếu thấy bổ ích hãy ấn vào button <strong className="text-amber-400">Cà phê</strong> và donate để mình có thể phát triển thêm tính năng mới nha.
             </p>
           </div>
 
@@ -90,7 +90,7 @@ export const PublicRoomNoticeModal: React.FC<PublicRoomNoticeModalProps> = ({
                   1
                 </span>
                 <span className="text-slate-300">
-                  Mở <strong>Đám mây</strong> ➔ Nhập tên mã phòng riêng (VD: <code className="text-sky-300 font-mono">bang_cua_ban</code>)
+                  Mở <strong>Đám mây</strong> &rarr; Nhập tên mã phòng riêng (VD: <code className="text-sky-300 font-mono">bang_cua_ban</code>)
                 </span>
               </div>
 
@@ -99,7 +99,7 @@ export const PublicRoomNoticeModal: React.FC<PublicRoomNoticeModalProps> = ({
                   2
                 </span>
                 <span className="text-slate-300">
-                  Ấn <strong>Đổi mã</strong> ➔ Ấn <strong>Lưu lên Cloud ngay</strong> để khởi tạo database
+                  Ấn <strong>Đổi mã</strong> &rarr; Ấn <strong>Lưu lên Cloud ngay</strong> để khởi tạo database
                 </span>
               </div>
 
@@ -108,7 +108,7 @@ export const PublicRoomNoticeModal: React.FC<PublicRoomNoticeModalProps> = ({
                   3
                 </span>
                 <span className="text-slate-300">
-                  Lần sau mở máy: Nhập mã phòng ➔ <strong>Đổi mã</strong> ➔ <strong>Nạp từ Cloud về máy</strong>
+                  Lần sau mở máy: Nhập mã phòng &rarr; <strong>Đổi mã</strong> &rarr; <strong>Nạp từ Cloud về máy</strong>
                 </span>
               </div>
             </div>
@@ -127,7 +127,7 @@ export const PublicRoomNoticeModal: React.FC<PublicRoomNoticeModalProps> = ({
               className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 py-2 bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-bold transition-all cursor-pointer"
             >
               <Coffee className="w-4 h-4 text-amber-400" />
-              <span>Ủng hộ Cà phê ☕</span>
+              <span>Ủng hộ Cà phê</span>
             </button>
 
             <button

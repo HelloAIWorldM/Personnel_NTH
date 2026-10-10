@@ -220,7 +220,7 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
               {hasConflicts && (
                 <div className="mt-1.5 pt-1 border-t border-rose-200/80 dark:border-rose-900/50 flex items-center justify-between">
                   <span
-                    title={`⚠️ Có ${scheduleConflicts.length} vị trí trùng nhân sự cùng khung giờ [${board.scheduleTime}] với bảng khác!`}
+                    title={`CẢNH BÁO: Có ${scheduleConflicts.length} vị trí trùng nhân sự cùng khung giờ [${board.scheduleTime}] với bảng khác!`}
                     className="inline-flex items-center gap-1 text-[10px] font-black text-rose-600 dark:text-rose-400"
                   >
                     <AlertTriangle className="w-3 h-3 text-rose-500 shrink-0 animate-pulse" />

@@ -239,7 +239,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
   const handleRowDragStart = (e: React.DragEvent, id: string) => {
     e.dataTransfer.setData('text/plain', id);
     e.dataTransfer.setData('source-type', 'row-reorder');
-    // 'all' cho phép cả move lẫn copy, tuyệt đối không bị trình duyệt cấm drop (cursor 🚫)
+    // 'all' cho phép cả move lẫn copy, tuyệt đối không bị trình duyệt cấm drop (cursor no-drop)
     e.dataTransfer.effectAllowed = 'all';
     activeDragRowIdRef.current = id;
     setDraggedMemberId(id);
@@ -723,11 +723,12 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                         >
                           <div className="flex items-center justify-between">
                             <span
-                              className={`flex items-center gap-1 font-black ${
+                              className={`flex items-center gap-1.5 font-black ${
                                 isTableDark ? 'text-indigo-300' : 'text-indigo-900'
                               }`}
                             >
-                              <span>🛡️ {partyObj.name}</span>
+                              <Shield className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                              <span>{partyObj.name}</span>
                               <span
                                 className={`text-[10px] sm:text-[11px] font-bold ${
                                   isTableDark ? 'text-slate-400' : 'text-slate-600'
@@ -915,7 +916,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           {hasIngameScheduleConflict && (
                             <span
                               data-html2canvas-ignore="true"
-                              title={`🚨 TRÙNG LỊCH: "${member.ingame}" đang được xếp ở bảng khác cùng khung giờ [${scheduleTime}]:\n${ingameScheduleConflicts
+                              title={`TRÙNG LỊCH: "${member.ingame}" đang được xếp ở bảng khác cùng khung giờ [${scheduleTime}]:\n${ingameScheduleConflicts
                                 .map(
                                   (c) =>
                                     `• ${c.otherBoardTitle} lúc ${c.scheduleTime} (STT ${c.otherBoardStts.map((s) => `#${s}`).join(', ')})`
@@ -961,7 +962,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           {isIngameDup && (
                             <span
                               data-html2canvas-ignore="true"
-                              title={`⚠️ Trùng tên Ingame với: ${ingameDupInfo?.stts
+                              title={`CẢNH BÁO: Trùng tên Ingame với: ${ingameDupInfo?.stts
                                 .filter((s) => s !== member.stt)
                                 .map((s) => `STT #${s}`)
                                 .join(', ')}`}
@@ -1088,7 +1089,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           {hasLoggedByScheduleConflict ? (
                             <span
                               data-html2canvas-ignore="true"
-                              title={`🚨 TRÙNG LỊCH LOG: "${member.loggedBy || member.ingame}" đang log acc ở bảng khác cùng khung giờ [${scheduleTime}]:\n${loggedByScheduleConflicts
+                              title={`TRÙNG LỊCH LOG: "${member.loggedBy || member.ingame}" đang log acc ở bảng khác cùng khung giờ [${scheduleTime}]:\n${loggedByScheduleConflicts
                                 .map(
                                   (c) =>
                                     `• ${c.otherBoardTitle} lúc ${c.scheduleTime} (STT ${c.otherBoardStts.map((s) => `#${s}`).join(', ')})`
@@ -1101,7 +1102,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           ) : isLoggedByDup ? (
                             <span
                               data-html2canvas-ignore="true"
-                              title={`⚠️ Trùng người log: "${loggedByDupInfo?.originalName}" đang log cho ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
+                              title={`CẢNH BÁO: Trùng người log: "${loggedByDupInfo?.originalName}" đang log cho ${loggedByDupInfo?.count} acc (STT: ${loggedByDupInfo?.stts
                                 .map((s) => `#${s}`)
                                 .join(', ')})`}
                               className="absolute left-0.5 sm:left-1 text-amber-500 hover:text-amber-600 cursor-help"

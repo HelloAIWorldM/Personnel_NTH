@@ -4,6 +4,7 @@ import { getEffectiveClassMeta } from '../constants/classes';
 import { CLASS_LIST } from '../constants/classes';
 import {
   LayoutGrid,
+  Check,
   CheckCircle2,
   AlertTriangle,
   Users,
@@ -627,8 +628,9 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                     </span>
                   </div>
 
-                  <span className="text-sky-700 dark:text-[#88DCFA] font-bold">
-                    ✓ {stats.checkedCount} có mặt
+                  <span className="text-sky-700 dark:text-[#88DCFA] font-bold inline-flex items-center gap-1">
+                    <Check className="w-3.5 h-3.5" />
+                    {stats.checkedCount} có mặt
                   </span>
                 </div>
 

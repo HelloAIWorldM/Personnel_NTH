@@ -23,6 +23,7 @@ import {
   Shield,
   Layers,
   RotateCcw,
+  Plus,
 } from 'lucide-react';
 
 interface SharePersonnelModalProps {
@@ -518,8 +519,9 @@ export const SharePersonnelModal: React.FC<SharePersonnelModalProps> = ({
                   className="mt-0.5 text-sky-600 focus:ring-sky-500"
                 />
                 <div className="text-xs">
-                  <span className="font-bold block text-slate-900 dark:text-white">
-                    ➕ Thêm mới / Gộp thêm (Khuyến nghị)
+                  <span className="font-bold flex items-center gap-1.5 text-slate-900 dark:text-white">
+                    <Plus className="w-3.5 h-3.5 text-sky-500" />
+                    <span>Thêm mới / Gộp thêm (Khuyến nghị)</span>
                   </span>
                   <span className="text-[11px] text-slate-500 dark:text-[#8CA4B8] block mt-0.5">
                     Chỉ thêm những người chưa có trong {targetName}, không xóa các thành viên hiện tại của kho con.
@@ -542,8 +544,9 @@ export const SharePersonnelModal: React.FC<SharePersonnelModalProps> = ({
                   className="mt-0.5 text-amber-600 focus:ring-amber-500"
                 />
                 <div className="text-xs">
-                  <span className="font-bold block text-slate-900 dark:text-white">
-                    🔄 Ghi đè / Thay thế toàn bộ
+                  <span className="font-bold flex items-center gap-1.5 text-slate-900 dark:text-white">
+                    <RotateCcw className="w-3.5 h-3.5 text-amber-500" />
+                    <span>Ghi đè / Thay thế toàn bộ</span>
                   </span>
                   <span className="text-[11px] text-slate-500 dark:text-[#8CA4B8] block mt-0.5">
                     Xóa sạch dữ liệu cũ trong {targetName} và thay thế bằng danh sách nhân sự vừa chọn.

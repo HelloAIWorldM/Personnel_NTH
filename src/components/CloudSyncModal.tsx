@@ -60,16 +60,16 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
 
   const handlePush = async () => {
     if (guildId.trim() === 'nth_guild') {
-      showToast('⚠️ "nth_guild" là phòng public và tự reset. Vui lòng đổi sang tên mã phòng riêng của bạn rồi ấn Đổi mã & Lưu lên cloud ngay!');
+      showToast('"nth_guild" là phòng public và tự reset. Vui lòng đổi sang tên mã phòng riêng của bạn rồi ấn Đổi mã & Lưu lên cloud ngay!');
       return;
     }
     setIsProcessing(true);
     try {
       const res = await onPushToCloud(guildId);
       if (res.success) {
-        showToast('✅ Đã lưu toàn bộ dữ liệu lên Cloud thành công!');
+        showToast('Đã lưu toàn bộ dữ liệu lên Cloud thành công!');
       } else {
-        showToast(`❌ Lỗi lưu Cloud: ${res.error || 'Thử lại sau'}`);
+        showToast(`Lỗi lưu Cloud: ${res.error || 'Thử lại sau'}`);
       }
     } finally {
       setIsProcessing(false);
@@ -89,10 +89,10 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
     try {
       const res = await onPullFromCloud(guildId);
       if (res.success) {
-        showToast(isPublic ? '✅ Đã nạp bảng trống mẫu từ Cloud về máy thành công!' : '✅ Đã nạp dữ liệu từ Cloud về máy thành công!');
+        showToast(isPublic ? 'Đã nạp bảng trống mẫu từ Cloud về máy thành công!' : 'Đã nạp dữ liệu từ Cloud về máy thành công!');
         onClose();
       } else {
-        showToast(`❌ Không thể tải: ${res.error || 'Phòng chưa có dữ liệu'}`);
+        showToast(`Không thể tải: ${res.error || 'Phòng chưa có dữ liệu'}`);
       }
     } finally {
       setIsProcessing(false);

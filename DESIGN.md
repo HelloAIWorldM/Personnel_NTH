@@ -1,31 +1,38 @@
-# Design System: NTH Personnel (Hệ Thống Sắp Xếp Nhân Sự Nghịch Thủy Hàn)
+# Design System: Froggy Lily Pond - Cozy Nature Console (Hệ Thống Nhân Sự NTH)
+
+> **Stitch MCP Synced**: Design System Asset `assets/15657927742429242934` attached to Project `6835306961882225293`.
+
+---
 
 ## 1. Visual Theme & Atmosphere
-- **Concept:** Cockpit Dense & Utilitarian Minimalist (Giao diện bảng điều khiển tác chiến tinh gọn, hiệu suất cao).
+- **Concept:** Froggy Lily Pond Cozy Nature Console (Bảng điều khiển tác chiến thư thái lấy cảm hứng từ đầm sen hoa súng và chú ếch xanh).
+- **Logo & Mascot:** Chibi Frog cầm ô lá sen (`<FrogLogo />`), biểu tượng cho sự vui tươi, kiên định và tinh thần gắn kết của cộng đồng guild.
 - **Density:** Cockpit Dense (8/10) — Tối ưu cho người chỉ huy (Raid Leader / Bang chủ) quan sát 12 đến 30 nhân sự cùng lúc trên một màn hình mà không cần cuộn quá nhiều.
 - **Variance:** Offset Structured (5/10) — Bố cục lưới chặt chẽ, chia rõ ràng giữa Bảng sắp xếp trung tâm và Kho nhân sự bên cạnh.
-- **Motion:** Restrained & Fluid (4/10) — Chuyển động nhẹ nhàng 150ms–200ms bằng CSS transitions/transforms (GPU-accelerated), không sử dụng hiệu ứng nảy quá đà hay hoạt ảnh làm chậm thao tác kéo thả.
-- **Atmosphere:** Nghiêm túc, thanh lịch, tin cậy — cảm giác như một phần mềm quản trị chuyên nghiệp (Bloomberg Terminal / Notion Dashboard) kết hợp phong cách game kiếm hiệp hiện đại, tuyệt đối **không màu mè, không hiệu ứng neon chói lóa**.
+- **Motion:** Restrained Floating Ripples (4/10) — Nền gợn sóng nước lăn tăn, lá sen và hoa súng trôi chậm êm dịu, tương tác thẻ bài nhẹ nhàng 150ms–200ms bằng GPU-accelerated CSS transforms.
+- **Atmosphere:** Thư thái, tự nhiên, tin cậy — kết hợp giữa phần mềm quản trị chuyên nghiệp chuẩn SEO và gam màu sinh thái thiên nhiên trong lành, tuyệt đối **không màu mè chói gắt, không hiệu ứng neon lóa mắt**.
 
 ---
 
 ## 2. Color Palette & Roles
 
 ### 2.1. Nền trung tính (Neutral Canvas & Surfaces)
-- **Canvas Light** (`#F8FAFC` - Slate 50) — Nền chính chế độ sáng, dịu mắt, không lóa.
-- **Surface Light** (`#FFFFFF` - Pure White) — Bề mặt bảng và thẻ nhân sự, tạo độ tương phản rõ rệt với nền.
-- **Canvas Dark** (`#0B1219` - Deep Slate Charcoal) — Nền chính chế độ tối, hạn chế mỏi mắt khi raid đêm. **Tuyệt đối không dùng đen tuyền (`#000000`)**.
-- **Surface Dark** (`#131F2B` - Slate Dark Surface) — Bề mặt các card, bảng, modal trong Dark Mode.
-- **Subtle Border** (`#E2E8F0` / `#1E2E3E`) — Đường viền mảnh 1px định hình không gian, không dùng viền dày.
+- **Canvas Light** (`#EBF7ED` - Meadow Lilypad Mist) — Nền chính chế độ sáng, sắc xanh dịu mát của sương mai trên lá sen.
+- **Surface Light** (`#FFFFFF` - Pure White) — Bề mặt bảng và thẻ nhân sự, tạo độ tương phản trong trẻo.
+- **Canvas Dark** (`#0B1812` - Enchanted Midnight Pond) — Nền chính chế độ tối, hạn chế mỏi mắt khi raid đêm. **Tuyệt đối không dùng đen tuyền (`#000000`)**.
+- **Surface Dark** (`#12241B` / `#162B20` - Moss Dark Surface) — Bề mặt các card, bảng, modal trong Dark Mode.
+- **Subtle Border** (`#D2ECD2` / `#1D3D2D`) — Đường viền mảnh 1px định hình không gian thanh lịch.
 
 ### 2.2. Màu chữ & Phân cấp thị giác (Typography Colors)
-- **Primary Ink** (`#0F172A` / `#F1F5F9`) — Tiêu đề, tên ingame, thông tin quan trọng bậc nhất.
-- **Secondary Muted** (`#64748B` / `#94A3B8`) — Nhãn phụ, logged by, thời gian, chú thích.
-- **Tertiary Whisper** (`#94A3B8` / `#475569`) — Placeholder, số thứ tự mờ, icon phụ.
+- **Primary Ink** (`#0F2318` / `#E8F5E9`) — Tiêu đề, tên ingame, thông tin quan trọng bậc nhất.
+- **Secondary Muted** (`#4D6B58` / `#A6C5B1`) — Nhãn phụ, logged by, thời gian, chú thích.
+- **Tertiary Whisper** (`#85A893` / `#537762`) — Placeholder, số thứ tự mờ, icon phụ.
 
-### 2.3. Màu chức năng & Điểm nhấn (Single Functional Accent)
-- **Accent Primary** (`#0284C7` / `#38BDF8` - Calm Sky) — Dùng duy nhất cho các nút tương tác chính, tab active, trạng thái "Đã xếp". Độ bão hòa dưới 75%, không dùng hiệu ứng phát sáng Neon Glow.
-- **Success State** (`#059669` / `#34D399`) — Đánh dấu có mặt, đồng bộ cloud thành công.
+### 2.3. Màu thương hiệu & Điểm nhấn (Brand Accents)
+- **Primary Accent** (`#5EB839` / `#62B832` - Frog Leaf Green) — Nút hành động chính (CTA), tab active, trạng thái điểm danh sẵn sàng.
+- **Secondary Accent** (`#5BB5F2` - Pond Water Blue) — Điểm nhấn làn nước mát, badge thông tin, liên kết điều hướng phụ.
+- **Tertiary Accent** (`#FF8DA1` - Lotus Blossom Pink) — Điểm nhấn cánh sen phớt hồng cho các cảnh báo nhẹ nhàng hoặc tooltip yêu thích.
+- **Success State** (`#5EB839` / `#34D399`) — Đồng bộ cloud thành công, nhân sự đã có mặt.
 - **Destructive State** (`#DC2626` / `#F87171`) — Bỏ xếp, xóa bảng, xóa nhân sự.
 
 ### 2.4. Bảng màu 10 Môn phái chuẩn hóa (Class Palette - WCAG AA Contrast)
@@ -57,22 +64,31 @@ Mỗi môn phái sử dụng cặp màu (Background + Text) đạt chuẩn tươ
 
 ## 4. Component Stylings & Behaviors
 
-### 4.1. Thẻ Nhân Sự (Personnel Cards)
+### 4.1. Mascot & Logo (`FrogLogo.tsx`)
+- Logo vector SVG chất lượng cao không vỡ nét ở mọi độ phân giải.
+- Hình tượng chú ếch xanh hai má hồng đội lá sen che mưa cùng đóa hoa súng bung nở.
+
+### 4.2. Hình nền sinh thái (`FrogPondBackground.tsx`)
+- Thay thế hoàn toàn nền cũ bằng đầm sen sinh thái tự nhiên.
+- Các cụm lá sen (lily pads) trôi dạt khẽ khàng, cánh hoa súng hồng và những chú ếch con thấp thoáng ló đầu.
+- Tối ưu GPU bằng `will-change: transform`, giảm opacity ở Dark Mode để không gây nhiễu tầm nhìn của người chỉ huy.
+
+### 4.3. Thẻ Nhân Sự (Personnel Cards)
 - **Cấu trúc 3 tầng không đè lấn:**
   - **Tầng 1 (Cạnh trên):** Nút kéo Grip (trái) + Checkbox có mặt + Tên Ingame (trung tâm) $\leftrightarrow$ Badge Môn phái + Nút hành động "Xếp" / "Bỏ xếp" (phải).
-  - **Tầng 2 (Trung gian):** Tag trạng thái raid (`✓ Raid 1, Raid Up 1`) và Ghi chú. Có `max-width` và `truncate` để không bao giờ tràn đè lên các nút khác.
+  - **Tầng 2 (Trung gian):** Tag trạng thái raid (`✓ Raid 1, Raid Up 1`) và Ghi chú kéo dài theo chiều ngang hiển thị trọn vẹn văn bản.
   - **Tầng 3 (Dưới cùng):** Dòng Logged by (`Log: ...`).
 - **Tương tác:** Hover nâng nhẹ 1px (`hover:shadow-xs`), khi kéo chuột giảm độ mờ (`opacity-40`), khi nhấp nút có phản hồi tức thì (`active:scale-95`).
 
-### 4.2. Bảng Raid & Bảng Bang Chiến
-- **Lưới ô:** Viền 1px tinh tế giữa các hàng (`border-slate-200 dark:border-slate-800`).
+### 4.4. Bảng Raid & Bảng Bang Chiến
+- **Lưới ô:** Viền 1px tinh tế giữa các hàng (`border-emerald-200/80 dark:border-[#1D3D2D]`).
 - **Phân chia Party P1 / P2:** Đường ranh giới rõ ràng, đánh dấu tag nhóm P1/P2 bằng màu sắc nhã nhặn.
 - **Hàng trống (Empty Slot):** Màu chữ xám nhạt gợi ý "Ingame...", không dùng màu cảnh báo đỏ.
 
-### 4.3. Nút bấm & Công cụ (Buttons & Controls)
-- **Nút hành động chính (Primary CTA):** Nền Sky-500/Cerulean phẳng, chữ đậm, viền mờ 1px, không đổ bóng neon lòe loẹt.
-- **Nút phụ (Secondary):** Nền trong suốt hoặc viền mảnh (`border border-slate-300 dark:border-slate-700`), hover làm sáng nhẹ bề mặt.
-- **Nhóm nút lọc (Filter Pills):** Bo tròn góc `rounded-lg`, nền mờ nhẹ khi không chọn, nền trắng nổi khi đang kích hoạt.
+### 4.5. Nút bấm & Công cụ (Buttons & Controls)
+- **Nút hành động chính (Primary CTA):** Nền Frog Green (`#5EB839`), chữ trắng đậm, viền mờ 1px, bo góc `rounded-xl`.
+- **Nút phụ (Secondary):** Nền trong suốt hoặc viền mảnh (`border border-emerald-300 dark:border-[#1D3D2D]`), hover làm sáng nhẹ bề mặt.
+- **Nhóm nút lọc (Filter Pills):** Bo tròn góc `rounded-lg`, nền mờ nhẹ khi không chọn, nền nổi khi kích hoạt.
 
 ---
 
@@ -86,9 +102,10 @@ Mỗi môn phái sử dụng cặp màu (Background + Text) đạt chuẩn tươ
 
 ---
 
-## 6. Anti-Patterns (Những điều cấm kỵ - Banned Clichés)
-- ❌ **Cấm hiệu ứng phát sáng Neon / Outer Glow:** Không dùng bóng màu xanh/tím neon xung quanh button hay card.
-- ❌ **Cấm nền đen tuyền (`#000000`):** Luôn dùng nền Charcoal (`#0B1219` đến `#121B24`) để chống nhức mắt.
-- ❌ **Cấm hiệu ứng Gradient cầu vồng trên chữ lớn:** Giữ chữ màu đồng nhất để đọc nhanh.
-- ❌ **Cấm các thành phần đè lấn vị trí (`z-index` tùy tiện):** Mọi badge, text, icon phải có không gian riêng biệt, không được tràn chữ lên nhau.
-- ❌ **Cấm các animation dài dòng gây chậm trễ thao tác:** Chỉ dùng chuyển động tức thời <= 200ms cho phản hồi xúc giác.
+## 6. Anti-Patterns (Những điều cấm kỵ)
+- **[CẤM] Nhúng Emoji trong source code & nhãn UI:** Tuyệt đối không nhúng các ký tự emoji Unicode vào chuỗi mã nguồn, nhãn nút bấm, tab điều hướng, thông báo toast, badge hoặc tooltip. Luôn sử dụng icon vector SVG chuẩn hóa từ thư viện icon chuyên nghiệp (`lucide-react`) hoặc custom vector SVG (`FrogLogo.tsx`).
+- **[CẤM] Hiệu ứng phát sáng Neon / Outer Glow:** Không dùng bóng màu xanh/tím neon xung quanh button hay card.
+- **[CẤM] Nền đen tuyền (`#000000`):** Luôn dùng nền Rêu Đêm (`#0B1812` đến `#12241B`) để chống nhức mắt.
+- **[CẤM] Hiệu ứng Gradient cầu vồng trên chữ lớn:** Giữ chữ màu đồng nhất để đọc nhanh.
+- **[CẤM] Các thành phần đè lấn vị trí (`z-index` tùy tiện):** Mọi badge, text, icon phải có không gian riêng biệt, không được tràn chữ lên nhau.
+- **[CẤM] Các animation dài dòng gây chậm trễ thao tác:** Chỉ dùng chuyển động tức thời <= 200ms cho phản hồi xúc giác.

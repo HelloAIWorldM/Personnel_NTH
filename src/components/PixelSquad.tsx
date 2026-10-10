@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { Star } from 'lucide-react';
 import nyanCatImg from '../assets/pixels/nyan_cat.png';
 import corgiImg from '../assets/pixels/corgi.png';
 import crocImg from '../assets/pixels/croc.png';
@@ -82,32 +83,32 @@ function playRetroSound(type: PixelCharId) {
 
 const MESSAGES: Record<PixelCharId, string[]> = {
   nyan: [
-    'Nyan Nyan Nyan! 🌈✨',
-    'Poptart bay vù vù~ 🍓',
-    'Cầu vồng dẫn lối NTH! ⭐',
-    'Meo meo meo nyan~ 🐾',
-    'To infinity and beyond! 🚀',
+    'Nyan Nyan Nyan!',
+    'Poptart bay vù vù~',
+    'Cầu vồng dẫn lối NTH!',
+    'Meo meo meo nyan~',
+    'To infinity and beyond!',
   ],
   corgi: [
-    'Gâu gâu! Mông trái đào nè~ 🍑',
-    'Chân ngắn nhưng chạy bao nhanh! 🐾',
-    'Sen ơi xếp xong cho xin khúc xương! 🍖',
-    'Wiggle wiggle mông xinh~ ✨',
-    'Gâu gâu gâu! Cố lên team NTH! 🐶',
+    'Gâu gâu! Mông trái đào nè~',
+    'Chân ngắn nhưng chạy bao nhanh!',
+    'Sen ơi xếp xong cho xin khúc xương!',
+    'Wiggle wiggle mông xinh~',
+    'Gâu gâu gâu! Cố lên team NTH!',
   ],
   croc: [
-    'Gaooo! Cá sấu cute nhất server! 🐊',
-    'Đừng sợ, tớ ăn chay mà~ 🥦',
-    'Đợi tớ với các bạn ơiii! 💨',
-    'Ngoạm một cái lấy tinh thần! 💚',
-    'Lưng có gai nhưng bụng rất mềm! 🐊',
+    'Gaooo! Cá sấu cute nhất server!',
+    'Đừng sợ, tớ ăn chay mà~',
+    'Đợi tớ với các bạn ơiii!',
+    'Ngoạm một cái lấy tinh thần!',
+    'Lưng có gai nhưng bụng rất mềm!',
   ],
   sailor: [
-    'Thay mặt Mặt Trăng trừng trị kẻ lười biếng! 🌙✨',
-    'Moon Prism Power, Make Up! 💖',
-    'Cả đội NTH tiến lên giành Top 1! ⭐',
-    'Phép thuật Mặt Trăng: Xếp team thần tốc! 🪄',
-    'Đoàn kết là sức mạnh, cố lên mọi người! 🌟',
+    'Thay mặt Mặt Trăng trừng trị kẻ lười biếng!',
+    'Moon Prism Power, Make Up!',
+    'Cả đội NTH tiến lên giành Top 1!',
+    'Phép thuật Mặt Trăng: Xếp team thần tốc!',
+    'Đoàn kết là sức mạnh, cố lên mọi người!',
   ],
 };
 
@@ -299,7 +300,7 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
           }}
           onMouseEnter={() => setIsHovered(true)}
           onMouseLeave={() => setIsHovered(false)}
-          title="Bấm vào các bé pet để nghe âm thanh và xem lời thoại! 🐾✨"
+          title="Bấm vào các bé pet để nghe âm thanh và xem lời thoại!"
         >
           {/* Speech Bubble (counter-scaled so text stays un-mirrored) */}
           {bubble && (
@@ -323,7 +324,7 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
                 animationDuration: '1s',
               }}
             >
-              <span className="text-xs">⭐</span>
+              <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
             </div>
           )}
 
@@ -345,7 +346,7 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
                   : `squadSailorCheer ${animDuration} infinite ease-in-out`,
                 animationDelay: '0.36s',
               }}
-              title="Thủy Thủ Mặt Trăng 🌙 (Bấm để nghe thoại!)"
+              title="Thủy Thủ Mặt Trăng (Bấm để nghe thoại!)"
             >
               <img
                 src={sailorMoonImg}
@@ -365,7 +366,7 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
                   : `squadCrocWaddle ${animDuration} infinite ease-in-out`,
                 animationDelay: '0.24s',
               }}
-              title="Cá sấu tí hon 🐊 (Bấm để nghe thoại!)"
+              title="Cá sấu tí hon (Bấm để nghe thoại!)"
             >
               <img
                 src={crocImg}
@@ -385,7 +386,7 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
                   : `squadCorgiRun ${animDuration} infinite ease-in-out`,
                 animationDelay: '0.12s',
               }}
-              title="Corgi mông đào 🍑 (Bấm để nghe thoại!)"
+              title="Corgi mông đào (Bấm để nghe thoại!)"
             >
               <img
                 src={corgiImg}
@@ -405,7 +406,7 @@ export const PixelSquad: React.FC<PixelSquadProps> = ({ isSearching = false }) =
                   : `squadNyanFloat ${animDuration} infinite ease-in-out`,
                 animationDelay: '0s',
               }}
-              title="Nyan Cat cầu vồng 🌈 (Bấm để nghe thoại!)"
+              title="Nyan Cat cầu vồng (Bấm để nghe thoại!)"
             >
               <img
                 src={nyanCatImg}

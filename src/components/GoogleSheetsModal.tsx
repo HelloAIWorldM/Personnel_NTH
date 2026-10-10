@@ -14,6 +14,7 @@ import {
   X,
   LogOut,
   Sparkles,
+  Image as ImageIcon,
 } from 'lucide-react';
 
 interface GoogleSheetsModalProps {
@@ -353,7 +354,7 @@ export const GoogleSheetsModal: React.FC<GoogleSheetsModalProps> = ({
               <div className="p-3.5 border border-dashed border-sky-400 dark:border-sky-500/60 rounded-xl bg-sky-50/40 dark:bg-sky-950/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <div className="text-xs font-bold text-sky-900 dark:text-[#88DCFA] flex items-center gap-1.5 mb-0.5">
-                    <span>🖼️</span>
+                    <ImageIcon className="w-3.5 h-3.5 text-sky-600 dark:text-[#88DCFA] shrink-0" />
                     <span>Hoặc Import trực tiếp từ ảnh chụp Bảng Raid</span>
                   </div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">

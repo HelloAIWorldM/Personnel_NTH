@@ -225,7 +225,7 @@ export function drawRaidTableToCanvas({
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       const divMidY = curY + dividerHeight / 2;
-      ctx.fillText(`🛡️ ${partyObj.name.toUpperCase()}`, 14, divMidY);
+      ctx.fillText(`${partyObj.name.toUpperCase()}`, 14, divMidY);
 
       // Party stats on the right
       ctx.font = "bold 12px 'Lexend', system-ui, sans-serif";

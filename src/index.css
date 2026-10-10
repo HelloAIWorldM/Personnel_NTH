@@ -3,25 +3,53 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
+  :root {
+    --frog-green: #62B832;
+    --frog-leaf: #76C843;
+    --pond-blue: #5BB5F2;
+    --lotus-pink: #FF8DA1;
+    --lilypad-light: #EBF7ED;
+    --moss-dark: #0B1812;
+    --moss-surface: #12241B;
+    --moss-border: #1D3D2D;
+  }
+
   body {
-    font-family: 'Lexend', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: 'Lexend', 'Be Vietnam Pro', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--lilypad-light);
+    color: #0F2318;
+  }
+
+  .dark body {
+    background-color: var(--moss-dark);
+    color: #E8F5E9;
+  }
+
+  ::selection {
+    background-color: rgba(98, 184, 50, 0.25);
+    color: #14381C;
+  }
+
+  .dark ::selection {
+    background-color: rgba(118, 200, 67, 0.35);
+    color: #E8F5E9;
   }
 }
 
-/* Custom Cyan #88DCFA scrollbar */
+/* Frog Pond Custom Scrollbars */
 .dark ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 .dark ::-webkit-scrollbar-track {
-  background: #0b1219;
+  background: #0A1912;
 }
 .dark ::-webkit-scrollbar-thumb {
-  background: #1f3347;
+  background: #1D3D2D;
   border-radius: 9999px;
 }
 .dark ::-webkit-scrollbar-thumb:hover {
-  background: #2c4863;
+  background: #2E5A44;
 }
 
 ::-webkit-scrollbar {
@@ -29,12 +57,12 @@
   height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: #f2f8fc;
+  background: #EBF7ED;
 }
 ::-webkit-scrollbar-thumb {
-  background: #c8dfef;
+  background: #A6DE8C;
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #97c4e6;
+  background: #76C843;
 }
