@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <!-- Pastel Strawberry Milk Circle Base -->
+  <rect width="64" height="64" rx="20" fill="#FFD1DC" />
+  
+  <!-- Spotted Dairy Cow Face -->
+  <!-- Horns -->
+  <path d="M22 17 C21 13 23 11 25 12 C26 14 24 16 23 17" fill="#F4D06F" stroke="#2B1810" stroke-width="2" />
+  <path d="M42 17 C43 13 41 11 39 12 C38 14 40 16 41 17" fill="#F4D06F" stroke="#2B1810" stroke-width="2" />
+  
+  <!-- Ears -->
+  <ellipse cx="14" cy="24" rx="5" ry="3.5" fill="#FFFDF9" stroke="#2B1810" stroke-width="2" transform="rotate(-15 14 24)" />
+  <ellipse cx="50" cy="24" rx="5" ry="3.5" fill="#2B1810" stroke="#2B1810" stroke-width="2" transform="rotate(15 50 24)" />
+
+  <!-- Head Base -->
+  <path d="M16 32 C14 20 22 15 32 15 C42 15 50 20 48 32 C46 42 40 45 32 45 C24 45 18 42 16 32 Z" fill="#FFFDF9" stroke="#2B1810" stroke-width="2.8" stroke-linejoin="round" />
+  
+  <!-- Black Spot over right eye -->
+  <path d="M32 16 C38 16 46 20 46 28 C45 34 40 35 36 33 C32 31 30 24 32 16 Z" fill="#2B1810" />
+
+  <!-- Eyes -->
+  <circle cx="24" cy="26" r="2.2" fill="#2B1810" />
+  <circle cx="23.5" cy="25.5" r="0.7" fill="#FFF" />
+  <circle cx="40" cy="26" r="2.2" fill="#2B1810" />
+  <circle cx="39.5" cy="25.5" r="0.7" fill="#FFF" />
+
+  <!-- Pink Muzzle with Nostrils -->
+  <ellipse cx="32" cy="38" rx="11" ry="7.5" fill="#FFBCC6" stroke="#2B1810" stroke-width="2.4" />
+  <circle cx="28.5" cy="38" r="1.4" fill="#2B1810" />
+  <circle cx="35.5" cy="38" r="1.4" fill="#2B1810" />
+
+  <!-- Tiny Heart Charm -->
+  <path d="M48 46 C48 43 51 42 53 44 C55 42 58 43 58 46 C58 50 53 53 53 53 C53 53 48 50 48 46 Z" fill="#FF8FA3" stroke="#2B1810" stroke-width="1.5" />
+</svg>

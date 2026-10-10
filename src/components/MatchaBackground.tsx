@@ -1,1 +1,1 @@
-export { FrogPondBackground, MatchaBackground } from './FrogPondBackground';
+export { CowStrawberryBackground, MatchaBackground, FrogPondBackground } from './CowStrawberryBackground';
