@@ -905,11 +905,11 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
 
                             {hasNote ? (
                               <span
-                                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-amber-200/90 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 border border-amber-400/80 dark:border-amber-700/80 shadow-2xs whitespace-normal break-words text-left"
-                                title={`Ghi chú: ${pNote}`}
+                                className="inline-flex items-start gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-amber-200/90 dark:bg-amber-900/60 text-amber-950 dark:text-amber-200 border border-amber-400/80 dark:border-amber-700/80 shadow-2xs whitespace-pre-line break-words text-left max-w-full"
+                                title={`Ghi chú:\n${pNote}`}
                               >
-                                <MessageSquare className="w-3 h-3 shrink-0 text-amber-800 dark:text-amber-300 self-center" />
-                                <span className="break-words">{pNote}</span>
+                                <MessageSquare className="w-3 h-3 shrink-0 text-amber-800 dark:text-amber-300 mt-0.5" />
+                                <span className="whitespace-pre-line break-words text-left">{pNote}</span>
                               </span>
                             ) : (
                               <span

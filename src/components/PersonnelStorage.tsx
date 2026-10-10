@@ -1172,11 +1172,11 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                             card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
                           );
                         }}
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/80 shadow-2xs whitespace-nowrap max-w-full overflow-x-auto no-scrollbar transition-all hover:scale-105 cursor-pointer"
-                        title={`Ghi chú: ${person.note} (Click để mở xem & sửa)`}
+                        className="inline-flex items-start gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-950/70 dark:text-amber-300 dark:border-amber-700/80 shadow-2xs whitespace-pre-line text-left break-words max-w-full transition-all hover:scale-[1.01] cursor-pointer"
+                        title={`Ghi chú:\n${person.note}\n(Click để mở xem & sửa)`}
                       >
-                        <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-300" />
-                        <span className="whitespace-nowrap">{person.note}</span>
+                        <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-300 mt-0.5" />
+                        <span className="whitespace-pre-line break-words text-left">{person.note}</span>
                       </button>
                     )}
                   </div>

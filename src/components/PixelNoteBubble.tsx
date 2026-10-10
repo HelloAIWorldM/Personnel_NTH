@@ -179,7 +179,13 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
               setSavedStatus(false);
             }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+              if (e.nativeEvent.isComposing) return;
+              if (e.key === 'Enter') {
+                if (e.shiftKey) {
+                  // Shift + Enter: Xuống dòng
+                  return;
+                }
+                // Enter (không giữ Shift) hoặc Ctrl/Cmd + Enter: Lưu ghi chú ngay lập tức
                 e.preventDefault();
                 handleSave();
               } else if (e.key === 'Escape') {
@@ -190,11 +196,11 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
             placeholder={
               placeholder ||
               (person?.ingame
-                ? `Ghi chú cho ${person.ingame}... (vd: Dự bị PT2, đi muộn 15p, có đồ buff...)`
-                : 'Ghi chú chiến thuật cho PT này... (vd: Chiếm pháo, đẩy cánh trái...)')
+                ? `Ghi chú cho ${person.ingame}... (vd: Dự bị PT2, đi muộn 15p...)\n[Shift + Enter để xuống dòng • Enter để lưu]`
+                : 'Ghi chú chiến thuật cho PT này...\n[Shift + Enter để xuống dòng • Enter để lưu]')
             }
             rows={3}
-            className="w-full p-2 text-xs font-bold text-black bg-slate-50 border-2 border-black rounded-xl focus:bg-white focus:outline-none resize-none shadow-[inset_1px_1px_0px_rgba(0,0,0,0.15)] placeholder:text-slate-400 placeholder:font-normal placeholder:text-[11px]"
+            className="w-full p-2 text-xs font-bold text-black bg-slate-50 border-2 border-black rounded-xl focus:bg-white focus:outline-none resize-none shadow-[inset_1px_1px_0px_rgba(0,0,0,0.15)] placeholder:text-slate-400 placeholder:font-normal placeholder:text-[11px] whitespace-pre-wrap break-words leading-relaxed"
           />
 
           {/* Action Footer */}
@@ -206,12 +212,12 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
                   <span>Đã lưu!</span>
                 </span>
               ) : noteText !== effectiveOriginalNote ? (
-                <span className="text-[10px] font-bold text-amber-700">
-                  Chưa lưu (Ctrl+Enter)
+                <span className="text-[10px] font-bold text-amber-700" title="Nhấn Enter để lưu ghi chú">
+                  Chưa lưu (Enter để lưu)
                 </span>
               ) : (
                 <span className="text-[10px] font-bold text-slate-500">
-                  {noteText ? 'Đã lưu' : 'Để trống = không note'}
+                  {noteText ? 'Đã lưu' : 'Shift+Enter: dòng mới'}
                 </span>
               )}
             </div>
@@ -231,7 +237,7 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
                 type="button"
                 onClick={handleSave}
                 className="px-3 py-1 bg-black hover:bg-slate-800 active:bg-slate-900 text-white font-black text-xs rounded-lg border-2 border-black shadow-[2px_2px_0px_#000000] active:translate-x-[1px] active:translate-y-[1px] transition-all flex items-center gap-1 cursor-pointer"
-                title="Lưu ghi chú (Ctrl + Enter)"
+                title="Lưu ghi chú (Enter hoặc Ctrl + Enter • Shift + Enter để xuống dòng)"
               >
                 <Check className="w-3 h-3 stroke-[3]" />
                 <span>Lưu</span>
