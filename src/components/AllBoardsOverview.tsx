@@ -21,6 +21,7 @@ import {
   Calendar,
   Layers,
 } from 'lucide-react';
+import { findDuplicateIngames, findDuplicateLoggedBys } from '../utils/duplicates';
 
 interface AllBoardsOverviewProps {
   boards: RaidBoard[];
@@ -566,6 +567,11 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
           const stats = globalStats.boardStats[index];
           const isActive = board.id === activeBoardId;
 
+          const boardDupIngames = findDuplicateIngames(board.members);
+          const boardDupLoggedBys = findDuplicateLoggedBys(board.members);
+          const boardHasCrossDup = globalStats.duplicates.some((d) => d.occurrences.some((occ) => occ.boardId === board.id));
+          const boardHasDuplicates = boardDupIngames.length > 0 || boardDupLoggedBys.length > 0 || boardHasCrossDup;
+
           return (
             <div
               key={board.id}
@@ -592,16 +598,27 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
                     )}
                   </div>
 
-                  {/* Slot Fill Status Badge */}
-                  <span
-                    className={`px-2.5 py-0.5 rounded-full text-xs font-black shrink-0 border ${
-                      stats.isFull
-                        ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800/80'
-                        : 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800/80'
-                    }`}
-                  >
-                    {stats.assignedCount}/{stats.totalCount} Slot
-                  </span>
+                  {/* Right side: Slot Fill Status Badge & Duplicate Warning Icon */}
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span
+                      className={`px-2.5 py-0.5 rounded-full text-xs font-black shrink-0 border ${
+                        stats.isFull
+                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/80 dark:text-emerald-300 dark:border-emerald-800/80'
+                          : 'bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/80 dark:text-amber-300 dark:border-amber-800/80'
+                      }`}
+                    >
+                      {stats.assignedCount}/{stats.totalCount} Slot
+                    </span>
+
+                    {boardHasDuplicates && (
+                      <span
+                        title={`CẢNH BÁO: Bảng này có nhân sự bị trùng lặp (${boardDupIngames.length} Ingame, ${boardDupLoggedBys.length} Logged by${boardHasCrossDup ? ', trùng ở bảng khác' : ''})`}
+                        className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-500 text-slate-950 font-black shadow-xs animate-pulse shrink-0 cursor-pointer"
+                      >
+                        <AlertTriangle className="w-3.5 h-3.5 stroke-[2.5]" />
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Subinfo: Schedule */}
