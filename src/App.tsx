@@ -25,7 +25,7 @@ import {
 import { createEmptyGuildWarBoard } from './constants/guildWarDefaults';
 import { CreateGuildWarModal } from './components/GuildWar/CreateGuildWarModal';
 import { GuildWarBoardView } from './components/GuildWar/GuildWarBoardView';
-import { normalizeName } from './utils/duplicates';
+import { normalizeName, deduplicatePersonnelList } from './utils/duplicates';
 import { RaidTable } from './components/RaidTable';
 import { PersonnelStorage } from './components/PersonnelStorage';
 import { SharePersonnelModal } from './components/SharePersonnelModal';
@@ -1336,7 +1336,8 @@ export default function App() {
     (action: PersonnelMember[] | ((prev: PersonnelMember[]) => PersonnelMember[])) => {
       if (activePoolView === 'master') {
         setMasterPersonnelPool((prev) => {
-          const next = typeof action === 'function' ? action(prev) : action;
+          const rawNext = typeof action === 'function' ? action(prev) : action;
+          const next = deduplicatePersonnelList(rawNext);
           try {
             safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(next));
           } catch (e) {
@@ -1352,22 +1353,84 @@ export default function App() {
             next,
             guildWarPersonnelPool
           );
+
+          // CASCADE DELETE:
+          // Nếu xoá nhân sự trong Tổng kho nhân sự thì dữ liệu từ 3 kho con đều đồng loạt biến mất!
+          const prevNorms = new Set(prev.map((p) => normalizeName(p.ingame)).filter(Boolean));
+          const nextNorms = new Set(next.map((p) => normalizeName(p.ingame)).filter(Boolean));
+          const removedNorms = new Set([...prevNorms].filter((n) => !nextNorms.has(n)));
+
+          if (removedNorms.size > 0) {
+            // 1. Đồng loạt xoá khỏi Kho con Raid
+            setPersonnelPool((currRaid) => {
+              const updatedRaid = currRaid.filter((p) => !removedNorms.has(normalizeName(p.ingame)));
+              safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(updatedRaid));
+              saveToIndexedDB('personnelPool', updatedRaid);
+              return updatedRaid;
+            });
+
+            // 2. Đồng loạt xoá khỏi Kho con Raid Update
+            setUpdatePersonnelPool((currUpdate) => {
+              const updatedUpdate = currUpdate.filter((p) => !removedNorms.has(normalizeName(p.ingame)));
+              safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(updatedUpdate));
+              saveToIndexedDB('updatePersonnelPool', updatedUpdate);
+              return updatedUpdate;
+            });
+
+            // 3. Đồng loạt xoá khỏi Kho con Bang Chiến & bảng Bang Chiến
+            setGuildWarPersonnelPool((currGw) => {
+              const updatedGw = currGw.filter((p) => !removedNorms.has(normalizeName(p.ingame)));
+              safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(updatedGw));
+              saveToIndexedDB('guildWarPersonnelPool', updatedGw);
+              syncGuildWarPoolToBoard(updatedGw, 'delete', removedNorms);
+              return updatedGw;
+            });
+          }
+
           return next;
         });
       } else if (activePoolView === 'raid_update') {
         setUpdatePersonnelPool((prev) => {
-          const next = typeof action === 'function' ? action(prev) : action;
+          const rawNext = typeof action === 'function' ? action(prev) : action;
+          const next = deduplicatePersonnelList(rawNext);
           try {
             safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(next));
           } catch (e) {
             console.error('[Storage] Error persisting update personnel to localStorage:', e);
           }
           saveToIndexedDB('updatePersonnelPool', next);
+
+          // Tự động bổ sung nhân sự mới thêm vào Tổng kho nhân sự (nếu Tổng kho chưa có)
+          const prevNorms = new Set(prev.map((p) => normalizeName(p.ingame)).filter(Boolean));
+          const newlyAdded = next.filter((p) => {
+            const norm = normalizeName(p.ingame);
+            return norm && !prevNorms.has(norm);
+          });
+          if (newlyAdded.length > 0) {
+            setMasterPersonnelPool((currMaster) => {
+              const currMasterNorms = new Set(currMaster.map((p) => normalizeName(p.ingame)).filter(Boolean));
+              const toSupplement = newlyAdded.filter((p) => !currMasterNorms.has(normalizeName(p.ingame)));
+              if (toSupplement.length === 0) return currMaster;
+              const updatedMaster = [
+                ...currMaster,
+                ...toSupplement.map((p) => ({
+                  ...p,
+                  id: 'p_m_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+                })),
+              ];
+              safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(updatedMaster));
+              saveToIndexedDB('masterPersonnelPool', updatedMaster);
+              return updatedMaster;
+            });
+          }
+
+          // Xoá ở kho con: Tổng kho và các kho con khác giữ nguyên 100% không bị ảnh hưởng!
           return next;
         });
       } else if (activePoolView === 'guild_war') {
         const prev = guildWarPersonnelPool;
-        const next = typeof action === 'function' ? action(prev) : action;
+        const rawNext = typeof action === 'function' ? action(prev) : action;
+        const next = deduplicatePersonnelList(rawNext);
 
         setGuildWarPersonnelPool(next);
         try {
@@ -1386,6 +1449,30 @@ export default function App() {
           next
         );
 
+        // Tự động bổ sung nhân sự mới thêm vào Tổng kho nhân sự (nếu Tổng kho chưa có)
+        const prevNorms = new Set(prev.map((p) => normalizeName(p.ingame)).filter(Boolean));
+        const newlyAdded = next.filter((p) => {
+          const norm = normalizeName(p.ingame);
+          return norm && !prevNorms.has(norm);
+        });
+        if (newlyAdded.length > 0) {
+          setMasterPersonnelPool((currMaster) => {
+            const currMasterNorms = new Set(currMaster.map((p) => normalizeName(p.ingame)).filter(Boolean));
+            const toSupplement = newlyAdded.filter((p) => !currMasterNorms.has(normalizeName(p.ingame)));
+            if (toSupplement.length === 0) return currMaster;
+            const updatedMaster = [
+              ...currMaster,
+              ...toSupplement.map((p) => ({
+                ...p,
+                id: 'p_m_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+              })),
+            ];
+            safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(updatedMaster));
+            saveToIndexedDB('masterPersonnelPool', updatedMaster);
+            return updatedMaster;
+          });
+        }
+
         // Đồng bộ 2 chiều: Thêm & Bớt giữa Kho BC và Bảng Bang Chiến
         if (next.length < prev.length) {
           const nextNorms = new Set(next.map((p) => normalizeName(p.ingame)).filter(Boolean));
@@ -1397,11 +1484,13 @@ export default function App() {
           syncGuildWarPoolToBoard(next, 'add');
         }
 
+        // Xoá ở kho con: Tổng kho và các kho con khác giữ nguyên 100% không bị ảnh hưởng!
         return next;
       } else {
         // activePoolView === 'raid'
         setPersonnelPool((prev) => {
-          const next = typeof action === 'function' ? action(prev) : action;
+          const rawNext = typeof action === 'function' ? action(prev) : action;
+          const next = deduplicatePersonnelList(rawNext);
           try {
             safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(next));
           } catch (e) {
@@ -1417,6 +1506,32 @@ export default function App() {
             masterPersonnelPool,
             guildWarPersonnelPool
           );
+
+          // Tự động bổ sung nhân sự mới thêm vào Tổng kho nhân sự (nếu Tổng kho chưa có)
+          const prevNorms = new Set(prev.map((p) => normalizeName(p.ingame)).filter(Boolean));
+          const newlyAdded = next.filter((p) => {
+            const norm = normalizeName(p.ingame);
+            return norm && !prevNorms.has(norm);
+          });
+          if (newlyAdded.length > 0) {
+            setMasterPersonnelPool((currMaster) => {
+              const currMasterNorms = new Set(currMaster.map((p) => normalizeName(p.ingame)).filter(Boolean));
+              const toSupplement = newlyAdded.filter((p) => !currMasterNorms.has(normalizeName(p.ingame)));
+              if (toSupplement.length === 0) return currMaster;
+              const updatedMaster = [
+                ...currMaster,
+                ...toSupplement.map((p) => ({
+                  ...p,
+                  id: 'p_m_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+                })),
+              ];
+              safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(updatedMaster));
+              saveToIndexedDB('masterPersonnelPool', updatedMaster);
+              return updatedMaster;
+            });
+          }
+
+          // Xoá ở kho con: Tổng kho và các kho con khác giữ nguyên 100% không bị ảnh hưởng!
           return next;
         });
       }
@@ -1999,14 +2114,23 @@ export default function App() {
   const handleSyncFromActiveRaid = () => {
     if (activePoolView === 'guild_war') {
       const now = Date.now();
-      const syncedPool: PersonnelMember[] = activeGuildWarBoard.members.map((m, idx) => ({
-        id: `p_gw_${now}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
-        ingame: m.ingame.trim(),
-        className: m.className || 'Cửu Linh',
-        loggedBy: (m.loggedBy || m.discord || m.ingame).trim(),
-        note: m.note || '',
-        createdAt: now,
-      }));
+      const seen = new Set<string>();
+      const syncedPool: PersonnelMember[] = [];
+
+      activeGuildWarBoard.members.forEach((m, idx) => {
+        const norm = normalizeName(m.ingame);
+        if (!norm || seen.has(norm)) return;
+        seen.add(norm);
+
+        syncedPool.push({
+          id: `p_gw_${now}_${idx}_${Math.random().toString(36).substring(2, 6)}`,
+          ingame: m.ingame.trim(),
+          className: m.className || 'Cửu Linh',
+          loggedBy: (m.loggedBy || m.discord || m.ingame).trim(),
+          note: m.note || '',
+          createdAt: now,
+        });
+      });
 
       setGuildWarPersonnelPool(syncedPool);
       safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(syncedPool));
@@ -2019,13 +2143,13 @@ export default function App() {
         return merged;
       });
 
-      showToast(`Đã đồng bộ chính xác số lượng Kho BC theo Bảng Bang Chiến (${syncedPool.length} nhân sự)!`);
+      showToast(`Đã đồng bộ chính xác Kho Bang Chiến (${syncedPool.length} nhân sự hợp lệ, đã lọc trùng)!`);
       return;
     }
 
     const currentPool = currentPersonnelPool;
     const currentPoolIngames = new Set(
-      currentPool.map((p) => normalizeName(p.ingame))
+      currentPool.map((p) => normalizeName(p.ingame)).filter(Boolean)
     );
     const toAdd: PersonnelMember[] = [];
 

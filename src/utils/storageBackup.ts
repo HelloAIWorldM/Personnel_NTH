@@ -17,7 +17,7 @@ import {
 } from '../types';
 import { createEmptyBoard, INITIAL_PERSONNEL_POOL } from '../constants/classes';
 import { createEmptyGuildWarBoard, DEFAULT_GUILD_SESSIONS } from '../constants/guildWarDefaults';
-import { normalizeName } from './duplicates';
+import { normalizeName, deduplicatePersonnelList } from './duplicates';
 
 export const STORAGE_KEY_BOARDS = 'raid_roster_boards_v2';
 export const STORAGE_KEY_ACTIVE_BOARD = 'raid_roster_active_board_id_v2';
@@ -494,7 +494,7 @@ export function loadInitialPersonnel(initialFallback: PersonnelMember[] = []): P
     if (saved !== null) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        return parsed;
+        return deduplicatePersonnelList(parsed);
       }
     }
   } catch (e) {
@@ -513,11 +513,11 @@ export function loadInitialPersonnel(initialFallback: PersonnelMember[] = []): P
       try {
         safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(validSnap.personnelPool));
       } catch {}
-      return validSnap.personnelPool;
+      return deduplicatePersonnelList(validSnap.personnelPool);
     }
   }
 
-  return initialFallback;
+  return deduplicatePersonnelList(initialFallback);
 }
 
 /**
@@ -536,15 +536,15 @@ export function mergePersonnelPools(
   secondary: PersonnelMember[]
 ): PersonnelMember[] {
   if (!Array.isArray(primary) && !Array.isArray(secondary)) return [];
-  if (!Array.isArray(primary)) return secondary || [];
-  if (!Array.isArray(secondary)) return primary || [];
+  if (!Array.isArray(primary)) return deduplicatePersonnelList(secondary || []);
+  if (!Array.isArray(secondary)) return deduplicatePersonnelList(primary || []);
 
   const map = new Map<string, PersonnelMember>();
 
   // Nạp danh sách secondary trước (từ IndexedDB hoặc snapshot)
   for (const item of secondary) {
     if (item && item.ingame && typeof item.ingame === 'string') {
-      const norm = item.ingame.trim().toLowerCase();
+      const norm = normalizeName(item.ingame);
       if (norm) {
         map.set(norm, item);
       }
@@ -554,7 +554,7 @@ export function mergePersonnelPools(
   // Ghi đè hoặc thêm mới bằng danh sách primary (state hiện thời)
   for (const item of primary) {
     if (item && item.ingame && typeof item.ingame === 'string') {
-      const norm = item.ingame.trim().toLowerCase();
+      const norm = normalizeName(item.ingame);
       if (norm) {
         map.set(norm, item);
       }
@@ -651,13 +651,13 @@ export function loadInitialUpdatePersonnel(initialFallback: PersonnelMember[] = 
     if (saved !== null) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        return parsed;
+        return deduplicatePersonnelList(parsed);
       }
     }
   } catch (e) {
     console.error('[Storage] Error loading update personnel from localStorage:', e);
   }
-  return initialFallback;
+  return deduplicatePersonnelList(initialFallback);
 }
 
 /**
@@ -669,13 +669,13 @@ export function loadInitialDiBuiPersonnel(initialFallback: PersonnelMember[] = [
     if (saved !== null) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        return parsed;
+        return deduplicatePersonnelList(parsed);
       }
     }
   } catch (e) {
     console.error('[Storage] Error loading di bui personnel from localStorage:', e);
   }
-  return initialFallback;
+  return deduplicatePersonnelList(initialFallback);
 }
 
 /**
@@ -1059,7 +1059,7 @@ export function loadInitialMasterPersonnel(initialFallback: PersonnelMember[] = 
   }
 
   if (loadedMaster.length > 0) {
-    return loadedMaster;
+    return deduplicatePersonnelList(loadedMaster);
   }
 
   // Thử khôi phục từ snapshot nếu có masterPersonnelPool
@@ -1071,10 +1071,10 @@ export function loadInitialMasterPersonnel(initialFallback: PersonnelMember[] = 
     try {
       safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(validSnap.masterPersonnelPool));
     } catch {}
-    return validSnap.masterPersonnelPool;
+    return deduplicatePersonnelList(validSnap.masterPersonnelPool);
   }
 
-  return initialFallback;
+  return deduplicatePersonnelList(initialFallback);
 }
 
 /**
@@ -1086,13 +1086,13 @@ export function loadInitialGuildWarPersonnel(initialFallback: PersonnelMember[] 
     if (saved !== null) {
       const parsed = JSON.parse(saved);
       if (Array.isArray(parsed)) {
-        return parsed;
+        return deduplicatePersonnelList(parsed);
       }
     }
   } catch (e) {
     console.error('[Storage] Error loading guild war personnel from localStorage:', e);
   }
-  return initialFallback;
+  return deduplicatePersonnelList(initialFallback);
 }
 
 /**

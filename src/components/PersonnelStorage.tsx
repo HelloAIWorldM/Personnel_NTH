@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
 import { CustomClassColors, PersonnelMember, RaidBoard, RaidClass, RaidMember, PersonnelSubPool } from '../types';
-import { normalizeName } from '../utils/duplicates';
+import { normalizeName, deduplicatePersonnelList, findDuplicatePersonnel } from '../utils/duplicates';
 import { PixelSquad } from './PixelSquad';
 import { PixelNoteBubble } from './PixelNoteBubble';
 import {
@@ -29,6 +29,9 @@ import {
   Share2,
   Layers,
   RotateCcw,
+  AlertTriangle,
+  ShieldAlert,
+  ShieldCheck,
 } from 'lucide-react';
 
 export interface PersonnelAssignment {
@@ -130,6 +133,8 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
 
   // In-app dialog states (avoids window.confirm which is blocked in sandboxed iframes)
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [personToDelete, setPersonToDelete] = useState<PersonnelMember | null>(null);
+  const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
   // Pixel Note Bubble click-to-toggle state
   const [activeNotePerson, setActiveNotePerson] = useState<PersonnelMember | null>(null);
@@ -269,11 +274,29 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
     return !list || !list.some((a) => a.isActiveBoard);
   }).length;
 
+  // Duplicate Detection & Groups
+  const duplicateGroups = useMemo(() => {
+    return findDuplicatePersonnel(personnelPool);
+  }, [personnelPool]);
+
+  const handleCleanDuplicates = () => {
+    const cleaned = deduplicatePersonnelList(personnelPool);
+    onUpdatePersonnelPool(cleaned);
+    setDuplicateError(null);
+  };
+
   // Handlers
   const handleAddNew = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanIngame = newIngame.trim();
     if (!cleanIngame) return;
+
+    // Ngăn chặn trùng lặp nhân sự trong cùng kho
+    const norm = normalizeName(cleanIngame);
+    if (personnelPool.some((p) => normalizeName(p.ingame) === norm)) {
+      setDuplicateError(`Nhân sự "${cleanIngame}" đã tồn tại trong ${effectiveTitle}! Vui lòng không nhập trùng.`);
+      return;
+    }
 
     const newMember: PersonnelMember = {
       id: 'p_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
@@ -286,6 +309,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
     onUpdatePersonnelPool([newMember, ...personnelPool]);
     setNewIngame('');
     setNewLoggedBy('');
+    setDuplicateError(null);
     setIsAddingNew(false);
   };
 
@@ -294,11 +318,19 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
     setEditIngame(person.ingame);
     setEditClass(person.className);
     setEditLoggedBy(person.loggedBy);
+    setDuplicateError(null);
   };
 
   const handleSaveEdit = (id: string) => {
     const cleanIngame = editIngame.trim();
     if (!cleanIngame) return;
+
+    // Ngăn chặn sửa thành tên trùng lặp với người khác
+    const norm = normalizeName(cleanIngame);
+    if (personnelPool.some((p) => p.id !== id && normalizeName(p.ingame) === norm)) {
+      setDuplicateError(`Tên "${cleanIngame}" đã tồn tại trong ${effectiveTitle}! Vui lòng không nhập trùng.`);
+      return;
+    }
 
     const updated = personnelPool.map((p) =>
       p.id === id
@@ -312,10 +344,17 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
     );
     onUpdatePersonnelPool(updated);
     setEditingId(null);
+    setDuplicateError(null);
   };
 
-  const handleDelete = (id: string) => {
-    onUpdatePersonnelPool(personnelPool.filter((p) => p.id !== id));
+  const handleDelete = (person: PersonnelMember) => {
+    setPersonToDelete(person);
+  };
+
+  const confirmDeletePerson = () => {
+    if (!personToDelete) return;
+    onUpdatePersonnelPool(personnelPool.filter((p) => p.id !== personToDelete.id));
+    setPersonToDelete(null);
   };
 
   const handleToggleCheck = (id: string) => {
@@ -631,6 +670,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                   value={newIngame}
                   onChange={(e) => {
                     setNewIngame(e.target.value);
+                    if (duplicateError) setDuplicateError(null);
                     if (!newLoggedBy) {
                       setNewLoggedBy(e.target.value);
                     }
@@ -682,10 +722,20 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               </div>
             </div>
 
+            {duplicateError && (
+              <div className="p-2 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded-lg text-rose-700 dark:text-rose-300 text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in">
+                <AlertTriangle className="w-3.5 h-3.5 shrink-0" />
+                <span>{duplicateError}</span>
+              </div>
+            )}
+
             <div className="flex items-center justify-end gap-2 pt-1">
               <button
                 type="button"
-                onClick={() => setIsAddingNew(false)}
+                onClick={() => {
+                  setIsAddingNew(false);
+                  setDuplicateError(null);
+                }}
                 className="px-2.5 py-1 text-xs font-semibold text-slate-600 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white"
               >
                 Hủy
@@ -821,6 +871,26 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
         </span>
       </div>
 
+      {/* Duplicate Warning & 1-Click Clean Banner */}
+      {duplicateGroups.length > 0 && (
+        <div className="mx-2 sm:mx-3 my-2 p-2.5 bg-amber-50 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-800 rounded-xl flex items-center justify-between gap-2 flex-wrap text-xs animate-in fade-in">
+          <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
+            <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+            <span className="leading-snug">
+              Phát hiện <strong>{duplicateGroups.length}</strong> nhân sự bị lặp lại tên trong {effectiveTitle} ({duplicateGroups.map((d) => d.name).slice(0, 3).join(', ')}{duplicateGroups.length > 3 ? '...' : ''})
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={handleCleanDuplicates}
+            className="flex items-center gap-1.5 px-3 py-1 bg-amber-600 hover:bg-amber-700 active:bg-amber-800 text-white font-bold rounded-lg shadow-xs transition-all cursor-pointer text-[11px]"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Lọc trùng lặp ngay</span>
+          </button>
+        </div>
+      )}
+
       {/* Personnel List */}
       <div className="p-2 sm:p-3 overflow-y-auto flex-1 space-y-1.5 max-h-[560px]">
         {filteredPersonnel.length === 0 ? (
@@ -867,13 +937,16 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     <input
                       type="text"
                       value={editIngame}
-                      onChange={(e) => setEditIngame(e.target.value)}
+                      onChange={(e) => {
+                        setEditIngame(e.target.value);
+                        if (duplicateError) setDuplicateError(null);
+                      }}
                       placeholder="Ingame..."
                       className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
                     />
                     <select
                       value={editClass}
-                      onChange={(e) => setEditClass(e.target.value as RaidClass)}
+                      onChange={(e) => setNewClass ? setEditClass(e.target.value as RaidClass) : setEditClass(e.target.value as RaidClass)}
                       className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
                     >
                       {CLASS_LIST.map((cls) => (
@@ -890,10 +963,19 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                       className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
                     />
                   </div>
+                  {duplicateError && editingId === person.id && (
+                    <div className="p-1.5 bg-rose-50 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-800 rounded-lg text-rose-700 dark:text-rose-300 text-[10px] font-bold flex items-center gap-1 animate-in fade-in">
+                      <AlertTriangle className="w-3 h-3 shrink-0" />
+                      <span>{duplicateError}</span>
+                    </div>
+                  )}
                   <div className="flex justify-end gap-1.5">
                     <button
                       type="button"
-                      onClick={() => setEditingId(null)}
+                      onClick={() => {
+                        setEditingId(null);
+                        setDuplicateError(null);
+                      }}
                       className="px-2 py-0.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400"
                     >
                       Hủy
@@ -1126,9 +1208,9 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleDelete(person.id)}
-                        title="Xoá khỏi kho nhân sự"
-                        className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors"
+                        onClick={() => handleDelete(person)}
+                        title={isMasterPool ? 'Xoá khỏi Tổng kho (đồng loạt biến mất ở 3 kho con)' : `Xoá khỏi ${effectiveTitle} (Tổng kho vẫn giữ nguyên)`}
+                        className="p-1 text-slate-400 hover:text-red-500 rounded transition-colors cursor-pointer"
                       >
                         <Trash2 className="w-3.5 h-3.5" />
                       </button>
@@ -1221,18 +1303,51 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
         typeof document !== 'undefined' &&
         createPortal(
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4">
-              <h4 className="font-black text-sm text-slate-900 dark:text-white">
-                Xoá toàn bộ nhân sự trong kho?
-              </h4>
-              <p className="text-xs text-slate-600 dark:text-slate-300">
-                Thao tác này sẽ xoá tất cả danh sách nhân sự lưu trữ trong kho để bạn bắt đầu lại từ đầu.
-              </p>
+            <div className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 max-w-sm w-full shadow-2xl space-y-4 ${
+              isMasterPool ? 'border-rose-400 dark:border-rose-700 ring-2 ring-rose-500/30' : 'border-slate-200 dark:border-slate-700'
+            }`}>
+              <div className="flex items-center gap-2.5">
+                <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                  isMasterPool
+                    ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400'
+                    : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                }`}>
+                  {isMasterPool ? <AlertTriangle className="w-5 h-5 text-rose-600" /> : <Trash2 className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h4 className="font-black text-sm text-slate-900 dark:text-white">
+                    {isMasterPool ? 'Làm trống Tổng Kho Nhân Sự?' : `Làm trống ${effectiveTitle}?`}
+                  </h4>
+                </div>
+              </div>
+
+              {isMasterPool ? (
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl space-y-1.5 text-xs text-rose-900 dark:text-rose-200">
+                  <div className="font-bold flex items-center gap-1.5 text-rose-700 dark:text-rose-300">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>CẢNH BÁO NGUY HIỂM: XOÁ ĐỒNG LOẠT 3 KHO CON</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    Làm trống Tổng kho sẽ <strong>đồng loạt làm trống cả 3 kho con</strong> (Kho Raid, Kho Raid Update, Kho Bang Chiến)! Bạn có chắc chắn muốn xóa toàn bộ?
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/60 rounded-xl space-y-1 text-xs text-sky-900 dark:text-sky-200">
+                  <div className="font-bold flex items-center gap-1.5 text-sky-700 dark:text-sky-300">
+                    <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>Dữ liệu an toàn trong Tổng kho</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    Chỉ làm trống danh sách của <strong>{effectiveTitle}</strong>. Toàn bộ nhân sự vẫn được <strong>bảo toàn an toàn 100% trong Tổng kho nhân sự</strong>.
+                  </p>
+                </div>
+              )}
+
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
                 <button
                   type="button"
                   onClick={() => setShowResetConfirm(false)}
-                  className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors border border-slate-200 dark:border-slate-700"
+                  className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors border border-slate-200 dark:border-slate-700 cursor-pointer"
                 >
                   Huỷ
                 </button>
@@ -1242,9 +1357,80 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     onUpdatePersonnelPool([]);
                     setShowResetConfirm(false);
                   }}
-                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl shadow-xs transition-colors"
+                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl shadow-xs transition-colors cursor-pointer"
                 >
-                  Đồng ý xoá
+                  {isMasterPool ? 'Đồng ý xoá tất cả' : 'Đồng ý làm trống'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Delete Single Person Confirmation Modal */}
+      {personToDelete &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+            <div className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4 ${
+              isMasterPool
+                ? 'border-rose-400 dark:border-rose-700 ring-2 ring-rose-500/30'
+                : 'border-sky-300 dark:border-sky-700'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  isMasterPool
+                    ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-800'
+                    : 'bg-sky-100 dark:bg-sky-950/70 text-sky-600 dark:text-sky-400 border border-sky-300 dark:border-sky-800'
+                }`}>
+                  {isMasterPool ? <AlertTriangle className="w-5 h-5 text-rose-600" /> : <ShieldAlert className="w-5 h-5 text-sky-600 dark:text-sky-400" />}
+                </div>
+                <div>
+                  <h4 className="font-black text-sm text-slate-900 dark:text-white">
+                    {isMasterPool ? 'Xác nhận xoá khỏi Tổng Kho Nhân Sự' : `Xác nhận xoá khỏi ${effectiveTitle}`}
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Nhân sự: <span className="font-bold text-slate-900 dark:text-white">{personToDelete.ingame}</span> ({personToDelete.className})
+                  </p>
+                </div>
+              </div>
+
+              {isMasterPool ? (
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl space-y-1.5 text-xs text-rose-900 dark:text-rose-200">
+                  <div className="font-bold flex items-center gap-1.5 text-rose-700 dark:text-rose-300">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>LƯU Ý: ĐỒNG LOẠT BIẾN MẤT Ở CẢ 3 KHO CON</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    Xoá nhân sự <strong>"{personToDelete.ingame}"</strong> khỏi Tổng kho sẽ đồng loạt làm biến mất nhân sự này khỏi <strong>cả 3 kho con</strong> (Kho Raid, Kho Raid Update, Kho Bang Chiến) và bảng Bang Chiến!
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/60 rounded-xl space-y-1 text-xs text-sky-900 dark:text-sky-200">
+                  <div className="font-bold flex items-center gap-1.5 text-sky-700 dark:text-sky-300">
+                    <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>Tổng kho được bảo toàn 100%</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    Xoá nhân sự <strong>"{personToDelete.ingame}"</strong> khỏi <strong>{effectiveTitle}</strong> không làm mất dữ liệu. Nhân sự vẫn được lưu trữ an toàn trong Tổng kho nhân sự.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setPersonToDelete(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors border border-slate-200 dark:border-slate-700 cursor-pointer"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeletePerson}
+                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  {isMasterPool ? 'Đồng ý xoá (Xoá cả 3 kho con)' : 'Đồng ý xoá'}
                 </button>
               </div>
             </div>

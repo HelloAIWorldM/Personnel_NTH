@@ -1,4 +1,4 @@
-import { RaidMember, RaidBoard, GuildMember, GuildTeam } from '../types';
+import { RaidMember, RaidBoard, GuildMember, GuildTeam, PersonnelMember } from '../types';
 
 export interface DuplicateGroup {
   key: string;
@@ -11,6 +11,7 @@ export interface DuplicateGroup {
 /**
  * Normalizes a name string for duplicate comparison:
  * - Trims whitespace
+ * - Collapses consecutive spaces
  * - Converts to lowercase
  * - Returns empty string for empty, whitespace or '-' placeholders
  */
@@ -18,7 +19,7 @@ export const normalizeName = (name?: string): string => {
   if (!name) return '';
   const trimmed = name.trim();
   if (trimmed === '' || trimmed === '-') return '';
-  return trimmed.toLowerCase();
+  return trimmed.toLowerCase().replace(/\s+/g, ' ');
 };
 
 /**
@@ -318,6 +319,65 @@ export const findGuildWarDuplicates = (members: GuildMember[]): GuildWarDuplicat
       });
     }
   });
+
+  return Array.from(map.values()).filter((g) => g.count > 1);
+};
+
+export interface DuplicatePersonnelInfo {
+  key: string;
+  name: string;
+  count: number;
+  ids: string[];
+}
+
+/**
+ * Deduplicates a list of PersonnelMember based on normalized ingame name.
+ * Keeps the first occurrence and discards duplicate subsequent entries.
+ */
+export const deduplicatePersonnelList = (list: PersonnelMember[]): PersonnelMember[] => {
+  if (!Array.isArray(list)) return [];
+  const seen = new Set<string>();
+  const result: PersonnelMember[] = [];
+
+  for (const member of list) {
+    if (!member || !member.ingame) continue;
+    const norm = normalizeName(member.ingame);
+    if (!norm) continue;
+
+    if (!seen.has(norm)) {
+      seen.add(norm);
+      result.push(member);
+    }
+  }
+
+  return result;
+};
+
+/**
+ * Finds all duplicate personnel in a personnel pool.
+ */
+export const findDuplicatePersonnel = (list: PersonnelMember[]): DuplicatePersonnelInfo[] => {
+  if (!Array.isArray(list)) return [];
+  const map = new Map<string, DuplicatePersonnelInfo>();
+
+  for (const member of list) {
+    if (!member || !member.ingame) continue;
+    const norm = normalizeName(member.ingame);
+    if (!norm) continue;
+
+    const existing = map.get(norm);
+    if (existing) {
+      existing.count += 1;
+      existing.ids.push(member.id);
+    } else {
+      map.set(norm, {
+        key: norm,
+        name: member.ingame.trim(),
+        count: 1,
+        ids: [member.id],
+      });
+    }
+  }
 
   return Array.from(map.values()).filter((g) => g.count > 1);
 };
