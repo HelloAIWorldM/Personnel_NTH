@@ -1,1 +1,1 @@
-export { CowLogo as FrogLogo, CowLogo } from './CowLogo';
+export { DolphinLogo as FrogLogo, DolphinLogo, DolphinLogo as CowLogo } from './DolphinLogo';

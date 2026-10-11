@@ -1,33 +1,74 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
-  <!-- Pastel Strawberry Milk Circle Base -->
-  <rect width="64" height="64" rx="20" fill="#FFD1DC" />
+  <!-- Aqua Ocean Rounded Base -->
+  <rect width="64" height="64" rx="18" fill="#E0F7FA" />
   
-  <!-- Spotted Dairy Cow Face -->
-  <!-- Horns -->
-  <path d="M22 17 C21 13 23 11 25 12 C26 14 24 16 23 17" fill="#F4D06F" stroke="#2B1810" stroke-width="2" />
-  <path d="M42 17 C43 13 41 11 39 12 C38 14 40 16 41 17" fill="#F4D06F" stroke="#2B1810" stroke-width="2" />
-  
-  <!-- Ears -->
-  <ellipse cx="14" cy="24" rx="5" ry="3.5" fill="#FFFDF9" stroke="#2B1810" stroke-width="2" transform="rotate(-15 14 24)" />
-  <ellipse cx="50" cy="24" rx="5" ry="3.5" fill="#2B1810" stroke="#2B1810" stroke-width="2" transform="rotate(15 50 24)" />
+  <!-- Ocean Wave Bottom Arc -->
+  <path
+    d="M4 52 C14 48 24 54 36 50 C46 46 54 52 60 50 L60 64 L4 64 Z"
+    fill="#00B4D8"
+  />
+  <path
+    d="M4 56 C16 52 26 57 38 53 C48 50 56 55 60 54"
+    stroke="#FFFFFF"
+    stroke-width="1.8"
+    stroke-linecap="round"
+  />
 
-  <!-- Head Base -->
-  <path d="M16 32 C14 20 22 15 32 15 C42 15 50 20 48 32 C46 42 40 45 32 45 C24 45 18 42 16 32 Z" fill="#FFFDF9" stroke="#2B1810" stroke-width="2.8" stroke-linejoin="round" />
-  
-  <!-- Black Spot over right eye -->
-  <path d="M32 16 C38 16 46 20 46 28 C45 34 40 35 36 33 C32 31 30 24 32 16 Z" fill="#2B1810" />
+  <!-- Dorsal Fin -->
+  <path
+    d="M31 16 C34 9 41 9 44 11 C43 16 38 20 34 21 Z"
+    fill="#0096C7"
+    stroke="#03045E"
+    stroke-width="1.8"
+  />
 
-  <!-- Eyes -->
-  <circle cx="24" cy="26" r="2.2" fill="#2B1810" />
-  <circle cx="23.5" cy="25.5" r="0.7" fill="#FFF" />
-  <circle cx="40" cy="26" r="2.2" fill="#2B1810" />
-  <circle cx="39.5" cy="25.5" r="0.7" fill="#FFF" />
+  <!-- Tail Flukes -->
+  <path
+    d="M12 47 C7 43 3 44 2 46 C3 49 7 50 12 49 Z"
+    fill="#0284C7"
+    stroke="#03045E"
+    stroke-width="1.6"
+  />
+  <path
+    d="M13 49 C9 51 5 54 4 56 C7 58 11 55 14 52 Z"
+    fill="#00B4D8"
+    stroke="#03045E"
+    stroke-width="1.6"
+  />
 
-  <!-- Pink Muzzle with Nostrils -->
-  <ellipse cx="32" cy="38" rx="11" ry="7.5" fill="#FFBCC6" stroke="#2B1810" stroke-width="2.4" />
-  <circle cx="28.5" cy="38" r="1.4" fill="#2B1810" />
-  <circle cx="35.5" cy="38" r="1.4" fill="#2B1810" />
+  <!-- Main Dolphin Body -->
+  <path
+    d="M12 48 C16 39 24 23 37 17 C48 12 58 14 61 22 C64 27 63 30 58 32 C54 34 51 32 48 35 C39 40 28 51 16 50 Z"
+    fill="#00B4D8"
+    stroke="#03045E"
+    stroke-width="2.4"
+    stroke-linejoin="round"
+  />
 
-  <!-- Tiny Heart Charm -->
-  <path d="M48 46 C48 43 51 42 53 44 C55 42 58 43 58 46 C58 50 53 53 53 53 C53 53 48 50 48 46 Z" fill="#FF8FA3" stroke="#2B1810" stroke-width="1.5" />
+  <!-- Light Aqua Belly -->
+  <path
+    d="M57 32 C52 34 50 33 47 35 C38 41 29 49 17 50 C20 47 27 41 35 34 C43 28 50 24 55 27 C57 29 58 31 57 32 Z"
+    fill="#FFFFFF"
+    stroke="#03045E"
+    stroke-width="1.6"
+  />
+
+  <!-- Pectoral Fin -->
+  <path
+    d="M39 33 C41 40 46 44 49 43 C49 40 47 36 43 32 Z"
+    fill="#38BDF8"
+    stroke="#03045E"
+    stroke-width="1.8"
+  />
+
+  <!-- Cheek Blush -->
+  <ellipse cx="51.5" cy="28" rx="2.5" ry="1.5" fill="#FB7185" />
+
+  <!-- Smiling Eye -->
+  <circle cx="53" cy="22" r="2" fill="#03045E" />
+  <circle cx="52.4" cy="21.4" r="0.8" fill="#FFFFFF" />
+
+  <!-- Water Spray Droplet -->
+  <circle cx="59" cy="11" r="2" fill="#38BDF8" stroke="#03045E" stroke-width="1" />
+  <circle cx="24" cy="11" r="1.4" fill="#67E8F9" stroke="#03045E" stroke-width="0.8" />
 </svg>

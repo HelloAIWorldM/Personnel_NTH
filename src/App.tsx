@@ -31,8 +31,8 @@ import { PersonnelStorage } from './components/PersonnelStorage';
 import { SharePersonnelModal } from './components/SharePersonnelModal';
 import { PartyManager } from './components/PartyManager';
 import { ClassStatsBar } from './components/ClassStatsBar';
-import { CowStrawberryBackground } from './components/CowStrawberryBackground';
-import { CowLogo } from './components/CowLogo';
+import { DolphinAquaBackground } from './components/DolphinAquaBackground';
+import { DolphinLogo } from './components/DolphinLogo';
 import { GoogleSheetsModal } from './components/GoogleSheetsModal';
 import { ExportModal } from './components/ExportModal';
 import { ColorCustomizerModal } from './components/ColorCustomizerModal';
@@ -2211,20 +2211,20 @@ export default function App() {
   const customizedCount = Object.keys(customColors).length;
 
   return (
-    <div className="min-h-screen bg-[#FFF0F3] dark:bg-[#1A1115] text-[#2B1810] dark:text-[#FFE5EC] transition-colors pb-16 relative">
-      {/* Animated Floating Strawberry Milk Cartons, Hearts & Cute Cow Mascot Background */}
-      <CowStrawberryBackground />
+    <div className="min-h-screen bg-[#E0F7FA] dark:bg-[#071A24] text-[#03045E] dark:text-[#E0F7FA] transition-colors pb-16 relative">
+      {/* Animated Floating Aqua Bubbles, Ocean Waves & Playful Dolphin Mascot Background */}
+      <DolphinAquaBackground />
 
-      {/* Top Header Navbar - Cute Cow & Strawberry Milk Style */}
-      <header className="bg-[#FFFDF9]/95 dark:bg-[#261A20]/95 backdrop-blur-md border-b-2 border-[#FFD1DC] dark:border-[#3D2933] sticky top-0 z-30 transition-colors shadow-xs">
+      {/* Top Header Navbar - Playful Dolphin & Aqua Ocean Style */}
+      <header className="bg-[#F0FDFA]/95 dark:bg-[#0D2838]/95 backdrop-blur-md border-b-2 border-[#7DD3FC] dark:border-[#163E56] sticky top-0 z-30 transition-colors shadow-xs">
         <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4 relative z-10">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
             <div className="shrink-0 transition-transform hover:scale-105 active:scale-95 cursor-pointer">
-              <CowLogo size={38} showText={false} />
+              <DolphinLogo size={38} showText={false} />
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h1 className="font-extrabold text-[#2B1810] dark:text-white text-xs sm:text-base leading-tight truncate tracking-tight flex items-center gap-1.5">
+                <h1 className="font-extrabold text-[#03045E] dark:text-white text-xs sm:text-base leading-tight truncate tracking-tight flex items-center gap-1.5">
                   <span>
                     {appMode === 'RAID'
                       ? 'NTH Raid Roster'
@@ -2232,18 +2232,18 @@ export default function App() {
                       ? 'NTH Raid Update'
                       : 'NTH Bang Chiến'}
                   </span>
-                  <span className="hidden sm:inline-flex text-[10px] px-2 py-0.5 rounded-full bg-[#FFE5EC] dark:bg-[#4A2E35] text-[#C93B66] dark:text-[#FFB3C1] font-black border border-[#F5B7B1] dark:border-[#854D59]">
-                    Bò Sữa Dâu
+                  <span className="hidden sm:inline-flex text-[10px] px-2 py-0.5 rounded-full bg-[#CCFBF1] dark:bg-[#134E4A] text-[#0284C7] dark:text-[#7DD3FC] font-black border border-[#38BDF8] dark:border-[#0284C7]">
+                    Cá Heo Aqua
                   </span>
                 </h1>
                 {/* Active Cloud Sync Status Pill */}
                 <div
                   onClick={() => setIsCloudModalOpen(true)}
                   title="Nhấn để mở cài đặt Cloud Sync"
-                  className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-all border shrink-0 bg-[#FFF5F7] hover:bg-[#FFE5EC] dark:bg-[#33222B] dark:hover:bg-[#402B36] border-[#F5B7B1] dark:border-[#523746]"
+                  className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-all border shrink-0 bg-[#F0FDFA] hover:bg-[#CCFBF1] dark:bg-[#153B52] dark:hover:bg-[#1E4D6B] border-[#7DD3FC] dark:border-[#1E4D6B]"
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${isCloudSyncing ? 'bg-amber-400 animate-ping' : 'bg-[#FF8FA3] shadow-[0_0_6px_rgba(255,143,163,0.8)]'}`} />
-                  <span className="text-[#8D4A5B] dark:text-[#FFD1DC]">
+                  <span className={`w-1.5 h-1.5 rounded-full ${isCloudSyncing ? 'bg-amber-400 animate-ping' : 'bg-[#00B4D8] shadow-[0_0_6px_rgba(0,180,216,0.8)]'}`} />
+                  <span className="text-[#0369A1] dark:text-[#7DD3FC]">
                     {isCloudSyncing ? 'Đang lưu...' : 'Cloud An Toàn'}
                   </span>
                 </div>
@@ -2261,7 +2261,7 @@ export default function App() {
                   </button>
                 )}
               </div>
-              <p className="text-[11px] text-[#8D4A5B] dark:text-[#D1A3AF] hidden sm:flex items-center gap-2 truncate font-medium">
+              <p className="text-[11px] text-[#0369A1] dark:text-[#BAE6FD] hidden sm:flex items-center gap-2 truncate font-medium">
                 <span>
                   {appMode === 'RAID'
                     ? `${boards.length} bảng Raid`
@@ -2269,8 +2269,8 @@ export default function App() {
                     ? `${updateBoards.length} bảng Raid Update`
                     : `${guildWarBoards.length} bảng Bang chiến`}
                 </span>
-                <span className="text-pink-300 dark:text-pink-800">•</span>
-                <span className="text-[#C93B66] dark:text-[#FF8FA3] font-semibold">{fullRaidTitle}</span>
+                <span className="text-cyan-400 dark:text-cyan-700">•</span>
+                <span className="text-[#0284C7] dark:text-[#38BDF8] font-semibold">{fullRaidTitle}</span>
               </p>
             </div>
           </div>
@@ -2320,12 +2320,12 @@ export default function App() {
               type="button"
               id="btn-open-sheets-modal"
               onClick={() => setIsSheetsModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-[#FFF5F7] dark:bg-[#33222B] hover:bg-[#FFE5EC] dark:hover:bg-[#402B36] text-[#8D4A5B] dark:text-[#FFB3C1] border border-[#F5B7B1] dark:border-[#523746] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-[#F0FDFA] dark:bg-[#0D2838] hover:bg-[#CCFBF1] dark:hover:bg-[#153B52] text-[#0284C7] dark:text-[#7DD3FC] border border-[#7DD3FC] dark:border-[#163E56] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C93B66] dark:text-[#FF8FA3]" />
+              <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0284C7] dark:text-[#38BDF8]" />
               <span className="hidden sm:inline">Sheets</span>
               {currentUser && (
-                <span className="w-2 h-2 rounded-full bg-[#FF8FA3] inline-block ml-0.5" />
+                <span className="w-2 h-2 rounded-full bg-[#00B4D8] inline-block ml-0.5" />
               )}
             </button>
 
@@ -2334,7 +2334,7 @@ export default function App() {
               type="button"
               id="btn-open-donate-modal"
               onClick={() => setIsDonateModalOpen(true)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-amber-50 hover:bg-amber-100 dark:bg-[#33222B] dark:hover:bg-[#402B36] text-slate-800 dark:text-slate-100 border border-amber-300/80 dark:border-[#523746] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-amber-50 hover:bg-amber-100 dark:bg-[#0D2838] dark:hover:bg-[#153B52] text-slate-800 dark:text-slate-100 border border-amber-300/80 dark:border-[#163E56] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
               title="Mời ly cà phê ủng hộ tác giả"
             >
               <Coffee className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-500 shrink-0" />
@@ -2347,15 +2347,15 @@ export default function App() {
               type="button"
               id="btn-open-cloud-modal"
               onClick={() => setIsCloudModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-[#FFF5F7] dark:bg-[#33222B] hover:bg-[#FFE5EC] dark:hover:bg-[#402B36] text-[#8D4A5B] dark:text-[#FFB3C1] border border-[#F5B7B1] dark:border-[#523746] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-[#F0FDFA] dark:bg-[#0D2838] hover:bg-[#CCFBF1] dark:hover:bg-[#153B52] text-[#0284C7] dark:text-[#7DD3FC] border border-[#7DD3FC] dark:border-[#163E56] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
               title="Đồng bộ Đám mây (Firebase Firestore) - Chống mất dữ liệu khi tắt web/đổi máy"
             >
-              <Cloud className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C93B66] dark:text-[#FF8FA3]" />
+              <Cloud className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0284C7] dark:text-[#38BDF8]" />
               <span className="hidden sm:inline">Đám mây</span>
               {isCloudSyncing ? (
                 <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping inline-block" />
               ) : (
-                <span className="w-2 h-2 rounded-full bg-[#FF8FA3] inline-block" />
+                <span className="w-2 h-2 rounded-full bg-[#00B4D8] inline-block" />
               )}
             </button>
 
@@ -2364,10 +2364,10 @@ export default function App() {
               type="button"
               id="btn-open-import-image-modal"
               onClick={() => setIsImportImageModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-gradient-to-r from-pink-50 to-rose-50 dark:from-pink-950/40 dark:to-rose-950/40 hover:from-pink-100 hover:to-rose-100 dark:hover:from-pink-900/50 dark:hover:to-rose-900/50 text-[#C93B66] dark:text-[#FFB3C1] border border-[#F5B7B1] dark:border-[#523746] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-gradient-to-r from-cyan-50 to-sky-50 dark:from-cyan-950/40 dark:to-sky-950/40 hover:from-cyan-100 hover:to-sky-100 dark:hover:from-cyan-900/50 dark:hover:to-sky-900/50 text-[#0284C7] dark:text-[#7DD3FC] border border-[#7DD3FC] dark:border-[#163E56] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
               title="Import dữ liệu bảng Raid từ ảnh bất kỳ (nhận diện tự động)"
             >
-              <ImageIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#C93B66] dark:text-[#FF8FA3]" />
+              <ImageIcon className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0284C7] dark:text-[#38BDF8]" />
               <span className="hidden sm:inline font-bold">Import ảnh</span>
               <span className="sm:hidden font-bold text-[11px]">Import</span>
             </button>
@@ -2377,7 +2377,7 @@ export default function App() {
               type="button"
               id="btn-open-export-modal"
               onClick={() => setIsExportModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-2 bg-[#FF8FA3] hover:bg-[#FF758F] active:bg-[#E05780] text-[#2B1810] font-black rounded-xl text-xs transition-all shadow-[0_0_14px_rgba(255,143,163,0.35)] min-h-[38px] cursor-pointer border border-[#F5B7B1]"
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3.5 sm:py-2 bg-[#00B4D8] hover:bg-[#0284C7] active:bg-[#0369A1] text-white font-black rounded-xl text-xs transition-all shadow-[0_0_14px_rgba(0,180,216,0.35)] min-h-[38px] cursor-pointer border border-[#38BDF8]"
             >
               <Share2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
               <span className="hidden sm:inline">Xuất ảnh</span>
@@ -2390,20 +2390,20 @@ export default function App() {
       {/* Main Container */}
       <main className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-5 relative z-10">
         {/* Board Selector Bar (Raid & Bang Chiến) */}
-        <section className="mb-4 bg-[#FFFDF9] dark:bg-[#261A20] border-2 border-[#FFD1DC] dark:border-[#3D2933] rounded-2xl p-2.5 sm:p-3 shadow-2xs transition-colors">
+        <section className="mb-4 bg-[#F0FDFA] dark:bg-[#0D2838] border-2 border-[#7DD3FC] dark:border-[#163E56] rounded-2xl p-2.5 sm:p-3 shadow-2xs transition-colors">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
             {/* Mode Switcher + Boards Tabs */}
             <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0 no-scrollbar flex-1">
               {/* Mode Toggle Pills */}
-              <div className="flex items-center p-0.5 bg-[#FFF0F3] dark:bg-[#1A1115] rounded-xl shrink-0 border border-[#FFD1DC] dark:border-[#3D2933] gap-0.5">
+              <div className="flex items-center p-0.5 bg-[#E0F7FA] dark:bg-[#071A24] rounded-xl shrink-0 border border-[#7DD3FC] dark:border-[#163E56] gap-0.5">
                 <button
                   type="button"
                   id="btn-mode-raid"
                   onClick={() => setAppMode('RAID')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
                     appMode === 'RAID'
-                      ? 'bg-[#FF8FA3] text-[#2B1810] shadow-xs'
-                      : 'text-[#8D4A5B] dark:text-[#FFB3C1] hover:text-black dark:hover:text-white'
+                      ? 'bg-[#00B4D8] text-white shadow-xs'
+                      : 'text-[#0369A1] dark:text-[#7DD3FC] hover:text-[#03045E] dark:hover:text-white'
                   }`}
                 >
                   <TableIcon className="w-3.5 h-3.5" />
@@ -2415,11 +2415,11 @@ export default function App() {
                   onClick={() => setAppMode('RAID_UPDATE')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
                     appMode === 'RAID_UPDATE'
-                      ? 'bg-gradient-to-r from-pink-400 to-rose-400 text-white shadow-xs font-black'
-                      : 'text-[#8D4A5B] dark:text-[#FFB3C1] hover:text-black dark:hover:text-white'
+                      ? 'bg-gradient-to-r from-cyan-500 to-sky-500 text-white shadow-xs font-black'
+                      : 'text-[#0369A1] dark:text-[#7DD3FC] hover:text-[#03045E] dark:hover:text-white'
                   }`}
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-pink-200" />
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-200" />
                   <span>Raid Update ({updateBoards.length})</span>
                 </button>
                 <button
@@ -2428,8 +2428,8 @@ export default function App() {
                   onClick={() => setAppMode('GUILD_WAR')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
                     appMode === 'GUILD_WAR'
-                      ? 'bg-gradient-to-r from-rose-500 to-amber-500 text-white shadow-xs font-black'
-                      : 'text-[#8D4A5B] dark:text-[#FFB3C1] hover:text-black dark:hover:text-white'
+                      ? 'bg-gradient-to-r from-blue-600 to-cyan-500 text-white shadow-xs font-black'
+                      : 'text-[#0369A1] dark:text-[#7DD3FC] hover:text-[#03045E] dark:hover:text-white'
                   }`}
                 >
                   <Swords className="w-3.5 h-3.5" />
@@ -2437,21 +2437,21 @@ export default function App() {
                 </button>
               </div>
 
-              <div className="h-5 w-px bg-[#FFD1DC] dark:border-[#3D2933] shrink-0" />
+              <div className="h-5 w-px bg-[#7DD3FC] dark:border-[#163E56] shrink-0" />
 
               {/* Tabs for current mode */}
               {appMode !== 'GUILD_WAR' ? (
                 <div className="flex items-center gap-2 overflow-x-auto no-scrollbar">
                   {/* Active Board Badge */}
-                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#FFF5F7] dark:bg-[#33222B] border border-[#F5B7B1] dark:border-[#523746] text-xs font-bold shrink-0">
-                    <span className="text-[#8D4A5B] dark:text-[#D1A3AF] text-[11px]">Bảng hiện tại:</span>
-                    <span className="font-black text-[#C93B66] dark:text-[#FF8FA3]">
+                  <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#F0FDFA] dark:bg-[#153B52] border border-[#7DD3FC] dark:border-[#1E4D6B] text-xs font-bold shrink-0">
+                    <span className="text-[#0369A1] dark:text-[#BAE6FD] text-[11px]">Bảng hiện tại:</span>
+                    <span className="font-black text-[#0284C7] dark:text-[#38BDF8]">
                       {activeBoard.titlePrefix}
                     </span>
-                    <span className="text-[#8D4A5B] text-[11px] hidden md:inline">
+                    <span className="text-[#0369A1] text-[11px] hidden md:inline">
                       • {activeBoard.scheduleTime || 'MON 20:30'}
                     </span>
-                    <span className="text-[10px] px-1.5 py-0.2 rounded-full font-black bg-[#FFE5EC] dark:bg-[#4A2E35] text-[#C93B66] dark:text-[#FFB3C1]">
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-full font-black bg-[#CCFBF1] dark:bg-[#0C4A6E] text-[#0284C7] dark:text-[#7DD3FC]">
                       {activeBoard.members.filter((m) => m.ingame && m.ingame.trim() !== '').length}/{activeBoard.members.length}
                     </span>
                   </div>
@@ -2466,8 +2466,8 @@ export default function App() {
                     title="Bật/Tắt danh sách cuộn dọc các bảng ở bên trái bảng xếp Raid"
                     className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shrink-0 shadow-2xs cursor-pointer ${
                       isBoardNavOpen && activeTab === 'table'
-                        ? 'border-[#FF8FA3] bg-[#FFE5EC] text-[#C93B66] dark:bg-[#4A2E35] dark:text-[#FFB3C1] font-black'
-                        : 'border-[#F5B7B1] dark:border-[#523746] bg-[#FFFDF9] dark:bg-[#261A20] text-[#8D4A5B] dark:text-[#FFE5EC] hover:bg-[#FFF5F7]'
+                        ? 'border-[#00B4D8] bg-[#CCFBF1] text-[#0284C7] dark:bg-[#134E4A] dark:text-[#7DD3FC] font-black'
+                        : 'border-[#7DD3FC] dark:border-[#163E56] bg-[#F0FDFA] dark:bg-[#0D2838] text-[#0369A1] dark:text-[#E0F7FA] hover:bg-[#CCFBF1]'
                     }`}
                   >
                     <Layers className="w-3.5 h-3.5" />
@@ -2480,7 +2480,7 @@ export default function App() {
                     id="btn-tab-add-board"
                     onClick={handleAddNewEmptyBoard}
                     title={`Tạo nhanh Bảng ${isRaidUpdate ? 'Raid Update' : 'Raid'} ${currentBoards.length + 1}`}
-                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-dashed border-[#FF8FA3] dark:border-[#FF8FA3]/60 bg-[#FFF5F7] hover:bg-[#FFE5EC] dark:bg-[#33222B] dark:hover:bg-[#402B36] text-[#C93B66] dark:text-[#FF8FA3] text-xs font-bold transition-all shrink-0 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
+                    className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-dashed border-[#00B4D8] dark:border-[#00B4D8]/60 bg-[#F0FDFA] hover:bg-[#CCFBF1] dark:bg-[#153B52] dark:hover:bg-[#1E4D6B] text-[#0284C7] dark:text-[#38BDF8] text-xs font-bold transition-all shrink-0 shadow-2xs hover:scale-105 active:scale-95 cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
                     <span>+ Thêm Bảng (Raid {currentBoards.length + 1})</span>
@@ -2727,7 +2727,7 @@ export default function App() {
             )}
 
             {/* Navigation Tab Bar */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-emerald-300/50 dark:border-[#1D3D2D] pb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4 border-b border-[#7DD3FC]/50 dark:border-[#163E56] pb-3">
               <div className="flex items-center gap-1.5 sm:gap-2 w-full sm:w-auto overflow-x-auto">
                 <button
                   type="button"
@@ -2735,8 +2735,8 @@ export default function App() {
                   onClick={() => setActiveTab('table')}
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
                     activeTab === 'table'
-                      ? 'bg-[#FF8FA3] text-[#2B1810] dark:bg-[#FF8FA3] dark:text-[#2B1810] shadow-md font-black border-2 border-[#2B1810]'
-                      : 'bg-[#FFFDF9]/90 hover:bg-[#FFFDF9] dark:bg-[#261A20] text-[#8D4A5B] dark:text-[#FFE5EC] hover:bg-[#FFF5F7] dark:hover:bg-[#33222B] border border-[#F5B7B1] dark:border-[#3D2933] shadow-2xs'
+                      ? 'bg-[#00B4D8] text-white dark:bg-[#00B4D8] dark:text-white shadow-md font-black border-2 border-[#03045E] dark:border-[#0284C7]'
+                      : 'bg-[#F0FDFA]/90 hover:bg-[#F0FDFA] dark:bg-[#0D2838] text-[#0369A1] dark:text-[#E0F7FA] hover:bg-[#CCFBF1] dark:hover:bg-[#153B52] border border-[#7DD3FC] dark:border-[#163E56] shadow-2xs'
                   }`}
                 >
                   <TableIcon className="w-4 h-4 shrink-0" />
@@ -2749,8 +2749,8 @@ export default function App() {
                   onClick={() => setActiveTab('all-boards')}
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
                     activeTab === 'all-boards'
-                      ? 'bg-[#FF8FA3] text-[#2B1810] dark:bg-[#FF8FA3] dark:text-[#2B1810] shadow-md font-black border-2 border-[#2B1810]'
-                      : 'bg-[#FFFDF9]/90 hover:bg-[#FFFDF9] dark:bg-[#261A20] text-[#8D4A5B] dark:text-[#FFE5EC] hover:bg-[#FFF5F7] dark:hover:bg-[#33222B] border border-[#F5B7B1] dark:border-[#3D2933] shadow-2xs'
+                      ? 'bg-[#00B4D8] text-white dark:bg-[#00B4D8] dark:text-white shadow-md font-black border-2 border-[#03045E] dark:border-[#0284C7]'
+                      : 'bg-[#F0FDFA]/90 hover:bg-[#F0FDFA] dark:bg-[#0D2838] text-[#0369A1] dark:text-[#E0F7FA] hover:bg-[#CCFBF1] dark:hover:bg-[#153B52] border border-[#7DD3FC] dark:border-[#163E56] shadow-2xs'
                   }`}
                 >
                   <LayoutGrid className="w-4 h-4 shrink-0" />
@@ -2758,8 +2758,8 @@ export default function App() {
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                       activeTab === 'all-boards'
-                        ? 'bg-[#2B1810]/20 text-[#2B1810]'
-                        : 'bg-[#FFE5EC] dark:bg-[#3D2933] text-[#C93B66] dark:text-[#FFB3C1]'
+                        ? 'bg-white/25 text-white'
+                        : 'bg-[#CCFBF1] dark:bg-[#163E56] text-[#0284C7] dark:text-[#7DD3FC]'
                     }`}
                   >
                     {currentBoards.length}
@@ -2776,8 +2776,8 @@ export default function App() {
                   title="Tổng Kho Nhân Sự: Lưu trữ tập trung và chia sẻ sang các kho con"
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
                     activeTab === 'personnel' && activePoolView === 'master'
-                      ? 'bg-gradient-to-r from-pink-500 to-rose-500 text-white shadow-md font-black border-2 border-[#2B1810]'
-                      : 'bg-[#FFFDF9]/90 hover:bg-[#FFFDF9] dark:bg-[#261A20] text-[#8D4A5B] dark:text-[#FFE5EC] hover:bg-[#FFF5F7] dark:hover:bg-[#33222B] border border-[#F5B7B1] dark:border-[#3D2933] shadow-2xs'
+                      ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md font-black border-2 border-[#03045E]'
+                      : 'bg-[#F0FDFA]/90 hover:bg-[#F0FDFA] dark:bg-[#0D2838] text-[#0369A1] dark:text-[#E0F7FA] hover:bg-[#CCFBF1] dark:hover:bg-[#153B52] border border-[#7DD3FC] dark:border-[#163E56] shadow-2xs'
                   }`}
                 >
                   <Database className="w-4 h-4 shrink-0" />
@@ -2786,7 +2786,7 @@ export default function App() {
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                       activeTab === 'personnel' && activePoolView === 'master'
                         ? 'bg-white/25 text-white'
-                        : 'bg-[#FFE5EC] dark:bg-[#3D2933] text-[#C93B66] dark:text-[#FFB3C1]'
+                        : 'bg-[#CCFBF1] dark:bg-[#163E56] text-[#0284C7] dark:text-[#7DD3FC]'
                     }`}
                   >
                     {masterPersonnelPool.length}
@@ -2804,8 +2804,8 @@ export default function App() {
                   }}
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
                     activeTab === 'personnel' && activePoolView !== 'master'
-                      ? 'bg-[#FF8FA3] text-[#2B1810] dark:bg-[#FF8FA3] dark:text-[#2B1810] shadow-md font-black border-2 border-[#2B1810]'
-                      : 'bg-[#FFFDF9]/90 hover:bg-[#FFFDF9] dark:bg-[#261A20] text-[#8D4A5B] dark:text-[#FFE5EC] hover:bg-[#FFF5F7] dark:hover:bg-[#33222B] border border-[#F5B7B1] dark:border-[#3D2933] shadow-2xs'
+                      ? 'bg-[#00B4D8] text-white dark:bg-[#00B4D8] dark:text-white shadow-md font-black border-2 border-[#03045E] dark:border-[#0284C7]'
+                      : 'bg-[#F0FDFA]/90 hover:bg-[#F0FDFA] dark:bg-[#0D2838] text-[#0369A1] dark:text-[#E0F7FA] hover:bg-[#CCFBF1] dark:hover:bg-[#153B52] border border-[#7DD3FC] dark:border-[#163E56] shadow-2xs'
                   }`}
                 >
                   <Users className="w-4 h-4 shrink-0" />
@@ -2813,8 +2813,8 @@ export default function App() {
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                       activeTab === 'personnel' && activePoolView !== 'master'
-                        ? 'bg-[#2B1810]/20 text-[#2B1810]'
-                        : 'bg-[#FFE5EC] dark:bg-[#3D2933] text-[#C93B66] dark:text-[#FFB3C1]'
+                        ? 'bg-white/25 text-white'
+                        : 'bg-[#CCFBF1] dark:bg-[#163E56] text-[#0284C7] dark:text-[#7DD3FC]'
                     }`}
                   >
                     {isRaidUpdate ? updatePersonnelPool.length : personnelPool.length}
@@ -2827,8 +2827,8 @@ export default function App() {
                   onClick={() => setActiveTab('parties')}
                   className={`flex-1 sm:flex-none flex items-center justify-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all min-h-[40px] shrink-0 ${
                     activeTab === 'parties'
-                      ? 'bg-[#FF8FA3] text-[#2B1810] dark:bg-[#FF8FA3] dark:text-[#2B1810] shadow-md font-black border-2 border-[#2B1810]'
-                      : 'bg-[#FFFDF9]/90 hover:bg-[#FFFDF9] dark:bg-[#261A20] text-[#8D4A5B] dark:text-[#FFE5EC] hover:bg-[#FFF5F7] dark:hover:bg-[#33222B] border border-[#F5B7B1] dark:border-[#3D2933] shadow-2xs'
+                      ? 'bg-[#00B4D8] text-white dark:bg-[#00B4D8] dark:text-white shadow-md font-black border-2 border-[#03045E] dark:border-[#0284C7]'
+                      : 'bg-[#F0FDFA]/90 hover:bg-[#F0FDFA] dark:bg-[#0D2838] text-[#0369A1] dark:text-[#E0F7FA] hover:bg-[#CCFBF1] dark:hover:bg-[#153B52] border border-[#7DD3FC] dark:border-[#163E56] shadow-2xs'
                   }`}
                 >
                   <Users className="w-4 h-4 shrink-0" />
@@ -2836,8 +2836,8 @@ export default function App() {
                   <span
                     className={`px-1.5 py-0.2 rounded-full text-[10px] font-black ${
                       activeTab === 'parties'
-                        ? 'bg-[#2B1810]/20 text-[#2B1810]'
-                        : 'bg-[#FFE5EC] dark:bg-[#3D2933] text-[#C93B66] dark:text-[#FFB3C1]'
+                        ? 'bg-white/25 text-white'
+                        : 'bg-[#CCFBF1] dark:bg-[#163E56] text-[#0284C7] dark:text-[#7DD3FC]'
                     }`}
                   >
                     {activeBoard.parties?.length || 2}
@@ -2852,7 +2852,7 @@ export default function App() {
                     type="button"
                     id="btn-toggle-board-nav"
                     onClick={() => setIsBoardNavOpen(!isBoardNavOpen)}
-                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border border-[#F5B7B1] dark:border-[#523746] bg-[#FFF5F7] dark:bg-[#261A20] text-[#8D4A5B] dark:text-[#FFB3C1] hover:bg-[#FFE5EC] dark:hover:bg-[#33222B] transition-colors cursor-pointer"
+                    className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-xl border border-[#7DD3FC] dark:border-[#163E56] bg-[#F0FDFA] dark:bg-[#0D2838] text-[#0369A1] dark:text-[#7DD3FC] hover:bg-[#CCFBF1] dark:hover:bg-[#153B52] transition-colors cursor-pointer"
                     title="Bật/Tắt danh sách cuộn dọc các bảng bên trái"
                   >
                     {isBoardNavOpen ? (
