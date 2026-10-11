@@ -1053,11 +1053,11 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                               e.stopPropagation();
                               handleToggleMemberNote(member, e.currentTarget.getBoundingClientRect());
                             }}
-                            className="mt-0.5 inline-flex items-center justify-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/80 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900 transition-colors max-w-full truncate"
+                            className="mt-0.5 inline-flex items-start justify-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/80 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900 transition-colors max-w-full text-left"
                             title={`Ghi chú:\n${member.note}\n(Click để xem & sửa)`}
                           >
-                            <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-400" />
-                            <span className="truncate">{member.note}</span>
+                            <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-400 mt-0.5" />
+                            <span className="whitespace-pre-line break-words text-left leading-tight">{member.note}</span>
                           </div>
                         )}
                       </td>

@@ -1113,11 +1113,11 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                                         e.stopPropagation();
                                         handleToggleMemberNote(member, e.currentTarget.getBoundingClientRect());
                                       }}
-                                      className="mt-1 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/80 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900 transition-colors max-w-full"
+                                      className="mt-1 inline-flex items-start gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/80 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900 transition-colors max-w-full text-left"
                                       title={`Ghi chú:\n${member.note}\n(Click để xem & sửa)`}
                                     >
-                                      <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-400" />
-                                      <span className="truncate">{member.note}</span>
+                                      <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-400 mt-0.5" />
+                                      <span className="whitespace-pre-line break-words text-left leading-tight">{member.note}</span>
                                     </div>
                                   )}
                                 </div>
@@ -1154,9 +1154,9 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                                       </button>
                                     </div>
                                     {slotNote && (
-                                      <div className="mt-0.5 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/80 max-w-full">
-                                        <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-400" />
-                                        <span className="truncate">{slotNote}</span>
+                                      <div className="mt-0.5 inline-flex items-start gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/80 max-w-full text-left">
+                                        <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-400 mt-0.5" />
+                                        <span className="whitespace-pre-line break-words text-left leading-tight">{slotNote}</span>
                                       </div>
                                     )}
                                   </div>
@@ -1346,11 +1346,11 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                         e.stopPropagation();
                         handleToggleMemberNote(member, e.currentTarget.getBoundingClientRect());
                       }}
-                      className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700/80 cursor-pointer hover:bg-amber-200 transition-colors max-w-[120px] truncate"
-                      title={`Ghi chú: ${member.note}\n(Click để xem & sửa)`}
+                      className="inline-flex items-start gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300 dark:border-amber-700/80 cursor-pointer hover:bg-amber-200 transition-colors max-w-[200px] text-left"
+                      title={`Ghi chú:\n${member.note}\n(Click để xem & sửa)`}
                     >
-                      <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-400" />
-                      <span className="truncate">{member.note}</span>
+                      <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-400 mt-0.5" />
+                      <span className="whitespace-pre-line break-words text-left leading-tight">{member.note}</span>
                     </span>
                   )}
                   {/* Note button on hover */}

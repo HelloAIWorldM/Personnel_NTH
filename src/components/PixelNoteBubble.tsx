@@ -181,13 +181,12 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
             onKeyDown={(e) => {
               if (e.nativeEvent.isComposing) return;
               if (e.key === 'Enter') {
-                if (e.shiftKey) {
-                  // Shift + Enter: Xuống dòng
-                  return;
+                if (e.ctrlKey || e.metaKey) {
+                  // Ctrl + Enter hoặc Cmd + Enter: Lưu ghi chú ngay lập tức
+                  e.preventDefault();
+                  handleSave();
                 }
-                // Enter (không giữ Shift) hoặc Ctrl/Cmd + Enter: Lưu ghi chú ngay lập tức
-                e.preventDefault();
-                handleSave();
+                // Enter thông thường hoặc Shift + Enter: Cho phép xuống dòng tự nhiên trong textarea
               } else if (e.key === 'Escape') {
                 e.preventDefault();
                 onClose();
@@ -196,8 +195,8 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
             placeholder={
               placeholder ||
               (person?.ingame
-                ? `Ghi chú cho ${person.ingame}... (vd: Dự bị PT2, đi muộn 15p...)\n[Shift + Enter để xuống dòng • Enter để lưu]`
-                : 'Ghi chú chiến thuật cho PT này...\n[Shift + Enter để xuống dòng • Enter để lưu]')
+                ? `Ghi chú cho ${person.ingame}... (vd: Dự bị PT2, đi muộn 15p...)\n[Enter để xuống dòng • Ctrl+Enter hoặc bấm Lưu]`
+                : 'Ghi chú chiến thuật cho PT này...\n[Enter để xuống dòng • Ctrl+Enter hoặc bấm Lưu]')
             }
             rows={3}
             className="w-full p-2 text-xs font-bold text-black bg-slate-50 border-2 border-black rounded-xl focus:bg-white focus:outline-none resize-none shadow-[inset_1px_1px_0px_rgba(0,0,0,0.15)] placeholder:text-slate-400 placeholder:font-normal placeholder:text-[11px] whitespace-pre-wrap break-words leading-relaxed"
@@ -212,12 +211,12 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
                   <span>Đã lưu!</span>
                 </span>
               ) : noteText !== effectiveOriginalNote ? (
-                <span className="text-[10px] font-bold text-amber-700" title="Nhấn Enter để lưu ghi chú">
-                  Chưa lưu (Enter để lưu)
+                <span className="text-[10px] font-bold text-amber-700" title="Nhấn Ctrl+Enter hoặc bấm Lưu">
+                  Chưa lưu (Bấm Lưu / Ctrl+Enter)
                 </span>
               ) : (
                 <span className="text-[10px] font-bold text-slate-500">
-                  {noteText ? 'Đã lưu' : 'Shift+Enter: dòng mới'}
+                  {noteText ? 'Đã lưu' : 'Enter: xuống dòng'}
                 </span>
               )}
             </div>
