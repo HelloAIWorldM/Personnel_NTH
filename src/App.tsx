@@ -33,6 +33,12 @@ import { PartyManager } from './components/PartyManager';
 import { ClassStatsBar } from './components/ClassStatsBar';
 import { DolphinAquaBackground } from './components/DolphinAquaBackground';
 import { DolphinLogo } from './components/DolphinLogo';
+import { CowStrawberryBackground } from './components/CowStrawberryBackground';
+import { CowLogo } from './components/CowLogo';
+import { FrogPondBackground } from './components/FrogPondBackground';
+import { FrogLogo } from './components/FrogLogo';
+import { ThemeModal, AppThemeKey } from './components/ThemeModal';
+import { FeedbackChatbox } from './components/FeedbackChatbox';
 import { GoogleSheetsModal } from './components/GoogleSheetsModal';
 import { ExportModal } from './components/ExportModal';
 import { ColorCustomizerModal } from './components/ColorCustomizerModal';
@@ -134,6 +140,23 @@ export default function App() {
       return false;
     }
   });
+
+  // Mascot Theme Selection State: 'dolphin' | 'cow' | 'frog'
+  const [appTheme, setAppTheme] = useState<AppThemeKey>(() => {
+    try {
+      const saved = localStorage.getItem('nth_app_theme');
+      if (saved === 'cow' || saved === 'frog' || saved === 'dolphin') {
+        return saved;
+      }
+    } catch {}
+    return 'dolphin';
+  });
+  const [isThemeModalOpen, setIsThemeModalOpen] = useState<boolean>(false);
+
+  const handleSelectTheme = (theme: AppThemeKey) => {
+    setAppTheme(theme);
+    safeLocalStorageSet('nth_app_theme', theme);
+  };
 
   // Multiple Raid Boards State - Multi-layer persistence
   const [boards, setBoards] = useState<RaidBoard[]>(() => {
@@ -2464,16 +2487,49 @@ export default function App() {
   const customizedCount = Object.keys(customColors).length;
 
   return (
-    <div className="min-h-screen bg-[#E0F7FA] dark:bg-[#071A24] text-[#03045E] dark:text-[#E0F7FA] transition-colors pb-16 relative">
-      {/* Animated Floating Aqua Bubbles, Ocean Waves & Playful Dolphin Mascot Background */}
-      <DolphinAquaBackground />
+    <div
+      className={`min-h-screen transition-colors pb-16 relative ${
+        appTheme === 'cow'
+          ? 'bg-[#FFF0F3] dark:bg-[#1A0C12] text-[#591C2B] dark:text-[#FFE5EC]'
+          : appTheme === 'frog'
+          ? 'bg-[#F2FBE0] dark:bg-[#0E1F11] text-[#133E1A] dark:text-[#E8F8D8]'
+          : 'bg-[#E0F7FA] dark:bg-[#071A24] text-[#03045E] dark:text-[#E0F7FA]'
+      }`}
+    >
+      {/* Dynamic Animated Mascot Backgrounds */}
+      {appTheme === 'dolphin' && <DolphinAquaBackground />}
+      {appTheme === 'cow' && <CowStrawberryBackground />}
+      {appTheme === 'frog' && <FrogPondBackground />}
 
-      {/* Top Header Navbar - Playful Dolphin & Aqua Ocean Style */}
-      <header className="bg-[#F0FDFA]/95 dark:bg-[#0D2838]/95 backdrop-blur-md border-b-2 border-[#7DD3FC] dark:border-[#163E56] sticky top-0 z-30 transition-colors shadow-xs">
+      {/* Top Header Navbar */}
+      <header
+        className={`sticky top-0 z-30 transition-colors shadow-xs backdrop-blur-md ${
+          appTheme === 'cow'
+            ? 'bg-[#FFF5F7]/95 dark:bg-[#2A151D]/95 border-b-2 border-[#F5B7B1] dark:border-[#5C2A38]'
+            : appTheme === 'frog'
+            ? 'bg-[#F4FCE8]/95 dark:bg-[#152B19]/95 border-b-2 border-[#A3E635] dark:border-[#27532A]'
+            : 'bg-[#F0FDFA]/95 dark:bg-[#0D2838]/95 border-b-2 border-[#7DD3FC] dark:border-[#163E56]'
+        }`}
+      >
         <div className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 h-14 sm:h-16 flex items-center justify-between gap-2 sm:gap-4 relative z-10">
           <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-            <div className="shrink-0 transition-transform hover:scale-105 active:scale-95 cursor-pointer">
-              <DolphinLogo size={38} showText={false} />
+            {/* Click mascot logo to open Theme Selection Modal */}
+            <div
+              onClick={() => setIsThemeModalOpen(true)}
+              title="Nhấp vào logo để đổi linh vật & hình nền (Cá Heo, Bò Sữa Dâu, Ếch Xanh)"
+              className="shrink-0 transition-transform hover:scale-110 active:scale-95 cursor-pointer relative group"
+            >
+              {appTheme === 'cow' ? (
+                <CowLogo size={38} showText={false} />
+              ) : appTheme === 'frog' ? (
+                <FrogLogo size={38} showText={false} />
+              ) : (
+                <DolphinLogo size={38} showText={false} />
+              )}
+              {/* Little hint sparkles badge on hover */}
+              <span className="absolute -bottom-1 -right-1 w-3.5 h-3.5 bg-amber-400 border border-white dark:border-slate-800 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-xs pointer-events-none">
+                <Sparkles className="w-2 h-2 text-amber-950" />
+              </span>
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -2485,9 +2541,27 @@ export default function App() {
                       ? 'NTH Raid Update'
                       : 'NTH Bang Chiến'}
                   </span>
-                  <span className="hidden sm:inline-flex text-[10px] px-2 py-0.5 rounded-full bg-[#CCFBF1] dark:bg-[#134E4A] text-[#0284C7] dark:text-[#7DD3FC] font-black border border-[#38BDF8] dark:border-[#0284C7]">
-                    Cá Heo Aqua
-                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsThemeModalOpen(true)}
+                    title="Nhấp để đổi giao diện linh vật & background"
+                    className={`hidden sm:inline-flex items-center gap-1 text-[10px] px-2 py-0.5 rounded-full font-black border transition-all cursor-pointer shadow-2xs hover:scale-105 active:scale-95 ${
+                      appTheme === 'cow'
+                        ? 'bg-[#FFE5EC] dark:bg-[#4A2E35] text-[#C93B66] dark:text-[#FFB3C1] border-[#F5B7B1] dark:border-[#854D59]'
+                        : appTheme === 'frog'
+                        ? 'bg-[#DCFCE7] dark:bg-[#14532D] text-[#15803D] dark:text-[#86EFAC] border-[#86EFAC] dark:border-[#166534]'
+                        : 'bg-[#CCFBF1] dark:bg-[#134E4A] text-[#0284C7] dark:text-[#7DD3FC] border-[#38BDF8] dark:border-[#0284C7]'
+                    }`}
+                  >
+                    <Sparkles className="w-2.5 h-2.5" />
+                    <span>
+                      {appTheme === 'cow'
+                        ? 'Bò Sữa Dâu'
+                        : appTheme === 'frog'
+                        ? 'Ếch Xanh Sen'
+                        : 'Cá Heo Aqua'}
+                    </span>
+                  </button>
                 </h1>
                 {/* Active Cloud Sync Status Pill */}
                 <div
@@ -3640,6 +3714,17 @@ export default function App() {
           </div>,
           document.body
         )}
+
+      {/* Mascot Theme Chooser Modal */}
+      <ThemeModal
+        isOpen={isThemeModalOpen}
+        onClose={() => setIsThemeModalOpen(false)}
+        currentTheme={appTheme}
+        onSelectTheme={handleSelectTheme}
+      />
+
+      {/* Direct Feedback to Gmail Chatbox */}
+      <FeedbackChatbox />
     </div>
   );
 }

@@ -33,7 +33,9 @@ import {
   AlertCircle,
   RefreshCw,
   UserX,
+  MessageSquare,
 } from 'lucide-react';
+import { PixelNoteBubble } from './PixelNoteBubble';
 
 interface RaidTableProps {
   titlePrefix: string;
@@ -101,6 +103,28 @@ export const RaidTable: React.FC<RaidTableProps> = ({
   // Mobile row actions modal state
   const [mobileActionMemberId, setMobileActionMemberId] = useState<string | null>(null);
   const [showResetRaidConfirm, setShowResetRaidConfirm] = useState(false);
+
+  // Pixel Note Bubble state cho Raid member
+  const [activeNoteMember, setActiveNoteMember] = useState<RaidMember | null>(null);
+  const [noteAnchorRect, setNoteAnchorRect] = useState<DOMRect | null>(null);
+
+  const handleToggleMemberNote = (member: RaidMember, rect: DOMRect) => {
+    if (activeNoteMember && activeNoteMember.id === member.id) {
+      setActiveNoteMember(null);
+      setNoteAnchorRect(null);
+    } else {
+      setActiveNoteMember(member);
+      setNoteAnchorRect(rect);
+    }
+  };
+
+  const handleSaveMemberNote = (memberId: string, noteText: string) => {
+    const trimmed = noteText.trim();
+    handleUpdateMember(memberId, { note: trimmed || undefined });
+    if (activeNoteMember && activeNoteMember.id === memberId) {
+      setActiveNoteMember((prev) => (prev ? { ...prev, note: trimmed || undefined } : null));
+    }
+  };
 
   // Duplicate Ingame and LoggedBy lookup maps (within this table)
   const duplicateIngameMap = useMemo(() => getDuplicateIngameMap(members), [members]);
@@ -878,6 +902,23 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                               : 'bg-white/98 border-slate-300 text-slate-800 shadow-slate-900/15'
                           }`}
                         >
+                          {/* Nút Ghi chú thành viên */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleMemberNote(member, e.currentTarget.getBoundingClientRect());
+                            }}
+                            title={member.note ? `Sửa ghi chú (${member.note})` : 'Ghi chú cho thành viên này'}
+                            className={`w-7 h-7 flex items-center justify-center rounded-lg font-bold transition-all active:scale-95 cursor-pointer shadow-2xs ${
+                              member.note
+                                ? 'bg-amber-100 hover:bg-amber-500 hover:text-white dark:bg-amber-950 dark:hover:bg-amber-500 text-amber-700 dark:text-amber-300'
+                                : 'bg-indigo-50 hover:bg-indigo-600 hover:text-white dark:bg-indigo-950/50 dark:hover:bg-indigo-600 text-indigo-600 dark:text-indigo-400'
+                            }`}
+                          >
+                            <MessageSquare className="w-4 h-4 stroke-[2.2]" />
+                          </button>
+
                           {/* Nút Bỏ Xếp: Xoá Ingame & Logged by, đưa môn phái về 'Trống' */}
                           <button
                             type="button"
@@ -1004,6 +1045,21 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                             </span>
                           )}
                         </div>
+
+                        {/* Note badge below Ingame name */}
+                        {member.note && (
+                          <div
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleMemberNote(member, e.currentTarget.getBoundingClientRect());
+                            }}
+                            className="mt-0.5 inline-flex items-center justify-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/80 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900 transition-colors max-w-full truncate"
+                            title={`Ghi chú:\n${member.note}\n(Click để xem & sửa)`}
+                          >
+                            <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-400" />
+                            <span className="truncate">{member.note}</span>
+                          </div>
+                        )}
                       </td>
 
                       {/* Class Badge Cell with exact background color */}
@@ -1495,6 +1551,20 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                   <span>Đổi môn phái ({activeMobileMember.className})</span>
                 </button>
 
+                {/* Note for Member on mobile */}
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    const rect = e.currentTarget.getBoundingClientRect();
+                    setMobileActionMemberId(null);
+                    handleToggleMemberNote(activeMobileMember, rect);
+                  }}
+                  className="w-full flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-amber-300 bg-[#181C26] hover:bg-[#222735] border border-[#222735] hover:border-amber-700/60 rounded-xl min-h-[44px]"
+                >
+                  <MessageSquare className="w-4 h-4 text-amber-400" />
+                  <span>{activeMobileMember.note ? `Sửa ghi chú (${activeMobileMember.note})` : 'Thêm ghi chú thành viên'}</span>
+                </button>
+
                 {/* Quick Fill Ingame to Logged By */}
                 {activeMobileMember.ingame && (
                   <button
@@ -1534,6 +1604,29 @@ export const RaidTable: React.FC<RaidTableProps> = ({
           </div>,
           document.body
         )}
+
+      {/* Floating Pixel Note Bubble Modal cho Raid Member */}
+      {activeNoteMember && noteAnchorRect && (() => {
+        const meta = getEffectiveClassMeta(activeNoteMember.className, customColors);
+        return (
+          <PixelNoteBubble
+            targetId={activeNoteMember.id}
+            title={`Ghi chú: ${activeNoteMember.ingame || `STT #${activeNoteMember.stt}`}`}
+            badgeText={activeNoteMember.className}
+            badgeBgColor={meta.bgColor}
+            badgeTextColor={meta.textColor}
+            initialNote={activeNoteMember.note || ''}
+            placeholder="Ghi chú thành viên (ví dụ: bận log trễ 5p, cầm buff, acc phụ, lưu ý riêng...)"
+            anchorRect={noteAnchorRect}
+            onSaveNote={(id, text) => handleSaveMemberNote(id, text)}
+            onClose={() => {
+              setActiveNoteMember(null);
+              setNoteAnchorRect(null);
+            }}
+            customColors={customColors}
+          />
+        );
+      })()}
     </div>
   );
 };

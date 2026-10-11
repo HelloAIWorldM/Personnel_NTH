@@ -37,6 +37,7 @@ export interface RaidMember {
   loggedBy: string;
   party?: number; // 1, 2, 3... (PT 1, PT 2)
   checked?: boolean; // Attendance / present status
+  note?: string; // Custom note for this member / slot
 }
 
 export interface RaidParty {
