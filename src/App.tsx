@@ -3462,6 +3462,8 @@ export default function App() {
         members={activeBoard.members}
         customColors={customColors}
         activeBoard={activeBoard}
+        allBoards={currentBoards}
+        isRaidUpdate={isRaidUpdate}
       />
 
       {/* Cloud Sync Modal */}

@@ -30,6 +30,8 @@ interface ExportModalProps {
   members: RaidMember[];
   customColors?: CustomClassColors;
   activeBoard?: RaidBoard;
+  allBoards?: RaidBoard[];
+  isRaidUpdate?: boolean;
 }
 
 export const ExportModal: React.FC<ExportModalProps> = ({
@@ -40,6 +42,8 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   members,
   customColors,
   activeBoard,
+  allBoards,
+  isRaidUpdate = false,
 }) => {
   const [copyingImage, setCopyingImage] = useState(false);
   const [copiedImageSuccess, setCopiedImageSuccess] = useState(false);
@@ -469,21 +473,132 @@ export const ExportModal: React.FC<ExportModalProps> = ({
   };
 
   // Download styled Excel HTML table with intact colors and borders matching the original photo
+  // Arranges all boards in a 3x3 grid layout (3 boards horizontally per row block), separated by 1 cell
   const handleExportStyledExcel = () => {
-    const safeMembers = filterMembersForExport(members, privacyMode);
-    let rowsHtml = '';
-    safeMembers.forEach((m) => {
-      const meta = getEffectiveClassMeta(m.className, customColors);
-      const ptStr = m.party ? `PT ${m.party}` : '';
-      rowsHtml += `
-        <tr>
-          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; padding: 6px 10px;">${m.stt}</td>
-          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; padding: 6px 14px;">${escapeHtml(m.ingame || '')}</td>
-          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; background-color: ${meta.bgColor}; color: ${meta.textColor}; padding: 6px 14px;">${escapeHtml(m.className)}</td>
-          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 13pt; padding: 6px 14px;">${escapeHtml(m.loggedBy || '')}</td>
-          <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 12pt; padding: 6px 10px;">${escapeHtml(ptStr)}</td>
-        </tr>
-      `;
+    const boardsToExport =
+      allBoards && allBoards.length > 0
+        ? allBoards
+        : activeBoard
+        ? [activeBoard]
+        : [];
+
+    if (boardsToExport.length === 0) return;
+
+    const CHUNK_SIZE = 3;
+    const boardRows: RaidBoard[][] = [];
+    for (let i = 0; i < boardsToExport.length; i += CHUNK_SIZE) {
+      boardRows.push(boardsToExport.slice(i, i + CHUNK_SIZE));
+    }
+
+    let tablesHtml = '';
+
+    boardRows.forEach((rowBoards, rowIdx) => {
+      // 1. Title Row
+      let titleRowHtml = '<tr>';
+      for (let bIdx = 0; bIdx < CHUNK_SIZE; bIdx++) {
+        const board = rowBoards[bIdx];
+        if (board) {
+          const bTitle = `${board.titlePrefix || `RAID ${rowIdx * 3 + bIdx + 1}`} - ${board.scheduleTime || 'MON 20:30'} ${board.bossName || ''}`.trim();
+          titleRowHtml += `
+            <td colspan="5" class="title-row" style="border: 2px solid #000000; text-align: center; font-size: 15pt; font-weight: 900; background-color: #ffffff; padding: 10px 14px;">
+              ${escapeHtml(bTitle)}
+            </td>
+          `;
+        } else {
+          // Empty placeholder for column alignment
+          titleRowHtml += `<td colspan="5" style="border: none; background: transparent;"></td>`;
+        }
+
+        // 1-cell separator between boards horizontally
+        if (bIdx < CHUNK_SIZE - 1) {
+          titleRowHtml += `<td class="sep-col" style="width: 25px; border: none; background: transparent;"></td>`;
+        }
+      }
+      titleRowHtml += '</tr>';
+
+      // 2. Header Row
+      let headerRowHtml = '<tr>';
+      for (let bIdx = 0; bIdx < CHUNK_SIZE; bIdx++) {
+        const board = rowBoards[bIdx];
+        if (board) {
+          headerRowHtml += `
+            <th style="border: 2px solid #000000; background-color: #f1f5f9; color: #000000; font-size: 13pt; font-weight: 900; text-align: center; width: 60px; padding: 7px;">STT</th>
+            <th style="border: 2px solid #000000; background-color: #f1f5f9; color: #000000; font-size: 13pt; font-weight: 900; text-align: center; width: 170px; padding: 7px 12px;">Ingame</th>
+            <th style="border: 2px solid #000000; background-color: #f1f5f9; color: #000000; font-size: 13pt; font-weight: 900; text-align: center; width: 150px; padding: 7px 12px;">Class</th>
+            <th style="border: 2px solid #000000; background-color: #f1f5f9; color: #000000; font-size: 13pt; font-weight: 900; text-align: center; width: 160px; padding: 7px 12px;">Logged by</th>
+            <th style="border: 2px solid #000000; background-color: #f1f5f9; color: #000000; font-size: 13pt; font-weight: 900; text-align: center; width: 80px; padding: 7px;">Nhóm</th>
+          `;
+        } else {
+          headerRowHtml += `<td colspan="5" style="border: none; background: transparent;"></td>`;
+        }
+
+        if (bIdx < CHUNK_SIZE - 1) {
+          headerRowHtml += `<td class="sep-col" style="width: 25px; border: none; background: transparent;"></td>`;
+        }
+      }
+      headerRowHtml += '</tr>';
+
+      // 3. Data Rows (12 slots)
+      let dataRowsHtml = '';
+      const maxSlots = Math.max(
+        12,
+        ...rowBoards.map((b) => (b.members ? b.members.length : 12))
+      );
+
+      for (let slot = 0; slot < maxSlots; slot++) {
+        dataRowsHtml += '<tr>';
+        for (let bIdx = 0; bIdx < CHUNK_SIZE; bIdx++) {
+          const board = rowBoards[bIdx];
+          if (board) {
+            const rawMember = board.members ? board.members[slot] : null;
+            const stt = rawMember?.stt || slot + 1;
+            const ingame = rawMember?.ingame || '';
+            const className = rawMember?.className || '';
+            let loggedBy = rawMember?.loggedBy || '';
+            if (privacyMode !== 'NONE') {
+              loggedBy = maskSensitiveText(loggedBy, privacyMode);
+            }
+            const ptStr = rawMember?.party ? `PT ${rawMember.party}` : '';
+
+            if (className) {
+              const meta = getEffectiveClassMeta(className, customColors);
+              dataRowsHtml += `
+                <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 12pt; padding: 6px 8px;">${stt}</td>
+                <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 12pt; padding: 6px 12px;">${escapeHtml(ingame)}</td>
+                <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 12pt; background-color: ${meta.bgColor}; color: ${meta.textColor}; padding: 6px 12px;">${escapeHtml(className)}</td>
+                <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 12pt; padding: 6px 12px;">${escapeHtml(loggedBy)}</td>
+                <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 11pt; padding: 6px 8px;">${escapeHtml(ptStr)}</td>
+              `;
+            } else {
+              dataRowsHtml += `
+                <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 12pt; padding: 6px 8px;">${stt}</td>
+                <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 12pt; padding: 6px 12px;">${escapeHtml(ingame)}</td>
+                <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 12pt; padding: 6px 12px;"></td>
+                <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 12pt; padding: 6px 12px;">${escapeHtml(loggedBy)}</td>
+                <td style="border: 2px solid #000000; text-align: center; font-weight: bold; font-size: 11pt; padding: 6px 8px;">${escapeHtml(ptStr)}</td>
+              `;
+            }
+          } else {
+            dataRowsHtml += `<td colspan="5" style="border: none; background: transparent;"></td>`;
+          }
+
+          if (bIdx < CHUNK_SIZE - 1) {
+            dataRowsHtml += `<td class="sep-col" style="width: 25px; border: none; background: transparent;"></td>`;
+          }
+        }
+        dataRowsHtml += '</tr>';
+      }
+
+      tablesHtml += titleRowHtml + headerRowHtml + dataRowsHtml;
+
+      // 4. Vertical 1-cell separator row between row blocks (if not last row)
+      if (rowIdx < boardRows.length - 1) {
+        tablesHtml += `
+          <tr class="sep-row" style="height: 28px;">
+            <td colspan="17" style="border: none; height: 28px; background: transparent;"></td>
+          </tr>
+        `;
+      }
     });
 
     const htmlContent = `
@@ -495,7 +610,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
           <x:ExcelWorkbook>
             <x:ExcelWorksheets>
               <x:ExcelWorksheet>
-                <x:Name>Raid Roster</x:Name>
+                <x:Name>Tat Ca Bang Raid</x:Name>
                 <x:WorksheetOptions>
                   <x:DisplayGridlines/>
                 </x:WorksheetOptions>
@@ -505,27 +620,16 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         </xml>
         <![endif]-->
         <style>
-          table { border-collapse: collapse; font-family: 'Segoe UI', Arial, sans-serif; }
-          th { border: 2px solid #000000; background-color: #ffffff; color: #000000; font-size: 14pt; font-weight: 900; text-align: center; padding: 8px; }
-          .title-row { border: 2px solid #000000; text-align: center; font-size: 18pt; font-weight: 900; background-color: #ffffff; padding: 12px; }
-          .schedule-text { color: #e50000; font-weight: 900; }
+          table { border-collapse: collapse; font-family: 'Segoe UI', Arial, sans-serif; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+          th { border: 2px solid #000000; background-color: #ffffff; color: #000000; font-size: 13pt; font-weight: 900; text-align: center; padding: 8px; }
+          .title-row { border: 2px solid #000000; text-align: center; font-size: 15pt; font-weight: 900; background-color: #ffffff; padding: 10px; }
+          .sep-col { width: 25px; border: none; }
+          .sep-row { height: 28px; border: none; }
         </style>
       </head>
       <body>
         <table>
-          <tr>
-            <td colspan="5" class="title-row">
-              ${escapeHtml(raidTitle.replace('-', ' - '))}
-            </td>
-          </tr>
-          <tr>
-            <th style="width: 70px;">STT</th>
-            <th style="width: 200px;">Ingame</th>
-            <th style="width: 170px;">Class</th>
-            <th style="width: 180px;">Logged by</th>
-            <th style="width: 90px;">Nhóm</th>
-          </tr>
-          ${rowsHtml}
+          ${tablesHtml}
         </table>
       </body>
       </html>
@@ -536,9 +640,9 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    const safeTitle = raidTitle.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+    const baseName = isRaidUpdate ? 'raid_update' : 'raid';
     link.href = url;
-    link.download = `${safeTitle}_styled_roster.xls`;
+    link.download = `${baseName}_tat_ca_bang_3x3.xls`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -548,29 +652,103 @@ export const ExportModal: React.FC<ExportModalProps> = ({
     setTimeout(() => setDownloadExcelSuccess(false), 2500);
   };
 
-  // Plain CSV export option for raw data parsing
+  // Plain CSV export option for raw data parsing (all boards in 3x3 grid)
   const handleExportPlainCsv = () => {
-    const safeMembers = filterMembersForExport(members, privacyMode);
-    let csv = `STT,Ingame,Class,Logged by,Party\n`;
-    safeMembers.forEach((m) => {
-      const escape = (val: string) => {
-        let str = val || '';
-        // Mitigate CSV Formula Injection (CWE-1236)
-        if (/^[=+\-@\t\r]/.test(str)) {
-          str = "'" + str;
+    const boardsToExport =
+      allBoards && allBoards.length > 0
+        ? allBoards
+        : activeBoard
+        ? [activeBoard]
+        : [];
+
+    if (boardsToExport.length === 0) return;
+
+    const escape = (val: string) => {
+      let str = val || '';
+      // Mitigate CSV Formula Injection (CWE-1236)
+      if (/^[=+\-@\t\r]/.test(str)) {
+        str = "'" + str;
+      }
+      return `"${str.replace(/"/g, '""')}"`;
+    };
+
+    const CHUNK_SIZE = 3;
+    const boardRows: RaidBoard[][] = [];
+    for (let i = 0; i < boardsToExport.length; i += CHUNK_SIZE) {
+      boardRows.push(boardsToExport.slice(i, i + CHUNK_SIZE));
+    }
+
+    let csv = '';
+
+    boardRows.forEach((rowBoards, rowIdx) => {
+      // 1. Titles
+      const titleTokens: string[] = [];
+      for (let bIdx = 0; bIdx < CHUNK_SIZE; bIdx++) {
+        const board = rowBoards[bIdx];
+        if (board) {
+          const bTitle = `${board.titlePrefix || `RAID ${rowIdx * 3 + bIdx + 1}`} - ${board.scheduleTime || 'MON 20:30'} ${board.bossName || ''}`.trim();
+          titleTokens.push(`${escape(bTitle)},,,,`);
+        } else {
+          titleTokens.push(',,,,');
         }
-        return `"${str.replace(/"/g, '""')}"`;
-      };
-      const ptStr = m.party ? `PT ${m.party}` : '';
-      csv += `${m.stt},${escape(m.ingame)},${escape(m.className)},${escape(m.loggedBy)},${escape(ptStr)}\n`;
+        if (bIdx < CHUNK_SIZE - 1) titleTokens.push('');
+      }
+      csv += titleTokens.join(',') + '\n';
+
+      // 2. Headers
+      const headerTokens: string[] = [];
+      for (let bIdx = 0; bIdx < CHUNK_SIZE; bIdx++) {
+        const board = rowBoards[bIdx];
+        if (board) {
+          headerTokens.push('STT,Ingame,Class,Logged by,Party');
+        } else {
+          headerTokens.push(',,,,');
+        }
+        if (bIdx < CHUNK_SIZE - 1) headerTokens.push('');
+      }
+      csv += headerTokens.join(',') + '\n';
+
+      // 3. Data Rows
+      const maxSlots = Math.max(
+        12,
+        ...rowBoards.map((b) => (b.members ? b.members.length : 12))
+      );
+
+      for (let slot = 0; slot < maxSlots; slot++) {
+        const rowTokens: string[] = [];
+        for (let bIdx = 0; bIdx < CHUNK_SIZE; bIdx++) {
+          const board = rowBoards[bIdx];
+          if (board) {
+            const rawMember = board.members ? board.members[slot] : null;
+            const stt = rawMember?.stt || slot + 1;
+            const ingame = rawMember?.ingame || '';
+            const className = rawMember?.className || '';
+            let loggedBy = rawMember?.loggedBy || '';
+            if (privacyMode !== 'NONE') {
+              loggedBy = maskSensitiveText(loggedBy, privacyMode);
+            }
+            const ptStr = rawMember?.party ? `PT ${rawMember.party}` : '';
+            rowTokens.push(`${stt},${escape(ingame)},${escape(className)},${escape(loggedBy)},${escape(ptStr)}`);
+          } else {
+            rowTokens.push(',,,,');
+          }
+          if (bIdx < CHUNK_SIZE - 1) rowTokens.push('');
+        }
+        csv += rowTokens.join(',') + '\n';
+      }
+
+      // Vertical 1-row separator between blocks
+      if (rowIdx < boardRows.length - 1) {
+        csv += '\n';
+      }
     });
 
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    const safeTitle = raidTitle.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+    const baseName = isRaidUpdate ? 'raid_update' : 'raid';
     link.href = url;
-    link.download = `${safeTitle}_members.csv`;
+    link.download = `${baseName}_tat_ca_bang_3x3.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -795,14 +973,14 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                   <FileSpreadsheet className="w-4 h-4" />
                 </div>
                 <div>
-                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5">
-                    <span>Tải bảng tính Excel (Có màu & Khung)</span>
+                  <div className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 flex-wrap">
+                    <span>Tải bảng tính Excel tất cả Raid (Lưới 3x3)</span>
                     <span className="text-[10px] font-black bg-[#88DCFA] text-slate-950 px-1.5 py-0.2 rounded">
                       Chuẩn ảnh
                     </span>
                   </div>
                   <div className="text-[11px] text-slate-500 dark:text-slate-400">
-                    Mở bằng Excel hiển thị đầy đủ màu sắc môn phái và khung viền đen bản gốc
+                    Xuất toàn bộ tất cả bảng Raid cùng lúc theo tỷ lệ 3x3, mỗi bảng cách nhau 1 ô, đầy đủ màu sắc môn phái và khung viền
                   </div>
                 </div>
               </div>
@@ -821,7 +999,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
                 ) : (
                   <>
                     <Download className="w-4 h-4" />
-                    <span>Tải Excel (.xls)</span>
+                    <span>Tải Excel 3x3 (.xls)</span>
                   </>
                 )}
               </button>
