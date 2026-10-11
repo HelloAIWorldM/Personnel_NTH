@@ -270,8 +270,115 @@ export const getScheduleConflictLookupForBoard = (
 };
 
 // ==========================================
+// Cross-Board Duplicate Ingame Detection (Ingame only)
+// ==========================================
+
+export interface CrossBoardIngameOccurrence {
+  boardId: string;
+  boardTitle: string;
+  stts: number[];
+}
+
+export interface CrossBoardIngameDuplicate {
+  key: string;
+  originalName: string;
+  currentBoardStts: number[];
+  occurrences: CrossBoardIngameOccurrence[];
+}
+
+/**
+ * Finds all Ingame names in targetBoard that also appear in any other boards in allBoards.
+ * Applies strictly to Ingame only (does not apply to Logged by).
+ */
+export const findCrossBoardIngameDuplicatesForBoard = (
+  targetBoard: RaidBoard,
+  allBoards: RaidBoard[]
+): CrossBoardIngameDuplicate[] => {
+  if (!targetBoard || !Array.isArray(allBoards) || allBoards.length <= 1) return [];
+
+  const targetMembers = Array.isArray(targetBoard.members) ? targetBoard.members : [];
+  const otherBoards = allBoards.filter((b) => b && b.id !== targetBoard.id);
+  if (otherBoards.length === 0) return [];
+
+  const targetIngames = new Map<string, { originalName: string; stts: number[] }>();
+  targetMembers.forEach((m) => {
+    if (!m || !m.ingame) return;
+    const key = normalizeName(m.ingame);
+    if (!key) return;
+    const existing = targetIngames.get(key);
+    if (existing) {
+      existing.stts.push(m.stt);
+    } else {
+      targetIngames.set(key, { originalName: m.ingame.trim(), stts: [m.stt] });
+    }
+  });
+
+  if (targetIngames.size === 0) return [];
+
+  const result: CrossBoardIngameDuplicate[] = [];
+
+  targetIngames.forEach((val, key) => {
+    const occurrences: CrossBoardIngameOccurrence[] = [];
+
+    otherBoards.forEach((ob) => {
+      const otherMembers = Array.isArray(ob.members) ? ob.members : [];
+      const matchingStts = otherMembers
+        .filter((om) => om && normalizeName(om.ingame) === key)
+        .map((om) => om.stt);
+
+      if (matchingStts.length > 0) {
+        occurrences.push({
+          boardId: ob.id,
+          boardTitle: ob.titlePrefix || 'Raid khác',
+          stts: matchingStts,
+        });
+      }
+    });
+
+    if (occurrences.length > 0) {
+      result.push({
+        key,
+        originalName: val.originalName,
+        currentBoardStts: val.stts,
+        occurrences,
+      });
+    }
+  });
+
+  return result;
+};
+
+/**
+ * Returns quick lookup for row-level highlighting and tooltips of cross-board duplicate Ingames.
+ */
+export const getCrossBoardIngameLookupForBoard = (
+  targetBoard: RaidBoard,
+  allBoards: RaidBoard[]
+): {
+  crossBoardIngameStts: Set<number>;
+  crossBoardIngameMap: Map<string, CrossBoardIngameDuplicate>;
+  crossBoardIngameList: CrossBoardIngameDuplicate[];
+} => {
+  const duplicates = findCrossBoardIngameDuplicatesForBoard(targetBoard, allBoards || []);
+  const crossBoardIngameStts = new Set<number>();
+  const crossBoardIngameMap = new Map<string, CrossBoardIngameDuplicate>();
+
+  duplicates.forEach((d) => {
+    crossBoardIngameMap.set(d.key, d);
+    (d.currentBoardStts || []).forEach((stt) => crossBoardIngameStts.add(stt));
+  });
+
+  return {
+    crossBoardIngameStts,
+    crossBoardIngameMap,
+    crossBoardIngameList: duplicates,
+  };
+};
+
+// ==========================================
 // Guild War Duplicate Detection
 // ==========================================
+
 
 export interface GuildWarDuplicateGroup {
   key: string;

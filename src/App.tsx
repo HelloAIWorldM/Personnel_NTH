@@ -3318,6 +3318,15 @@ export default function App() {
                   customColors={customColors}
                   onUpdateMembers={handleUpdateMembers}
                   onUpdateParties={handleUpdateParties}
+                  currentBoard={activeBoard}
+                  allBoards={currentBoards}
+                  onSwitchBoard={(id) => {
+                    if (isRaidUpdate) {
+                      setActiveUpdateBoardId(id);
+                    } else {
+                      setActiveBoardId(id);
+                    }
+                  }}
                 />
 
                 <div className="mt-6 pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3">

@@ -7,6 +7,9 @@ import {
   getDuplicateIngameMap,
   getDuplicateLoggedByMap,
   getScheduleConflictLookupForBoard,
+  getCrossBoardIngameLookupForBoard,
+  CrossBoardIngameDuplicate,
+  normalizeName,
   BoardScheduleConflict,
 } from '../utils/duplicates';
 import {
@@ -136,6 +139,18 @@ export const RaidTable: React.FC<RaidTableProps> = ({
       };
     }
     return getScheduleConflictLookupForBoard(effectiveBoard, allBoards);
+  }, [effectiveBoard, allBoards]);
+
+  // Cross-board duplicate Ingame lookup (chỉ áp dụng cho Ingame)
+  const crossBoardIngameLookup = useMemo(() => {
+    if (!allBoards || allBoards.length <= 1) {
+      return {
+        crossBoardIngameStts: new Set<number>(),
+        crossBoardIngameMap: new Map<string, CrossBoardIngameDuplicate>(),
+        crossBoardIngameList: [] as CrossBoardIngameDuplicate[],
+      };
+    }
+    return getCrossBoardIngameLookupForBoard(effectiveBoard, allBoards);
   }, [effectiveBoard, allBoards]);
 
   // Smooth scroll and highlight a member row
@@ -662,8 +677,14 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                 const isDragging = draggedMemberId === member.id;
                 const isDragOver = dragOverMemberId === member.id;
 
-                const isIngameDup = duplicateIngameMap.has(member.id);
-                const ingameDupInfo = duplicateIngameMap.get(member.id);
+                const isInternalIngameDup = duplicateIngameMap.has(member.id);
+                const internalIngameDupInfo = duplicateIngameMap.get(member.id);
+                const normIngame = normalizeName(member.ingame);
+                const crossIngameDupInfo = normIngame
+                  ? crossBoardIngameLookup.crossBoardIngameMap.get(normIngame)
+                  : undefined;
+                const isCrossIngameDup = Boolean(crossIngameDupInfo);
+                const isIngameDup = isInternalIngameDup || isCrossIngameDup;
                 const isLoggedByDup = duplicateLoggedByMap.has(member.id);
                 const loggedByDupInfo = duplicateLoggedByMap.get(member.id);
 
@@ -962,10 +983,21 @@ export const RaidTable: React.FC<RaidTableProps> = ({
                           {isIngameDup && (
                             <span
                               data-html2canvas-ignore="true"
-                              title={`CẢNH BÁO: Trùng tên Ingame với: ${ingameDupInfo?.stts
-                                .filter((s) => s !== member.stt)
-                                .map((s) => `STT #${s}`)
-                                .join(', ')}`}
+                              title={[
+                                isInternalIngameDup && internalIngameDupInfo
+                                  ? `CẢNH BÁO: Trùng Ingame nội bộ với STT: ${internalIngameDupInfo.stts
+                                      .filter((s) => s !== member.stt)
+                                      .map((s) => `#${s}`)
+                                      .join(', ')}`
+                                  : '',
+                                isCrossIngameDup && crossIngameDupInfo
+                                  ? `CẢNH BÁO: Ingame "${member.ingame}" đã được xếp ở: ${crossIngameDupInfo.occurrences
+                                      .map((o) => `${o.boardTitle} (STT #${o.stts.join(', #')})`)
+                                      .join(', ')}`
+                                  : '',
+                              ]
+                                .filter(Boolean)
+                                .join('\n')}
                               className="absolute right-0.5 sm:right-1 text-red-500 hover:text-red-600 cursor-help"
                             >
                               <AlertTriangle className="w-3.5 h-3.5" />

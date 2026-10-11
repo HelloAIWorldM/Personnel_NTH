@@ -21,7 +21,11 @@ import {
   Calendar,
   Layers,
 } from 'lucide-react';
-import { findDuplicateIngames, findDuplicateLoggedBys } from '../utils/duplicates';
+import {
+  findDuplicateIngames,
+  findDuplicateLoggedBys,
+  findCrossBoardIngameDuplicatesForBoard,
+} from '../utils/duplicates';
 
 interface AllBoardsOverviewProps {
   boards: RaidBoard[];
@@ -569,7 +573,11 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
 
           const boardDupIngames = findDuplicateIngames(board.members);
           const boardDupLoggedBys = findDuplicateLoggedBys(board.members);
-          const boardHasDuplicates = boardDupIngames.length > 0 || boardDupLoggedBys.length > 0;
+          const boardCrossIngames = findCrossBoardIngameDuplicatesForBoard(board, boards);
+          const boardHasDuplicates =
+            boardDupIngames.length > 0 ||
+            boardDupLoggedBys.length > 0 ||
+            boardCrossIngames.length > 0;
 
           return (
             <div
@@ -611,7 +619,11 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
 
                     {boardHasDuplicates && (
                       <span
-                        title={`CẢNH BÁO: Bảng này có nhân sự bị trùng lặp nội bộ (${boardDupIngames.length} Ingame, ${boardDupLoggedBys.length} Logged by)`}
+                        title={`CẢNH BÁO: Bảng này có nhân sự bị trùng lặp (${[
+                          boardDupIngames.length > 0 ? `${boardDupIngames.length} Ingame nội bộ` : '',
+                          boardCrossIngames.length > 0 ? `${boardCrossIngames.length} Ingame ở Raid khác` : '',
+                          boardDupLoggedBys.length > 0 ? `${boardDupLoggedBys.length} Logged by` : '',
+                        ].filter(Boolean).join(', ')})`}
                         className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-500 text-slate-950 font-black shadow-xs animate-pulse shrink-0 cursor-pointer"
                       >
                         <AlertTriangle className="w-3.5 h-3.5 stroke-[2.5]" />

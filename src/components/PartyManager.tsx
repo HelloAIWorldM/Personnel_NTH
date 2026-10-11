@@ -1,8 +1,14 @@
 import React, { useState, useMemo } from 'react';
-import { RaidMember, RaidParty, CustomClassColors } from '../types';
+import { RaidMember, RaidParty, CustomClassColors, RaidBoard } from '../types';
 import { getEffectiveClassMeta } from '../constants/classes';
 import { DuplicateWarningBanner } from './DuplicateWarningBanner';
-import { getDuplicateIngameMap, getDuplicateLoggedByMap } from '../utils/duplicates';
+import {
+  getDuplicateIngameMap,
+  getDuplicateLoggedByMap,
+  getCrossBoardIngameLookupForBoard,
+  CrossBoardIngameDuplicate,
+  normalizeName,
+} from '../utils/duplicates';
 import {
   Users,
   Plus,
@@ -28,6 +34,9 @@ interface PartyManagerProps {
   customColors?: CustomClassColors;
   onUpdateMembers: (newMembers: RaidMember[]) => void;
   onUpdateParties: (newParties: RaidParty[]) => void;
+  currentBoard?: RaidBoard;
+  allBoards?: RaidBoard[];
+  onSwitchBoard?: (boardId: string) => void;
 }
 
 export const PartyManager: React.FC<PartyManagerProps> = ({
@@ -36,6 +45,9 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
   customColors,
   onUpdateMembers,
   onUpdateParties,
+  currentBoard,
+  allBoards,
+  onSwitchBoard,
 }) => {
   const [draggedMemberId, setDraggedMemberId] = useState<string | null>(null);
   const [dragOverPartyId, setDragOverPartyId] = useState<number | null>(null);
@@ -46,6 +58,17 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
   // Duplicate Ingame and LoggedBy lookup maps
   const duplicateIngameMap = useMemo(() => getDuplicateIngameMap(members), [members]);
   const duplicateLoggedByMap = useMemo(() => getDuplicateLoggedByMap(members), [members]);
+
+  const crossBoardIngameLookup = useMemo(() => {
+    if (!currentBoard || !allBoards || allBoards.length <= 1) {
+      return {
+        crossBoardIngameStts: new Set<number>(),
+        crossBoardIngameMap: new Map<string, CrossBoardIngameDuplicate>(),
+        crossBoardIngameList: [] as CrossBoardIngameDuplicate[],
+      };
+    }
+    return getCrossBoardIngameLookupForBoard(currentBoard, allBoards);
+  }, [currentBoard, allBoards]);
 
   // Get members belonging to a party
   const getPartyMembers = (partyId: number) => {
@@ -365,7 +388,12 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
       </div>
 
       {/* Duplicate Warning Banner */}
-      <DuplicateWarningBanner members={members} />
+      <DuplicateWarningBanner
+        members={members}
+        currentBoard={currentBoard}
+        allBoards={allBoards}
+        onSwitchBoard={onSwitchBoard}
+      />
 
       {/* Grid of Party Columns */}
       <div
@@ -513,8 +541,14 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                     const isBeingDragged = draggedMemberId === member.id;
                     const isDragOverThis = dragOverMemberId === member.id;
 
-                    const isIngameDup = duplicateIngameMap.has(member.id);
-                    const ingameDupInfo = duplicateIngameMap.get(member.id);
+                    const isInternalIngameDup = duplicateIngameMap.has(member.id);
+                    const internalIngameDupInfo = duplicateIngameMap.get(member.id);
+                    const normIngame = normalizeName(member.ingame);
+                    const crossIngameDupInfo = normIngame
+                      ? crossBoardIngameLookup.crossBoardIngameMap.get(normIngame)
+                      : undefined;
+                    const isCrossIngameDup = Boolean(crossIngameDupInfo);
+                    const isIngameDup = isInternalIngameDup || isCrossIngameDup;
                     const isLoggedByDup = duplicateLoggedByMap.has(member.id);
                     const loggedByDupInfo = duplicateLoggedByMap.get(member.id);
 
@@ -583,10 +617,21 @@ export const PartyManager: React.FC<PartyManagerProps> = ({
                               </span>
                               {isIngameDup && (
                                 <span
-                                  title={`CẢNH BÁO: Trùng tên Ingame với: ${ingameDupInfo?.stts
-                                    .filter((s) => s !== member.stt)
-                                    .map((s) => `STT #${s}`)
-                                    .join(', ')}`}
+                                  title={[
+                                    isInternalIngameDup && internalIngameDupInfo
+                                      ? `CẢNH BÁO: Trùng Ingame nội bộ với STT: ${internalIngameDupInfo.stts
+                                          .filter((s) => s !== member.stt)
+                                          .map((s) => `#${s}`)
+                                          .join(', ')}`
+                                      : '',
+                                    isCrossIngameDup && crossIngameDupInfo
+                                      ? `CẢNH BÁO: Ingame "${member.ingame}" đã được xếp ở: ${crossIngameDupInfo.occurrences
+                                          .map((o) => `${o.boardTitle} (STT #${o.stts.join(', #')})`)
+                                          .join(', ')}`
+                                      : '',
+                                  ]
+                                    .filter(Boolean)
+                                    .join('\n')}
                                   className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded text-[9px] font-black bg-rose-100 dark:bg-red-950/80 text-rose-700 dark:text-red-300 border border-rose-300 dark:border-red-900/60"
                                 >
                                   <AlertTriangle className="w-2.5 h-2.5" />

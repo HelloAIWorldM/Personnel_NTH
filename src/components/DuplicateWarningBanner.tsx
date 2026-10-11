@@ -4,6 +4,7 @@ import {
   findDuplicateIngames,
   findDuplicateLoggedBys,
   findScheduleConflictsForBoard,
+  findCrossBoardIngameDuplicatesForBoard,
 } from '../utils/duplicates';
 import { AlertTriangle, AlertCircle, ChevronDown, ChevronUp, UserCheck, Users, Calendar, ArrowRight } from 'lucide-react';
 
@@ -33,8 +34,16 @@ export const DuplicateWarningBanner: React.FC<DuplicateWarningBannerProps> = ({
     return findScheduleConflictsForBoard(currentBoard, allBoards);
   }, [currentBoard, allBoards]);
 
+  const crossBoardIngames = useMemo(() => {
+    if (!currentBoard || !allBoards || allBoards.length <= 1) return [];
+    return findCrossBoardIngameDuplicatesForBoard(currentBoard, allBoards);
+  }, [currentBoard, allBoards]);
+
   const totalWarnings =
-    duplicateIngames.length + duplicateLoggedBys.length + scheduleConflicts.length;
+    duplicateIngames.length +
+    duplicateLoggedBys.length +
+    scheduleConflicts.length +
+    crossBoardIngames.length;
 
   if (totalWarnings === 0) return null;
 
@@ -57,6 +66,11 @@ export const DuplicateWarningBanner: React.FC<DuplicateWarningBannerProps> = ({
               {scheduleConflicts.length > 0 && (
                 <span className="px-1.5 py-0.5 rounded-md bg-rose-100 dark:bg-rose-950/80 text-rose-700 dark:text-rose-300 text-[10px] font-black border border-rose-300 dark:border-rose-800 animate-pulse">
                   {scheduleConflicts.length} Trùng lịch cùng giờ
+                </span>
+              )}
+              {crossBoardIngames.length > 0 && (
+                <span className="px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-200 text-[10px] font-black border border-amber-300 dark:border-amber-700 animate-pulse">
+                  {crossBoardIngames.length} Ingame trùng Raid khác
                 </span>
               )}
               {duplicateIngames.length > 0 && (
@@ -150,6 +164,75 @@ export const DuplicateWarningBanner: React.FC<DuplicateWarningBannerProps> = ({
                           <span className="text-[9px] opacity-80">(#{item.otherBoardStts.join(', #')})</span>
                         </button>
                       )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Cross-Board Duplicate Ingame Section */}
+          {crossBoardIngames.length > 0 && (
+            <div className="bg-amber-50/90 dark:bg-amber-950/40 rounded-xl p-2.5 border-2 border-amber-300 dark:border-amber-800 shadow-2xs">
+              <div className="font-extrabold text-amber-800 dark:text-amber-200 text-[11px] uppercase tracking-wide flex items-center justify-between gap-1.5 mb-2">
+                <div className="flex items-center gap-1.5">
+                  <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>Cảnh báo Ingame đã xếp ở Raid khác ({crossBoardIngames.length} trường hợp):</span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                {crossBoardIngames.map((item) => (
+                  <div
+                    key={`cross_${item.key}`}
+                    className="flex flex-wrap items-center justify-between gap-1.5 text-[11px] bg-white dark:bg-[#121B24] p-2 rounded-lg border border-amber-200 dark:border-amber-900/50 shadow-2xs"
+                  >
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-black text-amber-950 dark:text-amber-200 px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/60 rounded border border-amber-300 dark:border-amber-700">
+                        {item.originalName}
+                      </span>
+                      <span className="text-slate-600 dark:text-slate-300">
+                        đã xếp ở
+                      </span>
+                      <span className="font-bold text-slate-900 dark:text-white">
+                        {currentBoard?.titlePrefix || 'bảng này'}
+                      </span>
+                      <span className="text-slate-500">và</span>
+                      {item.occurrences.map((occ, oIdx) => (
+                        <React.Fragment key={occ.boardId}>
+                          {oIdx > 0 && <span className="text-slate-500">,</span>}
+                          <span className="font-extrabold text-amber-700 dark:text-amber-400">
+                            {occ.boardTitle}
+                          </span>
+                        </React.Fragment>
+                      ))}
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      {item.currentBoardStts.map((stt) => (
+                        <button
+                          key={stt}
+                          type="button"
+                          onClick={() => onScrollToMember && onScrollToMember(stt)}
+                          className="px-2 py-0.5 font-bold text-[10px] bg-amber-500 hover:bg-amber-600 text-slate-950 rounded transition-colors cursor-pointer"
+                          title={`Cuộn đến STT #${stt} ở bảng này`}
+                        >
+                          STT #{stt}
+                        </button>
+                      ))}
+
+                      {onSwitchBoard && item.occurrences.map((occ) => (
+                        <button
+                          key={occ.boardId}
+                          type="button"
+                          onClick={() => onSwitchBoard(occ.boardId)}
+                          className="px-2 py-0.5 font-black text-[10px] bg-amber-600 hover:bg-amber-700 text-white rounded transition-colors cursor-pointer flex items-center gap-1 shadow-2xs"
+                          title={`Chuyển sang xem ${occ.boardTitle}`}
+                        >
+                          <span>Xem {occ.boardTitle}</span>
+                          <span className="text-[9px] opacity-80">(#{occ.stts.join(', #')})</span>
+                        </button>
+                      ))}
                     </div>
                   </div>
                 ))}

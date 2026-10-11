@@ -15,6 +15,7 @@ import {
 import {
   findDuplicateIngames,
   findDuplicateLoggedBys,
+  findCrossBoardIngameDuplicatesForBoard,
 } from '../utils/duplicates';
 
 interface VerticalBoardListProps {
@@ -115,14 +116,42 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
           // 2. Trùng lặp Logged by nội bộ bảng (1 người log nhiều acc trong cùng 1 bảng)
           const duplicateLoggedBys = findDuplicateLoggedBys(membersList);
 
-          const hasDuplicates = duplicateIngames.length > 0 || duplicateLoggedBys.length > 0;
+          // 3. Trùng Ingame giữa các bảng Raid (chỉ áp dụng cho Ingame, ví dụ xếp ở Raid 1 và Raid 2)
+          const crossBoardIngameDuplicates = findCrossBoardIngameDuplicatesForBoard(board, boards);
+
+          const hasDuplicates =
+            duplicateIngames.length > 0 ||
+            duplicateLoggedBys.length > 0 ||
+            crossBoardIngameDuplicates.length > 0;
+
+          // Đếm tổng số Ingame trùng lặp duy nhất (nội bộ + trùng bảng khác)
+          const allDupIngameKeys = new Set([
+            ...duplicateIngames.map((d) => d.key),
+            ...crossBoardIngameDuplicates.map((d) => d.key),
+          ]);
+          const totalDupIngamesCount = allDupIngameKeys.size;
 
           const warningReasons: string[] = [];
           if (duplicateIngames.length > 0) {
-            warningReasons.push(`${duplicateIngames.length} Ingame trùng nội bộ (${duplicateIngames.map((d) => d.originalName).join(', ')})`);
+            warningReasons.push(
+              `${duplicateIngames.length} Ingame trùng nội bộ (${duplicateIngames.map((d) => d.originalName).join(', ')})`
+            );
+          }
+          if (crossBoardIngameDuplicates.length > 0) {
+            const crossNames = crossBoardIngameDuplicates
+              .map((d) => {
+                const bTitles = d.occurrences.map((o) => o.boardTitle).join(', ');
+                return `${d.originalName} (trùng ở ${bTitles})`;
+              })
+              .join('; ');
+            warningReasons.push(
+              `${crossBoardIngameDuplicates.length} Ingame trùng với Raid khác: ${crossNames}`
+            );
           }
           if (duplicateLoggedBys.length > 0) {
-            warningReasons.push(`${duplicateLoggedBys.length} Logged by trùng nội bộ (${duplicateLoggedBys.map((d) => d.originalName).join(', ')})`);
+            warningReasons.push(
+              `${duplicateLoggedBys.length} Logged by trùng nội bộ (${duplicateLoggedBys.map((d) => d.originalName).join(', ')})`
+            );
           }
           const warningTooltip = `CẢNH BÁO TRÙNG LẶP NHÂN SỰ:\n• ${warningReasons.join('\n• ')}`;
 
@@ -256,8 +285,8 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
                   >
                     <AlertTriangle className="w-3 h-3 shrink-0 animate-pulse text-amber-500" />
                     <span className="truncate">
-                      {duplicateIngames.length > 0
-                        ? `Trùng Ingame (${duplicateIngames.length} tên)`
+                      {totalDupIngamesCount > 0
+                        ? `Trùng Ingame (${totalDupIngamesCount} tên)`
                         : `Trùng Logged by (${duplicateLoggedBys.length} người)`}
                     </span>
                   </span>
