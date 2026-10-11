@@ -376,6 +376,91 @@ export default function App() {
     return [...raidList, ...updateList, ...gwList];
   }, [boards, updateBoards, guildWarBoards]);
 
+  // Dedicated Board representation for PersonnelStorage based on the currently selected activePoolView
+  // Ensures that Kho Raid ONLY scans and displays Raid boards, Kho Raid Update ONLY scans Update boards,
+  // and Kho Bang Chiến ONLY scans Bang Chiến boards.
+  const currentPoolBoardsForStorage = useMemo(() => {
+    if (activePoolView === 'raid') {
+      return boards.map((b) => ({
+        id: b.id,
+        titlePrefix: b.titlePrefix || 'Raid 1',
+        createdAt: b.createdAt,
+        members: b.members,
+      }));
+    }
+    if (activePoolView === 'raid_update') {
+      return updateBoards.map((b) => {
+        const raw = b.titlePrefix || 'Raid 1';
+        const displayTitle = raw.toLowerCase().startsWith('raid ')
+          ? raw.replace(/^raid\s+/i, 'Raid Up ')
+          : raw.toLowerCase().includes('up')
+          ? raw
+          : `Up ${raw}`;
+        return {
+          id: b.id,
+          titlePrefix: displayTitle,
+          createdAt: b.createdAt,
+          members: b.members,
+        };
+      });
+    }
+    if (activePoolView === 'guild_war') {
+      return guildWarBoards.map((b) => ({
+        id: b.id,
+        titlePrefix: b.title ? b.title.replace(/^(Bang Chiến|BANG CHIẾN)\s*/i, 'BC ') : 'Bang Chiến',
+        createdAt: b.createdAt,
+        members: (b.members || []) as any,
+      }));
+    }
+    // Master pool: show all
+    return allKnownBoardsForStorage;
+  }, [activePoolView, boards, updateBoards, guildWarBoards, allKnownBoardsForStorage]);
+
+  // Active board ID, title and members corresponding to activePoolView
+  const currentPoolActiveBoardId = useMemo(() => {
+    if (activePoolView === 'raid') return activeRaidBoard.id;
+    if (activePoolView === 'raid_update') return activeUpdateBoard.id;
+    if (activePoolView === 'guild_war') return activeGuildWarBoard.id;
+    return appMode === 'GUILD_WAR'
+      ? activeGuildWarBoard.id
+      : isRaidUpdate
+      ? activeUpdateBoard.id
+      : activeRaidBoard.id;
+  }, [activePoolView, activeRaidBoard.id, activeUpdateBoard.id, activeGuildWarBoard.id, appMode, isRaidUpdate]);
+
+  const currentPoolActiveBoardTitle = useMemo(() => {
+    if (activePoolView === 'raid') return activeRaidBoard.titlePrefix || 'Raid 1';
+    if (activePoolView === 'raid_update') {
+      const raw = activeUpdateBoard.titlePrefix || 'Raid 1';
+      return raw.toLowerCase().startsWith('raid ')
+        ? raw.replace(/^raid\s+/i, 'Raid Up ')
+        : raw.toLowerCase().includes('up')
+        ? raw
+        : `Up ${raw}`;
+    }
+    if (activePoolView === 'guild_war') {
+      return activeGuildWarBoard?.title
+        ? activeGuildWarBoard.title.replace(/^(Bang Chiến|BANG CHIẾN)\s*/i, 'BC ')
+        : 'Bang Chiến';
+    }
+    return appMode === 'GUILD_WAR'
+      ? (activeGuildWarBoard?.title ? activeGuildWarBoard.title.replace(/^(Bang Chiến|BANG CHIẾN)\s*/i, 'BC ') : 'Bang Chiến')
+      : isRaidUpdate
+      ? activeUpdateBoard.titlePrefix
+      : activeRaidBoard.titlePrefix;
+  }, [activePoolView, activeRaidBoard.titlePrefix, activeUpdateBoard.titlePrefix, activeGuildWarBoard?.title, appMode, isRaidUpdate]);
+
+  const currentPoolActiveMembers = useMemo(() => {
+    if (activePoolView === 'raid') return activeRaidBoard.members;
+    if (activePoolView === 'raid_update') return activeUpdateBoard.members;
+    if (activePoolView === 'guild_war') return (activeGuildWarBoard?.members as any) || [];
+    return appMode === 'GUILD_WAR'
+      ? (activeGuildWarBoard?.members as any) || []
+      : isRaidUpdate
+      ? activeUpdateBoard.members
+      : activeRaidBoard.members;
+  }, [activePoolView, activeRaidBoard.members, activeUpdateBoard.members, activeGuildWarBoard?.members, appMode, isRaidUpdate]);
+
   // Sync Dark Mode with document.documentElement
   useEffect(() => {
     try {
@@ -1995,12 +2080,13 @@ export default function App() {
     }
   };
 
-  // Personnel Assignment Handlers
+  // Personnel Assignment Handlers - strictly routed by activePoolView
   const handleAssignPersonnelToRaid = (
     person: PersonnelMember,
     targetStt?: number
   ) => {
-    if (appMode === 'GUILD_WAR') {
+    // 1. Bang Chiến
+    if (activePoolView === 'guild_war' || (activePoolView === 'master' && appMode === 'GUILD_WAR')) {
       const norm = normalizeName(person.ingame);
       const exists = activeGuildWarBoard.members.some((m) => normalizeName(m.ingame) === norm);
       if (!exists) {
@@ -2028,7 +2114,28 @@ export default function App() {
       return;
     }
 
-    const currentMembers = [...activeBoard.members];
+    // 2. Raid Update vs Standard Raid
+    const isUpdateTarget = activePoolView === 'raid_update' || (activePoolView === 'master' && isRaidUpdate);
+    const targetBoard = isUpdateTarget ? activeUpdateBoard : activeRaidBoard;
+    const targetUpdateFn = isUpdateTarget
+      ? (updates: Partial<RaidBoard>) => {
+          setUpdateBoards((prev) => {
+            const next = prev.map((b) => (b.id === targetBoard.id ? { ...b, ...updates } : b));
+            safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(next));
+            saveToIndexedDB('updateBoards', next);
+            return next;
+          });
+        }
+      : (updates: Partial<RaidBoard>) => {
+          setBoards((prev) => {
+            const next = prev.map((b) => (b.id === targetBoard.id ? { ...b, ...updates } : b));
+            safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(next));
+            saveToIndexedDB('boards', next);
+            return next;
+          });
+        };
+
+    const currentMembers = [...targetBoard.members];
 
     if (targetStt !== undefined) {
       // Assign to specific STT slot
@@ -2042,7 +2149,7 @@ export default function App() {
             }
           : m
       );
-      updateActiveBoard({ members: updated });
+      targetUpdateFn({ members: updated });
       return;
     }
 
@@ -2065,7 +2172,7 @@ export default function App() {
         className: person.className,
         loggedBy: person.loggedBy || person.ingame,
       };
-      updateActiveBoard({ members: currentMembers });
+      targetUpdateFn({ members: currentMembers });
       showToast(
         `Đã xếp ${person.ingame} (${person.className}) vào vị trí STT ${currentMembers[targetIndex].stt}`
       );
@@ -2084,7 +2191,7 @@ export default function App() {
         loggedBy: person.loggedBy || person.ingame,
         party: lastParty,
       };
-      updateActiveBoard({ members: [...currentMembers, newMember] });
+      targetUpdateFn({ members: [...currentMembers, newMember] });
     }
   };
 
@@ -2092,7 +2199,7 @@ export default function App() {
     const targetNorm = normalizeName(ingame);
     if (!targetNorm) return;
 
-    if (appMode === 'GUILD_WAR') {
+    if (activePoolView === 'guild_war' || (activePoolView === 'master' && appMode === 'GUILD_WAR')) {
       const updated = activeGuildWarBoard.members
         .filter((m) => normalizeName(m.ingame) !== targetNorm)
         .map((m, idx) => ({ ...m, stt: idx + 1 }));
@@ -2101,14 +2208,34 @@ export default function App() {
       return;
     }
 
+    const isUpdateTarget = activePoolView === 'raid_update' || (activePoolView === 'master' && isRaidUpdate);
+    const targetBoard = isUpdateTarget ? activeUpdateBoard : activeRaidBoard;
+    const targetUpdateFn = isUpdateTarget
+      ? (updates: Partial<RaidBoard>) => {
+          setUpdateBoards((prev) => {
+            const next = prev.map((b) => (b.id === targetBoard.id ? { ...b, ...updates } : b));
+            safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(next));
+            saveToIndexedDB('updateBoards', next);
+            return next;
+          });
+        }
+      : (updates: Partial<RaidBoard>) => {
+          setBoards((prev) => {
+            const next = prev.map((b) => (b.id === targetBoard.id ? { ...b, ...updates } : b));
+            safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(next));
+            saveToIndexedDB('boards', next);
+            return next;
+          });
+        };
+
     // Clear ingame and loggedBy in the slot
-    const updated = activeBoard.members.map((m) => {
+    const updated = targetBoard.members.map((m) => {
       if (normalizeName(m.ingame) === targetNorm) {
         return { ...m, ingame: '', loggedBy: '' };
       }
       return m;
     });
-    updateActiveBoard({ members: updated });
+    targetUpdateFn({ members: updated });
   };
 
   const handleSyncFromActiveRaid = () => {
@@ -2147,13 +2274,15 @@ export default function App() {
       return;
     }
 
+    const isUpdateTarget = activePoolView === 'raid_update' || (activePoolView === 'master' && isRaidUpdate);
+    const targetBoard = isUpdateTarget ? activeUpdateBoard : activeRaidBoard;
     const currentPool = currentPersonnelPool;
     const currentPoolIngames = new Set(
       currentPool.map((p) => normalizeName(p.ingame)).filter(Boolean)
     );
     const toAdd: PersonnelMember[] = [];
 
-    activeBoard.members.forEach((m) => {
+    targetBoard.members.forEach((m) => {
       const norm = normalizeName(m.ingame);
       if (norm && !currentPoolIngames.has(norm)) {
         currentPoolIngames.add(norm);
@@ -3082,35 +3211,17 @@ export default function App() {
                     <PersonnelStorage
                       personnelPool={currentPersonnelPool}
                       onUpdatePersonnelPool={handleUpdatePersonnelPool}
-                      activeRaidMembers={
-                        appMode === 'GUILD_WAR'
-                          ? (activeGuildWarBoard?.members as any) || []
-                          : activeBoard.members
-                      }
-                      allBoards={allKnownBoardsForStorage}
-                      activeBoardId={
-                        appMode === 'GUILD_WAR'
-                          ? activeGuildWarBoard.id
-                          : activeBoard.id
-                      }
-                      activeBoardTitle={
-                        appMode === 'GUILD_WAR'
-                          ? (activeGuildWarBoard?.title ? activeGuildWarBoard.title.replace(/^(Bang Chiến|BANG CHIẾN)\s*/i, 'BC ') : 'Bang Chiến')
-                          : isRaidUpdate
-                          ? activeBoard.titlePrefix.toLowerCase().startsWith('raid ')
-                            ? activeBoard.titlePrefix.replace(/^raid\s+/i, 'Raid Up ')
-                            : activeBoard.titlePrefix.toLowerCase().includes('up')
-                            ? activeBoard.titlePrefix
-                            : `Up ${activeBoard.titlePrefix}`
-                          : activeBoard.titlePrefix
-                      }
+                      activeRaidMembers={currentPoolActiveMembers}
+                      allBoards={currentPoolBoardsForStorage}
+                      activeBoardId={currentPoolActiveBoardId}
+                      activeBoardTitle={currentPoolActiveBoardTitle}
                       onAssignToRaid={handleAssignPersonnelToRaid}
                       onRemoveFromRaid={handleRemoveFromRaid}
                       onSyncFromActiveRaid={handleSyncFromActiveRaid}
                       customColors={customColors}
                       onOpenColorCustomizer={() => setIsColorModalOpen(true)}
                       isCompact={true}
-                      isRaidUpdate={isRaidUpdate}
+                      isRaidUpdate={activePoolView === 'raid_update'}
                       onOpenCopyModal={() => setIsCopyModalOpen(true)}
                       onMoveToDiBui={handleMoveToDiBui}
                       poolType={activePoolView}
@@ -3134,7 +3245,13 @@ export default function App() {
                       onRestoreToActivePool={handleRestoreFromDiBui}
                       customColors={customColors}
                       isCompact={true}
-                      activePoolName={isRaidUpdate ? 'Kho Raid Update' : 'Kho Raid'}
+                      activePoolName={
+                        activePoolView === 'raid_update'
+                          ? 'Kho Raid Update'
+                          : activePoolView === 'guild_war'
+                          ? 'Kho Bang Chiến'
+                          : 'Kho Raid'
+                      }
                     />
                   </aside>
                 )}
@@ -3147,35 +3264,17 @@ export default function App() {
                 <PersonnelStorage
                   personnelPool={currentPersonnelPool}
                   onUpdatePersonnelPool={handleUpdatePersonnelPool}
-                  activeRaidMembers={
-                    appMode === 'GUILD_WAR'
-                      ? (activeGuildWarBoard?.members as any) || []
-                      : activeBoard.members
-                  }
-                  allBoards={allKnownBoardsForStorage}
-                  activeBoardId={
-                    appMode === 'GUILD_WAR'
-                      ? activeGuildWarBoard.id
-                      : activeBoard.id
-                  }
-                  activeBoardTitle={
-                    appMode === 'GUILD_WAR'
-                      ? (activeGuildWarBoard?.title ? activeGuildWarBoard.title.replace(/^(Bang Chiến|BANG CHIẾN)\s*/i, 'BC ') : 'Bang Chiến')
-                      : isRaidUpdate
-                      ? activeBoard.titlePrefix.toLowerCase().startsWith('raid ')
-                        ? activeBoard.titlePrefix.replace(/^raid\s+/i, 'Raid Up ')
-                        : activeBoard.titlePrefix.toLowerCase().includes('up')
-                        ? activeBoard.titlePrefix
-                        : `Up ${activeBoard.titlePrefix}`
-                      : activeBoard.titlePrefix
-                  }
+                  activeRaidMembers={currentPoolActiveMembers}
+                  allBoards={currentPoolBoardsForStorage}
+                  activeBoardId={currentPoolActiveBoardId}
+                  activeBoardTitle={currentPoolActiveBoardTitle}
                   onAssignToRaid={handleAssignPersonnelToRaid}
                   onRemoveFromRaid={handleRemoveFromRaid}
                   onSyncFromActiveRaid={handleSyncFromActiveRaid}
                   customColors={customColors}
                   onOpenColorCustomizer={() => setIsColorModalOpen(true)}
                   isCompact={false}
-                  isRaidUpdate={isRaidUpdate}
+                  isRaidUpdate={activePoolView === 'raid_update'}
                   onOpenCopyModal={() => setIsCopyModalOpen(true)}
                   onMoveToDiBui={handleMoveToDiBui}
                   poolType={activePoolView}
@@ -3199,7 +3298,13 @@ export default function App() {
                   onRestoreToActivePool={handleRestoreFromDiBui}
                   customColors={customColors}
                   isCompact={false}
-                  activePoolName={isRaidUpdate ? 'Kho Raid Update' : 'Kho Raid'}
+                  activePoolName={
+                    activePoolView === 'raid_update'
+                      ? 'Kho Raid Update'
+                      : activePoolView === 'guild_war'
+                      ? 'Kho Bang Chiến'
+                      : 'Kho Raid'
+                  }
                 />
               </div>
             )}

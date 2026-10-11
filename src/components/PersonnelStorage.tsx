@@ -30,7 +30,6 @@ import {
   Layers,
   RotateCcw,
   AlertTriangle,
-  ShieldAlert,
   ShieldCheck,
 } from 'lucide-react';
 
@@ -133,7 +132,6 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
 
   // In-app dialog states (avoids window.confirm which is blocked in sandboxed iframes)
   const [showResetConfirm, setShowResetConfirm] = useState(false);
-  const [personToDelete, setPersonToDelete] = useState<PersonnelMember | null>(null);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
   // Pixel Note Bubble click-to-toggle state
@@ -348,13 +346,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   };
 
   const handleDelete = (person: PersonnelMember) => {
-    setPersonToDelete(person);
-  };
-
-  const confirmDeletePerson = () => {
-    if (!personToDelete) return;
-    onUpdatePersonnelPool(personnelPool.filter((p) => p.id !== personToDelete.id));
-    setPersonToDelete(null);
+    onUpdatePersonnelPool(personnelPool.filter((p) => p.id !== person.id));
   };
 
   const handleToggleCheck = (id: string) => {
@@ -1367,76 +1359,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
           document.body
         )}
 
-      {/* Delete Single Person Confirmation Modal */}
-      {personToDelete &&
-        typeof document !== 'undefined' &&
-        createPortal(
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
-            <div className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4 ${
-              isMasterPool
-                ? 'border-rose-400 dark:border-rose-700 ring-2 ring-rose-500/30'
-                : 'border-sky-300 dark:border-sky-700'
-            }`}>
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
-                  isMasterPool
-                    ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-800'
-                    : 'bg-sky-100 dark:bg-sky-950/70 text-sky-600 dark:text-sky-400 border border-sky-300 dark:border-sky-800'
-                }`}>
-                  {isMasterPool ? <AlertTriangle className="w-5 h-5 text-rose-600" /> : <ShieldAlert className="w-5 h-5 text-sky-600 dark:text-sky-400" />}
-                </div>
-                <div>
-                  <h4 className="font-black text-sm text-slate-900 dark:text-white">
-                    {isMasterPool ? 'Xác nhận xoá khỏi Tổng Kho Nhân Sự' : `Xác nhận xoá khỏi ${effectiveTitle}`}
-                  </h4>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    Nhân sự: <span className="font-bold text-slate-900 dark:text-white">{personToDelete.ingame}</span> ({personToDelete.className})
-                  </p>
-                </div>
-              </div>
 
-              {isMasterPool ? (
-                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl space-y-1.5 text-xs text-rose-900 dark:text-rose-200">
-                  <div className="font-bold flex items-center gap-1.5 text-rose-700 dark:text-rose-300">
-                    <AlertTriangle className="w-4 h-4 shrink-0" />
-                    <span>LƯU Ý: ĐỒNG LOẠT BIẾN MẤT Ở CẢ 3 KHO CON</span>
-                  </div>
-                  <p className="leading-relaxed">
-                    Xoá nhân sự <strong>"{personToDelete.ingame}"</strong> khỏi Tổng kho sẽ đồng loạt làm biến mất nhân sự này khỏi <strong>cả 3 kho con</strong> (Kho Raid, Kho Raid Update, Kho Bang Chiến) và bảng Bang Chiến!
-                  </p>
-                </div>
-              ) : (
-                <div className="p-3 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/60 rounded-xl space-y-1 text-xs text-sky-900 dark:text-sky-200">
-                  <div className="font-bold flex items-center gap-1.5 text-sky-700 dark:text-sky-300">
-                    <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                    <span>Tổng kho được bảo toàn 100%</span>
-                  </div>
-                  <p className="leading-relaxed">
-                    Xoá nhân sự <strong>"{personToDelete.ingame}"</strong> khỏi <strong>{effectiveTitle}</strong> không làm mất dữ liệu. Nhân sự vẫn được lưu trữ an toàn trong Tổng kho nhân sự.
-                  </p>
-                </div>
-              )}
-
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
-                <button
-                  type="button"
-                  onClick={() => setPersonToDelete(null)}
-                  className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors border border-slate-200 dark:border-slate-700 cursor-pointer"
-                >
-                  Huỷ
-                </button>
-                <button
-                  type="button"
-                  onClick={confirmDeletePerson}
-                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl shadow-xs transition-colors cursor-pointer"
-                >
-                  {isMasterPool ? 'Đồng ý xoá (Xoá cả 3 kho con)' : 'Đồng ý xoá'}
-                </button>
-              </div>
-            </div>
-          </div>,
-          document.body
-        )}
 
       {/* Floating Pixel Note Bubble Modal / Tooltip (Click để ẩn/hiện) */}
       {activeNotePerson && noteAnchorRect && (
