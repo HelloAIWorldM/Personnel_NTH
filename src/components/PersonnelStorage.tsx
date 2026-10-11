@@ -893,7 +893,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                     />
                     <select
                       value={editClass}
-                      onChange={(e) => setNewClass ? setEditClass(e.target.value as RaidClass) : setEditClass(e.target.value as RaidClass)}
+                      onChange={(e) => setEditClass(e.target.value as RaidClass)}
                       className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
                     >
                       {CLASS_LIST.map((cls) => (

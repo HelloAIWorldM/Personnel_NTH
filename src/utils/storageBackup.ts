@@ -1111,6 +1111,8 @@ export async function recoverAsyncFromIndexedDB(): Promise<{
   activeUpdateBoardId?: string;
   updatePersonnelPool?: PersonnelMember[];
   diBuiPersonnelPool?: PersonnelMember[];
+  masterPersonnelPool?: PersonnelMember[];
+  guildWarPersonnelPool?: PersonnelMember[];
 } | null> {
   try {
     const [

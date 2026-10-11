@@ -149,8 +149,6 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
                         ? isRaidUpdate
                           ? 'bg-emerald-400 text-slate-950'
                           : 'bg-[#88DCFA] text-slate-950'
-                        : hasScheduleConflicts
-                        ? 'bg-rose-500 text-white'
                         : hasDuplicates
                         ? 'bg-amber-500 text-slate-950'
                         : 'bg-slate-200 dark:bg-slate-800 text-slate-600 dark:text-slate-400'
@@ -164,8 +162,6 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
                         ? isRaidUpdate
                           ? 'text-emerald-700 dark:text-emerald-300'
                           : 'text-sky-800 dark:text-[#88DCFA]'
-                        : hasScheduleConflicts
-                        ? 'text-rose-700 dark:text-rose-400'
                         : hasDuplicates
                         ? 'text-amber-800 dark:text-amber-300'
                         : 'text-slate-800 dark:text-slate-200'

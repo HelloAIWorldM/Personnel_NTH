@@ -10,6 +10,7 @@ import {
   Layers,
   Users,
   CheckCircle2,
+  Sparkles,
 } from 'lucide-react';
 
 interface CreateBoardModalProps {
