@@ -13,10 +13,8 @@ import {
   AlertTriangle,
 } from 'lucide-react';
 import {
-  findScheduleConflictsForBoard,
   findDuplicateIngames,
   findDuplicateLoggedBys,
-  normalizeName,
 } from '../utils/duplicates';
 
 interface VerticalBoardListProps {
@@ -111,30 +109,13 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
           const totalSlots = membersList.length || 12;
           const isFullyFilled = filledCount === totalSlots && totalSlots > 0;
 
-          // 1. Trùng lặp Ingame nội bộ bảng
+          // 1. Trùng lặp Ingame nội bộ bảng (chỉ xét bảng này có bị trùng tên hay không)
           const duplicateIngames = findDuplicateIngames(membersList);
 
-          // 2. Trùng lặp Logged by nội bộ bảng (1 người log nhiều acc)
+          // 2. Trùng lặp Logged by nội bộ bảng (1 người log nhiều acc trong cùng 1 bảng)
           const duplicateLoggedBys = findDuplicateLoggedBys(membersList);
 
-          // 3. Trùng lịch cùng khung giờ giữa các bảng
-          const scheduleConflicts = findScheduleConflictsForBoard(board, boards);
-
-          // 4. Trùng nhân sự giữa các bảng Raid trong cùng danh sách
-          const otherBoards = boards.filter((b) => b.id !== board.id);
-          const otherBoardIngames = new Set(
-            otherBoards.flatMap((b) =>
-              (b.members || []).map((m) => normalizeName(m.ingame)).filter(Boolean)
-            )
-          );
-          const crossBoardDuplicates = membersList.filter(
-            (m) => m && m.ingame && otherBoardIngames.has(normalizeName(m.ingame))
-          );
-
-          const hasScheduleConflicts = scheduleConflicts.length > 0;
-          const hasInternalDuplicates = duplicateIngames.length > 0 || duplicateLoggedBys.length > 0;
-          const hasCrossBoardDuplicates = crossBoardDuplicates.length > 0;
-          const hasDuplicates = hasScheduleConflicts || hasInternalDuplicates || hasCrossBoardDuplicates;
+          const hasDuplicates = duplicateIngames.length > 0 || duplicateLoggedBys.length > 0;
 
           const warningReasons: string[] = [];
           if (duplicateIngames.length > 0) {
@@ -142,13 +123,6 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
           }
           if (duplicateLoggedBys.length > 0) {
             warningReasons.push(`${duplicateLoggedBys.length} Logged by trùng nội bộ (${duplicateLoggedBys.map((d) => d.originalName).join(', ')})`);
-          }
-          if (scheduleConflicts.length > 0) {
-            warningReasons.push(`${scheduleConflicts.length} trùng khung giờ [${board.scheduleTime}] với bảng khác`);
-          }
-          if (crossBoardDuplicates.length > 0) {
-            const uniqueCrossNames = Array.from(new Set(crossBoardDuplicates.map((m) => m.ingame.trim())));
-            warningReasons.push(`${uniqueCrossNames.length} nhân sự xuất hiện ở bảng khác (${uniqueCrossNames.join(', ')})`);
           }
           const warningTooltip = `CẢNH BÁO TRÙNG LẶP NHÂN SỰ:\n• ${warningReasons.join('\n• ')}`;
 
@@ -161,8 +135,6 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
                   ? isRaidUpdate
                     ? 'bg-emerald-500/10 dark:bg-emerald-950/40 border-emerald-400 dark:border-emerald-500 shadow-sm ring-1 ring-emerald-400/40'
                     : 'bg-sky-500/10 dark:bg-sky-950/40 border-sky-400 dark:border-sky-500 shadow-sm ring-1 ring-sky-400/40'
-                  : hasScheduleConflicts
-                  ? 'bg-rose-50/50 dark:bg-rose-950/20 border-rose-300 dark:border-rose-900/60 hover:bg-rose-50 dark:hover:bg-rose-950/30'
                   : hasDuplicates
                   ? 'bg-amber-50/50 dark:bg-amber-950/20 border-amber-300/80 dark:border-amber-800/60 hover:bg-amber-50 dark:hover:bg-amber-950/30'
                   : 'bg-slate-50 dark:bg-[#162230] border-slate-200 dark:border-[#1F3347] hover:bg-slate-100 dark:hover:bg-[#1D2D40] hover:border-slate-300 dark:hover:border-slate-600'
@@ -229,11 +201,7 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
                   {hasDuplicates && (
                     <span
                       title={warningTooltip}
-                      className={`flex items-center justify-center w-5 h-5 rounded-md shadow-xs animate-pulse shrink-0 cursor-pointer transition-transform hover:scale-110 active:scale-95 ${
-                        hasScheduleConflicts
-                          ? 'bg-rose-500 text-white shadow-[0_0_8px_rgba(244,63,94,0.4)]'
-                          : 'bg-amber-500 text-slate-950 shadow-[0_0_8px_rgba(245,158,11,0.4)]'
-                      }`}
+                      className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-500 text-slate-950 shadow-[0_0_8px_rgba(245,158,11,0.4)] shadow-xs animate-pulse shrink-0 cursor-pointer transition-transform hover:scale-110 active:scale-95"
                     >
                       <AlertTriangle className="w-3.5 h-3.5 stroke-[2.5]" />
                     </span>
@@ -285,30 +253,16 @@ export const VerticalBoardList: React.FC<VerticalBoardListProps> = ({
 
               {/* Warning badge details at bottom of card */}
               {hasDuplicates && (
-                <div
-                  className={`mt-1.5 pt-1 border-t flex items-center justify-between text-[10px] font-black ${
-                    hasScheduleConflicts
-                      ? 'border-rose-200/80 dark:border-rose-900/50 text-rose-600 dark:text-rose-400'
-                      : 'border-amber-200/80 dark:border-amber-900/50 text-amber-700 dark:text-amber-400'
-                  }`}
-                >
+                <div className="mt-1.5 pt-1 border-t border-amber-200/80 dark:border-amber-900/50 flex items-center justify-between text-[10px] font-black text-amber-700 dark:text-amber-400">
                   <span
                     title={warningTooltip}
                     className="inline-flex items-center gap-1 truncate"
                   >
-                    <AlertTriangle
-                      className={`w-3 h-3 shrink-0 animate-pulse ${
-                        hasScheduleConflicts ? 'text-rose-500' : 'text-amber-500'
-                      }`}
-                    />
+                    <AlertTriangle className="w-3 h-3 shrink-0 animate-pulse text-amber-500" />
                     <span className="truncate">
-                      {hasScheduleConflicts
-                        ? `Trùng giờ (${scheduleConflicts.length} chỗ)`
-                        : duplicateIngames.length > 0
+                      {duplicateIngames.length > 0
                         ? `Trùng Ingame (${duplicateIngames.length} tên)`
-                        : duplicateLoggedBys.length > 0
-                        ? `Trùng Logged by (${duplicateLoggedBys.length} người)`
-                        : `Trùng bảng khác (${crossBoardDuplicates.length} người)`}
+                        : `Trùng Logged by (${duplicateLoggedBys.length} người)`}
                     </span>
                   </span>
                 </div>

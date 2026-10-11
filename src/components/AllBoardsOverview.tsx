@@ -569,8 +569,7 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
 
           const boardDupIngames = findDuplicateIngames(board.members);
           const boardDupLoggedBys = findDuplicateLoggedBys(board.members);
-          const boardHasCrossDup = globalStats.duplicates.some((d) => d.occurrences.some((occ) => occ.boardId === board.id));
-          const boardHasDuplicates = boardDupIngames.length > 0 || boardDupLoggedBys.length > 0 || boardHasCrossDup;
+          const boardHasDuplicates = boardDupIngames.length > 0 || boardDupLoggedBys.length > 0;
 
           return (
             <div
@@ -612,7 +611,7 @@ export const AllBoardsOverview: React.FC<AllBoardsOverviewProps> = ({
 
                     {boardHasDuplicates && (
                       <span
-                        title={`CẢNH BÁO: Bảng này có nhân sự bị trùng lặp (${boardDupIngames.length} Ingame, ${boardDupLoggedBys.length} Logged by${boardHasCrossDup ? ', trùng ở bảng khác' : ''})`}
+                        title={`CẢNH BÁO: Bảng này có nhân sự bị trùng lặp nội bộ (${boardDupIngames.length} Ingame, ${boardDupLoggedBys.length} Logged by)`}
                         className="flex items-center justify-center w-5 h-5 rounded-md bg-amber-500 text-slate-950 font-black shadow-xs animate-pulse shrink-0 cursor-pointer"
                       >
                         <AlertTriangle className="w-3.5 h-3.5 stroke-[2.5]" />
