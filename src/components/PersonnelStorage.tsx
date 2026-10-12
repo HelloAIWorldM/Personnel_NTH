@@ -2,7 +2,7 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
 import { CustomClassColors, PersonnelMember, RaidBoard, RaidClass, RaidMember, PersonnelSubPool } from '../types';
-import { normalizeName, deduplicatePersonnelList, findDuplicatePersonnel } from '../utils/duplicates';
+import { normalizeName, deduplicatePersonnelList, findDuplicatePersonnel, compareVietnameseAlphabet, sortPersonnelAlphabetically } from '../utils/duplicates';
 import { PixelSquad } from './PixelSquad';
 import { PixelNoteBubble } from './PixelNoteBubble';
 import {
@@ -30,6 +30,9 @@ import {
   RotateCcw,
   AlertTriangle,
   ShieldCheck,
+  ArrowDownAZ,
+  ArrowUpZA,
+  ArrowUpDown,
 } from 'lucide-react';
 
 export interface PersonnelAssignment {
@@ -111,6 +114,9 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   const [statusFilter, setStatusFilter] = useState<
     'ALL' | 'UNASSIGNED' | 'ASSIGNED' | 'UNASSIGNED_IN_ACTIVE'
   >('ALL');
+
+  // Thứ tự sắp xếp nhân sự trong kho: 'alpha-asc' (mặc định A-Z) | 'alpha-desc' (Z-A) | 'class' (Môn phái) | 'default' (Thứ tự gốc)
+  const [sortOrder, setSortOrder] = useState<'alpha-asc' | 'alpha-desc' | 'class' | 'default'>('alpha-asc');
 
   // Form states
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -228,9 +234,9 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
     return map;
   }, [allBoards, activeBoardId, activeBoardTitle, activeRaidMembers]);
 
-  // Filtered list
+  // Filtered and sorted list
   const filteredPersonnel = useMemo(() => {
-    return personnelPool.filter((person) => {
+    const list = personnelPool.filter((person) => {
       const norm = normalizeName(person.ingame);
       const assignments = assignmentsByIngame.get(norm) || [];
       const isAssigned = assignments.length > 0;
@@ -258,7 +264,22 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
 
       return true;
     });
-  }, [personnelPool, searchQuery, selectedClassFilter, statusFilter, assignmentsByIngame]);
+
+    if (sortOrder === 'alpha-asc') {
+      return [...list].sort((a, b) => compareVietnameseAlphabet(a.ingame || '', b.ingame || ''));
+    }
+    if (sortOrder === 'alpha-desc') {
+      return [...list].sort((a, b) => compareVietnameseAlphabet(b.ingame || '', a.ingame || ''));
+    }
+    if (sortOrder === 'class') {
+      return [...list].sort((a, b) => {
+        const cDiff = compareVietnameseAlphabet(a.className || '', b.className || '');
+        if (cDiff !== 0) return cDiff;
+        return compareVietnameseAlphabet(a.ingame || '', b.ingame || '');
+      });
+    }
+    return list;
+  }, [personnelPool, searchQuery, selectedClassFilter, statusFilter, assignmentsByIngame, sortOrder]);
 
   // Counts - Preserved accurately across all boards
   const totalCount = personnelPool.length;
@@ -280,6 +301,13 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
     const cleaned = deduplicatePersonnelList(personnelPool);
     onUpdatePersonnelPool(cleaned);
     setDuplicateError(null);
+  };
+
+  // Lưu thứ tự A-Z vĩnh viễn vào mảng kho lưu trữ
+  const handleSortStoragePermanently = (ascending: boolean = true) => {
+    const sorted = sortPersonnelAlphabetically(personnelPool, ascending);
+    onUpdatePersonnelPool(sorted);
+    setSortOrder(ascending ? 'alpha-asc' : 'alpha-desc');
   };
 
   // Handlers
@@ -814,12 +842,77 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
         </div>
       </div>
 
-      {/* Guide note */}
-      <div className="px-3.5 py-1.5 bg-sky-50 dark:bg-[#0B1219]/80 border-b border-sky-200/80 dark:border-[#1F3347] text-xs text-slate-700 dark:text-slate-300 flex items-center justify-between font-medium">
-        <span className="flex items-center gap-1.5">
+      {/* Guide note & Alphabet Sorting Controls */}
+      <div className="px-3.5 py-1.5 bg-sky-50 dark:bg-[#0B1219]/80 border-b border-sky-200/80 dark:border-[#1F3347] text-xs text-slate-700 dark:text-slate-300 flex items-center justify-between font-medium flex-wrap gap-2">
+        <span className="flex items-center gap-1.5 text-[11px]">
           <GripVertical className="w-3.5 h-3.5 text-sky-600 dark:text-[#88DCFA]" />
           <span>Kéo thả thẻ nhân sự vào hàng bảng Raid hoặc bấm <strong>+ Xếp</strong></span>
         </span>
+
+        {/* Sort Alphabet Toolbar */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold hidden sm:inline">
+            Sắp xếp:
+          </span>
+
+          <button
+            type="button"
+            onClick={() => setSortOrder((prev) => (prev === 'alpha-asc' ? 'alpha-desc' : 'alpha-asc'))}
+            title={sortOrder === 'alpha-asc' ? 'Đang xếp A → Z. Bấm để đảo ngược Z → A' : 'Đang xếp Z → A. Bấm để xếp A → Z'}
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all shadow-2xs border cursor-pointer ${
+              sortOrder === 'alpha-asc' || sortOrder === 'alpha-desc'
+                ? 'bg-sky-500 text-white border-sky-400 font-black'
+                : 'bg-white dark:bg-[#162230] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-[#1F3347]'
+            }`}
+          >
+            {sortOrder === 'alpha-desc' ? (
+              <>
+                <ArrowUpZA className="w-3.5 h-3.5" />
+                <span>Z → A</span>
+              </>
+            ) : (
+              <>
+                <ArrowDownAZ className="w-3.5 h-3.5" />
+                <span>A → Z</span>
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSortOrder((prev) => (prev === 'class' ? 'alpha-asc' : 'class'))}
+            title="Sắp xếp theo nhóm Môn phái"
+            className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all shadow-2xs border cursor-pointer ${
+              sortOrder === 'class'
+                ? 'bg-indigo-600 text-white border-indigo-500 font-black'
+                : 'bg-white dark:bg-[#162230] text-slate-700 dark:text-slate-300 border-slate-300 dark:border-[#1F3347]'
+            }`}
+          >
+            <Shield className="w-3 h-3" />
+            <span>Môn phái</span>
+          </button>
+
+          {sortOrder !== 'default' && (
+            <button
+              type="button"
+              onClick={() => setSortOrder('default')}
+              title="Khôi phục thứ tự nhập ban đầu"
+              className="px-1.5 py-0.5 rounded-lg text-[10px] font-semibold text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"
+            >
+              Gốc
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={() => handleSortStoragePermanently(true)}
+            title="Lưu thứ tự Alphabet A-Z vĩnh viễn vào kho nhân sự này"
+            className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 border border-emerald-300 dark:border-emerald-800 transition-all cursor-pointer ml-0.5"
+          >
+            <Sparkles className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
+            <span>Lưu A-Z kho</span>
+          </button>
+        </div>
       </div>
 
       {/* Duplicate Warning & 1-Click Clean Banner */}

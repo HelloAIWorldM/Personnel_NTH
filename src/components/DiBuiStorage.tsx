@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useRef } from 'react';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
 import { CustomClassColors, PersonnelMember, RaidClass } from '../types';
-import { normalizeName } from '../utils/duplicates';
+import { normalizeName, compareVietnameseAlphabet, sortPersonnelAlphabetically } from '../utils/duplicates';
 import { PixelNoteBubble } from './PixelNoteBubble';
 import {
   Tent,
@@ -19,6 +19,8 @@ import {
   AlertTriangle,
   Users,
   MessageSquare,
+  ArrowDownAZ,
+  ArrowUpZA,
 } from 'lucide-react';
 
 interface DiBuiStorageProps {
@@ -58,6 +60,7 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState<RaidClass | 'ALL'>('ALL');
+  const [sortOrder, setSortOrder] = useState<'alpha-asc' | 'alpha-desc'>('alpha-asc');
 
   // Form states
   const [isAddingNew, setIsAddingNew] = useState(false);
@@ -119,9 +122,9 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
     return counts;
   }, [diBuiPool]);
 
-  // Filtered list
+  // Filtered and sorted list
   const filteredList = useMemo(() => {
-    return diBuiPool.filter((person) => {
+    const list = diBuiPool.filter((person) => {
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
         const matchIngame = (person.ingame || '').toLowerCase().includes(query);
@@ -137,7 +140,19 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
 
       return true;
     });
-  }, [diBuiPool, searchQuery, selectedClassFilter]);
+
+    return [...list].sort((a, b) => {
+      const res = compareVietnameseAlphabet(a.ingame || '', b.ingame || '');
+      return sortOrder === 'alpha-asc' ? res : -res;
+    });
+  }, [diBuiPool, searchQuery, selectedClassFilter, sortOrder]);
+
+  // Lưu thứ tự Alphabet A-Z vĩnh viễn vào Kho Đi Bụi
+  const handleSortDiBuiPermanently = () => {
+    const sorted = sortPersonnelAlphabetically(diBuiPool, true);
+    onUpdateDiBuiPool(sorted);
+    setSortOrder('alpha-asc');
+  };
 
   // Handlers
   const handleAddNew = (e: React.FormEvent) => {
@@ -412,6 +427,47 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
                   </button>
                 );
               })}
+            </div>
+
+            {/* Sắp xếp Alphabet Controls */}
+            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px]">
+              <span className="text-slate-500 dark:text-slate-400 font-semibold text-[10px]">
+                Sắp xếp danh sách:
+              </span>
+              <div className="flex items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setSortOrder((prev) => (prev === 'alpha-asc' ? 'alpha-desc' : 'alpha-asc'))}
+                  title={sortOrder === 'alpha-asc' ? 'Đang xếp A → Z (Bấm để xếp Z → A)' : 'Đang xếp Z → A (Bấm để xếp A → Z)'}
+                  className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all shadow-2xs border cursor-pointer ${
+                    sortOrder === 'alpha-asc' || sortOrder === 'alpha-desc'
+                      ? 'bg-amber-500 text-slate-950 border-amber-400 font-black'
+                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
+                  }`}
+                >
+                  {sortOrder === 'alpha-desc' ? (
+                    <>
+                      <ArrowUpZA className="w-3 h-3" />
+                      <span>Z → A</span>
+                    </>
+                  ) : (
+                    <>
+                      <ArrowDownAZ className="w-3 h-3" />
+                      <span>A → Z</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSortDiBuiPermanently}
+                  title="Lưu thứ tự Alphabet A-Z vĩnh viễn vào Kho Đi Bụi"
+                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-300 dark:border-amber-800 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                  <span>Lưu A-Z kho</span>
+                </button>
+              </div>
             </div>
           </div>
 

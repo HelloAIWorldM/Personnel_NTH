@@ -7,7 +7,7 @@ import {
   RaidClass,
 } from '../types';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
-import { normalizeName } from '../utils/duplicates';
+import { normalizeName, sortPersonnelAlphabetically } from '../utils/duplicates';
 import {
   X,
   Share2,
@@ -24,6 +24,8 @@ import {
   Layers,
   RotateCcw,
   Plus,
+  ArrowDownAZ,
+  ArrowUpZA,
 } from 'lucide-react';
 
 interface SharePersonnelModalProps {
@@ -59,6 +61,7 @@ export const SharePersonnelModal: React.FC<SharePersonnelModalProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [filterClass, setFilterClass] = useState<RaidClass | 'ALL'>('ALL');
   const [selectionTab, setSelectionTab] = useState<'all' | 'by_class' | 'custom'>('all');
+  const [sortOrder, setSortOrder] = useState<'alpha-asc' | 'alpha-desc'>('alpha-asc');
 
   // Khi modal mở hoặc thay đổi initialTargetPool, reset state hợp lý
   useEffect(() => {
@@ -69,6 +72,7 @@ export const SharePersonnelModal: React.FC<SharePersonnelModalProps> = ({
       setSelectionTab('all');
       setSearchQuery('');
       setFilterClass('ALL');
+      setSortOrder('alpha-asc');
     }
   }, [isOpen, initialTargetPool, masterPool]);
 
@@ -89,9 +93,9 @@ export const SharePersonnelModal: React.FC<SharePersonnelModalProps> = ({
     return set;
   }, [targetPool, raidPool, updatePool, guildWarPool]);
 
-  // Lọc danh sách nhân sự từ Master Pool theo tìm kiếm và môn phái
+  // Lọc và sắp xếp danh sách nhân sự từ Master Pool theo tìm kiếm, môn phái và Alphabet (A-Z)
   const filteredCandidates = useMemo(() => {
-    return masterPool.filter((p) => {
+    const list = masterPool.filter((p) => {
       if (filterClass !== 'ALL' && p.className !== filterClass) return false;
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase().trim();
@@ -103,7 +107,9 @@ export const SharePersonnelModal: React.FC<SharePersonnelModalProps> = ({
       }
       return true;
     });
-  }, [masterPool, filterClass, searchQuery]);
+
+    return sortPersonnelAlphabetically(list, sortOrder === 'alpha-asc');
+  }, [masterPool, filterClass, searchQuery, sortOrder]);
 
   // Xử lý thay đổi tab chọn nhanh
   const handleSelectTabChange = (tab: 'all' | 'by_class' | 'custom') => {
@@ -415,6 +421,26 @@ export const SharePersonnelModal: React.FC<SharePersonnelModalProps> = ({
                   className="w-full pl-8 pr-3 py-1.5 text-xs font-semibold border border-slate-300 dark:border-[#1F3347] rounded-xl bg-slate-50 dark:bg-[#0B1219] focus:outline-none focus:ring-1 focus:ring-sky-500"
                 />
               </div>
+
+              {/* Nút đảo chiều Alphabet A-Z / Z-A */}
+              <button
+                type="button"
+                onClick={() => setSortOrder((prev) => (prev === 'alpha-asc' ? 'alpha-desc' : 'alpha-asc'))}
+                title={`Thứ tự Alphabet: ${sortOrder === 'alpha-asc' ? 'A → Z (Nhấp để đổi Z → A)' : 'Z → A (Nhấp để đổi A → Z)'}`}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-bold bg-slate-100 hover:bg-slate-200 dark:bg-[#162230] dark:hover:bg-[#1D2D40] border border-slate-200 dark:border-[#1F3347] rounded-xl transition-all shrink-0 cursor-pointer text-sky-700 dark:text-[#88DCFA]"
+              >
+                {sortOrder === 'alpha-asc' ? (
+                  <>
+                    <ArrowDownAZ className="w-3.5 h-3.5" />
+                    <span>A → Z</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowUpZA className="w-3.5 h-3.5" />
+                    <span>Z → A</span>
+                  </>
+                )}
+              </button>
 
               <button
                 type="button"

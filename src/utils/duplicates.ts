@@ -489,3 +489,29 @@ export const findDuplicatePersonnel = (list: PersonnelMember[]): DuplicatePerson
   return Array.from(map.values()).filter((g) => g.count > 1);
 };
 
+/**
+ * So sánh 2 chuỗi tên theo thứ tự Alphabet Tiếng Việt chuẩn (A-Z).
+ * Tự động hỗ trợ chữ hoa/thường, số tự nhiên và dấu tiếng Việt (A, Ă, Â, B, C, D, Đ...).
+ */
+export const compareVietnameseAlphabet = (a: string, b: string): number => {
+  const strA = (a || '').trim();
+  const strB = (b || '').trim();
+  const diff = strA.localeCompare(strB, 'vi', { numeric: true, sensitivity: 'accent' });
+  if (diff !== 0) return diff;
+  return strA.localeCompare(strB, 'vi', { numeric: true });
+};
+
+/**
+ * Sắp xếp danh sách nhân sự theo thứ tự alphabet Ingame (A-Z hoặc Z-A).
+ */
+export const sortPersonnelAlphabetically = <T extends { ingame: string }>(
+  list: T[],
+  ascending: boolean = true
+): T[] => {
+  if (!Array.isArray(list)) return [];
+  return [...list].sort((a, b) => {
+    const res = compareVietnameseAlphabet(a.ingame || '', b.ingame || '');
+    return ascending ? res : -res;
+  });
+};
+

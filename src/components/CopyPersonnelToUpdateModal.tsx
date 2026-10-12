@@ -8,7 +8,7 @@ import {
   RaidClass,
 } from '../types';
 import { getEffectiveClassMeta } from '../constants/classes';
-import { normalizeName } from '../utils/duplicates';
+import { normalizeName, compareVietnameseAlphabet } from '../utils/duplicates';
 import {
   X,
   Copy,
@@ -23,6 +23,8 @@ import {
   Sparkles,
   AlertCircle,
   Filter,
+  ArrowDownAZ,
+  ArrowUpZA,
 } from 'lucide-react';
 
 export type CopySourceTab = 'all' | 'raid_pool' | 'guild_war' | 'raid_boards';
@@ -60,6 +62,7 @@ export const CopyPersonnelToUpdateModal: React.FC<CopyPersonnelToUpdateModalProp
   onCopyMembers,
 }) => {
   const [activeSourceTab, setActiveSourceTab] = useState<CopySourceTab>('all');
+  const [sortOrder, setSortOrder] = useState<'alpha-asc' | 'alpha-desc'>('alpha-asc');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [skipDuplicates, setSkipDuplicates] = useState(true);
@@ -172,9 +175,9 @@ export const CopyPersonnelToUpdateModal: React.FC<CopyPersonnelToUpdateModalProp
     return list;
   }, [raidPersonnelPool, raidBoards, guildWarBoards, existingUpdateNames]);
 
-  // Filter candidates by tab and search query
+  // Filter candidates by tab and search query, sorted alphabetically by ingame
   const filteredCandidates = useMemo(() => {
-    return allCandidates.filter((c) => {
+    const list = allCandidates.filter((c) => {
       // Tab filter
       if (activeSourceTab === 'raid_pool' && c.sourceType !== 'raid_pool') return false;
       if (activeSourceTab === 'raid_boards' && c.sourceType !== 'raid_board') return false;
@@ -192,7 +195,12 @@ export const CopyPersonnelToUpdateModal: React.FC<CopyPersonnelToUpdateModalProp
 
       return true;
     });
-  }, [allCandidates, activeSourceTab, searchQuery, customLoggedByMap]);
+
+    return [...list].sort((a, b) => {
+      const res = compareVietnameseAlphabet(a.ingame, b.ingame);
+      return sortOrder === 'alpha-asc' ? res : -res;
+    });
+  }, [allCandidates, activeSourceTab, searchQuery, customLoggedByMap, sortOrder]);
 
   // Auto initialize selected IDs on modal open or tab change
   React.useEffect(() => {
@@ -368,8 +376,27 @@ export const CopyPersonnelToUpdateModal: React.FC<CopyPersonnelToUpdateModalProp
           <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
             <button
               type="button"
+              onClick={() => setSortOrder((prev) => (prev === 'alpha-asc' ? 'alpha-desc' : 'alpha-asc'))}
+              title={sortOrder === 'alpha-asc' ? 'Đang xếp A → Z (Bấm để xếp Z → A)' : 'Đang xếp Z → A (Bấm để xếp A → Z)'}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 border border-slate-700 transition-colors cursor-pointer"
+            >
+              {sortOrder === 'alpha-desc' ? (
+                <>
+                  <ArrowUpZA className="w-3.5 h-3.5 text-purple-400" />
+                  <span>Z → A</span>
+                </>
+              ) : (
+                <>
+                  <ArrowDownAZ className="w-3.5 h-3.5 text-purple-400" />
+                  <span>A → Z</span>
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
               onClick={toggleSelectAll}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition-colors"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200 transition-colors cursor-pointer"
             >
               <CheckSquare className="w-3.5 h-3.5 text-purple-400" />
               <span>Chọn tất cả ({filteredCandidates.length})</span>
