@@ -41,13 +41,22 @@ export interface PersonnelAssignment {
   stt: number;
   party?: number;
   isActiveBoard: boolean;
+  poolType?: 'raid' | 'raid_update' | 'guild_war';
 }
 
 interface PersonnelStorageProps {
   personnelPool: PersonnelMember[];
   onUpdatePersonnelPool: (updated: PersonnelMember[]) => void;
   activeRaidMembers: RaidMember[];
-  allBoards?: RaidBoard[];
+  allBoards?: Array<
+    RaidBoard | {
+      id: string;
+      titlePrefix: string;
+      createdAt?: number;
+      members: RaidMember[];
+      poolType?: 'raid' | 'raid_update' | 'guild_war';
+    }
+  >;
   activeBoardId?: string;
   activeBoardTitle?: string;
   onAssignToRaid: (personnel: PersonnelMember, targetStt?: number) => void;
@@ -109,6 +118,8 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   onSyncFromGuildWar,
   subPoolMembershipMap,
 }) => {
+  const isMasterPool = poolType === 'master';
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedClassFilter, setSelectedClassFilter] = useState<RaidClass | 'ALL'>('ALL');
   const [statusFilter, setStatusFilter] = useState<
@@ -137,6 +148,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
 
   // In-app dialog states (avoids window.confirm which is blocked in sandboxed iframes)
   const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [personToDelete, setPersonToDelete] = useState<PersonnelMember | null>(null);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
 
   // Pixel Note Bubble click-to-toggle state
@@ -187,25 +199,41 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   const assignmentsByIngame = useMemo(() => {
     const map = new Map<string, PersonnelAssignment[]>();
 
-    const boardsToScan: Array<{ id: string; titlePrefix: string; members: RaidMember[] }> =
+    const boardsToScan: Array<{
+      id: string;
+      titlePrefix: string;
+      members: RaidMember[];
+      poolType?: 'raid' | 'raid_update' | 'guild_war';
+    }> =
       allBoards && allBoards.length > 0
-        ? allBoards
+        ? (allBoards as any)
         : [
             {
               id: activeBoardId || 'active',
               titlePrefix: activeBoardTitle || 'Bảng',
               members: activeRaidMembers,
+              poolType: (poolType === 'master' ? 'raid' : poolType),
             },
           ];
 
     boardsToScan.forEach((board) => {
       const isCurrentActive = board.id === activeBoardId;
+      let bPoolType: 'raid' | 'raid_update' | 'guild_war' = board.poolType || 'raid';
+      if (!board.poolType) {
+        const titleLower = (board.titlePrefix || '').toLowerCase();
+        if (titleLower.startsWith('bc') || titleLower.includes('bang chiến')) {
+          bPoolType = 'guild_war';
+        } else if (titleLower.includes('up')) {
+          bPoolType = 'raid_update';
+        }
+      }
+
       (board.members || []).forEach((m) => {
         const key = normalizeName(m.ingame);
         if (key) {
           // Đối với Bang Chiến: chỉ tính là "Đã xếp" nếu đã vào team (Mid/Cơ động/Đẩy trụ) hoặc có party
           // Nếu team === 'Chưa xếp' hoặc không có team -> tính là "Chưa xếp"!
-          const isGwMember = typeof (m as any).team === 'string';
+          const isGwMember = bPoolType === 'guild_war' || typeof (m as any).team === 'string';
           const isAssigned = isGwMember
             ? Boolean(
                 (m as any).party !== undefined ||
@@ -224,6 +252,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
               stt: m.stt,
               party: m.party,
               isActiveBoard: isCurrentActive,
+              poolType: bPoolType,
             });
             map.set(key, list);
           }
@@ -232,15 +261,39 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
     });
 
     return map;
-  }, [allBoards, activeBoardId, activeBoardTitle, activeRaidMembers]);
+  }, [allBoards, activeBoardId, activeBoardTitle, activeRaidMembers, poolType]);
+
+  // Helper to check assignment status across pools for a personnel member
+  const getAssignmentStats = (ingame: string) => {
+    const norm = normalizeName(ingame);
+    const assignments = assignmentsByIngame.get(norm) || [];
+    const hasRaid = assignments.some((a) => a.poolType === 'raid');
+    const hasUpdate = assignments.some((a) => a.poolType === 'raid_update');
+    const hasGw = assignments.some((a) => a.poolType === 'guild_war');
+    const isAssignedInAll3 = hasRaid && hasUpdate && hasGw;
+    const isAssignedAny = assignments.length > 0;
+    // In Master Pool: only considered assigned when assigned to boards in ALL 3 pools (Kho Raid, Kho Update, Kho Bang Chiến)
+    // In Sub-pools: considered assigned when assigned to boards in that sub-pool
+    const isConsideredAssigned = isMasterPool ? isAssignedInAll3 : isAssignedAny;
+    const assignedPoolCount = (hasRaid ? 1 : 0) + (hasUpdate ? 1 : 0) + (hasGw ? 1 : 0);
+
+    return {
+      assignments,
+      hasRaid,
+      hasUpdate,
+      hasGw,
+      isAssignedInAll3,
+      isAssignedAny,
+      isConsideredAssigned,
+      assignedPoolCount,
+    };
+  };
 
   // Filtered and sorted list
   const filteredPersonnel = useMemo(() => {
     const list = personnelPool.filter((person) => {
-      const norm = normalizeName(person.ingame);
-      const assignments = assignmentsByIngame.get(norm) || [];
-      const isAssigned = assignments.length > 0;
-      const isAssignedInActive = assignments.some((a) => a.isActiveBoard);
+      const stats = getAssignmentStats(person.ingame);
+      const isAssignedInActive = stats.assignments.some((a) => a.isActiveBoard);
 
       // Search
       if (searchQuery.trim()) {
@@ -258,8 +311,8 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
       }
 
       // Assignment status filter
-      if (statusFilter === 'UNASSIGNED' && isAssigned) return false;
-      if (statusFilter === 'ASSIGNED' && !isAssigned) return false;
+      if (statusFilter === 'UNASSIGNED' && stats.isConsideredAssigned) return false;
+      if (statusFilter === 'ASSIGNED' && !stats.isConsideredAssigned) return false;
       if (statusFilter === 'UNASSIGNED_IN_ACTIVE' && isAssignedInActive) return false;
 
       return true;
@@ -279,18 +332,22 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
       });
     }
     return list;
-  }, [personnelPool, searchQuery, selectedClassFilter, statusFilter, assignmentsByIngame, sortOrder]);
+  }, [personnelPool, searchQuery, selectedClassFilter, statusFilter, assignmentsByIngame, sortOrder, isMasterPool]);
 
   // Counts - Preserved accurately across all boards
   const totalCount = personnelPool.length;
-  const assignedCount = personnelPool.filter((p) =>
-    assignmentsByIngame.has(normalizeName(p.ingame))
-  ).length;
+  const assignedCount = useMemo(() => {
+    return personnelPool.filter((p) => {
+      return getAssignmentStats(p.ingame).isConsideredAssigned;
+    }).length;
+  }, [personnelPool, assignmentsByIngame, isMasterPool]);
   const unassignedCount = totalCount - assignedCount;
-  const unassignedInActiveCount = personnelPool.filter((p) => {
-    const list = assignmentsByIngame.get(normalizeName(p.ingame));
-    return !list || !list.some((a) => a.isActiveBoard);
-  }).length;
+  const unassignedInActiveCount = useMemo(() => {
+    return personnelPool.filter((p) => {
+      const list = assignmentsByIngame.get(normalizeName(p.ingame));
+      return !list || !list.some((a) => a.isActiveBoard);
+    }).length;
+  }, [personnelPool, assignmentsByIngame]);
 
   // Duplicate Detection & Groups
   const duplicateGroups = useMemo(() => {
@@ -373,7 +430,13 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
   };
 
   const handleDelete = (person: PersonnelMember) => {
-    onUpdatePersonnelPool(personnelPool.filter((p) => p.id !== person.id));
+    setPersonToDelete(person);
+  };
+
+  const confirmDeletePerson = () => {
+    if (!personToDelete) return;
+    onUpdatePersonnelPool(personnelPool.filter((p) => p.id !== personToDelete.id));
+    setPersonToDelete(null);
   };
 
   const handleToggleCheck = (id: string) => {
@@ -405,7 +468,6 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
     setDraggedPersonnelId(null);
   };
 
-  const isMasterPool = poolType === 'master';
   const effectiveTitle =
     poolTitle ||
     (isMasterPool
@@ -950,9 +1012,17 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
         ) : (
           filteredPersonnel.map((person) => {
             const classMeta = getEffectiveClassMeta(person.className, customColors);
-            const norm = normalizeName(person.ingame);
-            const assignments = assignmentsByIngame.get(norm) || [];
-            const isAssigned = assignments.length > 0;
+            const stats = getAssignmentStats(person.ingame);
+            const {
+              assignments,
+              hasRaid,
+              hasUpdate,
+              hasGw,
+              isAssignedInAll3,
+              isAssignedAny,
+              isConsideredAssigned,
+              assignedPoolCount,
+            } = stats;
             const isAssignedInActiveBoard = assignments.some((a) => a.isActiveBoard);
             const activeAssignment = assignments.find((a) => a.isActiveBoard);
             const otherAssignments = assignments.filter((a) => !a.isActiveBoard);
@@ -961,8 +1031,9 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
             const isDragging = draggedPersonnelId === person.id;
 
             // Strikethrough condition:
-            // Either assigned to any raid board OR manually checked
-            const isCrossedOut = isAssigned || person.checked;
+            // In Master Pool: Only struck through when assigned in ALL 3 pools (Kho Raid, Kho Update, Kho Bang Chiến) OR manually checked
+            // In Sub-pools: Struck through when assigned in this sub-pool's boards OR manually checked
+            const isCrossedOut = isConsideredAssigned || Boolean(person.checked);
 
             if (isEditing) {
               return (
@@ -1043,7 +1114,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                 className={`group flex flex-col gap-1.5 p-2.5 rounded-xl border transition-all cursor-grab active:cursor-grabbing ${
                   isDragging
                     ? 'opacity-40 border-[#88DCFA] bg-[#88DCFA]/15'
-                    : isAssigned
+                    : isCrossedOut
                     ? 'bg-slate-100/90 dark:bg-[#121B24] border-slate-200 dark:border-[#1A2A38] opacity-85 hover:border-sky-400 dark:hover:border-[#2C4863] shadow-2xs hover:shadow-xs'
                     : 'bg-white dark:bg-[#162230] border-slate-200 dark:border-[#1F3347] hover:border-sky-400 dark:hover:border-[#2C4863] shadow-2xs hover:shadow-xs'
                 }`}
@@ -1058,7 +1129,7 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                       title={
                         isAssignedInActiveBoard
                           ? `Đã có trong ${activeBoardTitle || 'bảng hiện tại'} - Có thể kéo thả sang vị trí khác trong Bảng`
-                          : isAssigned
+                          : isAssignedAny
                           ? `Đã xếp ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Có thể kéo thả vào Bảng hiện tại`
                           : 'Kéo thẻ này thả vào hàng bất kỳ trong Bảng'
                       }
@@ -1192,14 +1263,14 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                           type="button"
                           onClick={() => onAssignToRaid(person)}
                           title={
-                            isAssigned
+                            isAssignedAny
                               ? `Đã có ở ${otherAssignments.map((a) => a.boardTitle).join(', ')} - Click để xếp vào bảng này`
                               : 'Xếp vào ô trống kế tiếp hoặc thêm slot mới trong Raid'
                           }
                           className="flex items-center gap-0.5 px-2.5 py-1 text-[11px] font-black rounded-lg bg-[#88DCFA] hover:bg-[#68CEF6] active:bg-[#48bbf0] text-slate-950 shadow-[0_0_10px_rgba(136,220,250,0.3)] transition-all hover:scale-105 active:scale-95"
                         >
                           <Plus className="w-3 h-3 stroke-[2.5]" />
-                          <span>{isAssigned ? 'Xếp tiếp' : 'Xếp'}</span>
+                          <span>{isAssignedAny ? 'Xếp tiếp' : 'Xếp'}</span>
                         </button>
                       )
                     )}
@@ -1259,21 +1330,41 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                 </div>
 
                 {/* 2. Middle Row (Full Width): Status Tag (Kéo dài toàn bộ theo hướng ngang) & Note Badge */}
-                {(isAssigned || (!isAssigned && person.checked) || person.note?.trim()) && (
+                {(isAssignedAny || (!isAssignedAny && person.checked) || person.note?.trim()) && (
                   <div className="flex items-center gap-1.5 flex-wrap w-full pl-6">
-                    {isAssigned && (
+                    {isAssignedAny && (
                       <span
-                        className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-sky-100 dark:bg-[#152B3B] text-sky-900 dark:text-[#88DCFA] border border-sky-300 dark:border-[#1E435E] shadow-2xs whitespace-nowrap max-w-full overflow-x-auto no-scrollbar"
-                        title={`Đã xếp ở: ${assignments.map((a) => `${a.boardTitle} (STT #${a.stt}${a.party ? ` - P${a.party}` : ''})`).join(', ')}`}
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black border shadow-2xs whitespace-nowrap max-w-full overflow-x-auto no-scrollbar ${
+                          isMasterPool && isAssignedInAll3
+                            ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-900 dark:text-emerald-300 border-emerald-300 dark:border-emerald-800'
+                            : 'bg-sky-100 dark:bg-[#152B3B] text-sky-900 dark:text-[#88DCFA] border border-sky-300 dark:border-[#1E435E]'
+                        }`}
+                        title={
+                          isMasterPool
+                            ? isAssignedInAll3
+                              ? `Đã xếp đủ cả 3 kho: ${assignments.map((a) => `${a.boardTitle} (STT #${a.stt}${a.party ? ` - P${a.party}` : ''})`).join(', ')} (Đã gạch tên)`
+                              : `Đã xếp ở ${[hasRaid ? 'Raid' : null, hasUpdate ? 'Update' : null, hasGw ? 'BC' : null].filter(Boolean).join(' + ')} (${assignedPoolCount}/3 kho): ${assignments.map((a) => `${a.boardTitle} (STT #${a.stt}${a.party ? ` - P${a.party}` : ''})`).join(', ')}`
+                            : `Đã xếp ở: ${assignments.map((a) => `${a.boardTitle} (STT #${a.stt}${a.party ? ` - P${a.party}` : ''})`).join(', ')}`
+                        }
                       >
                         <Check className="w-3 h-3 stroke-[3] shrink-0" />
                         <span className="whitespace-nowrap">
+                          {isMasterPool && !isAssignedInAll3 && (
+                            <span className="mr-1 text-[10px] opacity-75 font-bold">
+                              ({assignedPoolCount}/3 kho)
+                            </span>
+                          )}
+                          {isMasterPool && isAssignedInAll3 && (
+                            <span className="mr-1 text-[10px] opacity-90 font-bold">
+                              (Đủ 3 kho)
+                            </span>
+                          )}
                           {Array.from(new Set(assignments.map((a) => a.boardTitle))).join(', ')}
                         </span>
                       </span>
                     )}
 
-                    {!isAssigned && person.checked && (
+                    {!isAssignedAny && person.checked && (
                       <span
                         className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10.5px] font-black bg-sky-100 dark:bg-sky-950/70 text-sky-900 dark:text-sky-300 border border-sky-300 dark:border-sky-800/70 shadow-2xs whitespace-nowrap"
                       >
@@ -1400,6 +1491,77 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
                   className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl shadow-xs transition-colors cursor-pointer"
                 >
                   {isMasterPool ? 'Đồng ý xoá tất cả' : 'Đồng ý làm trống'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {/* Delete Single Person Confirmation Modal */}
+      {personToDelete &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+            <div className={`bg-white dark:bg-slate-900 border rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4 ${
+              isMasterPool
+                ? 'border-rose-400 dark:border-rose-700 ring-2 ring-rose-500/30'
+                : 'border-slate-200 dark:border-slate-700'
+            }`}>
+              <div className="flex items-center gap-3">
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${
+                  isMasterPool
+                    ? 'bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-800'
+                    : 'bg-amber-100 dark:bg-amber-950/70 text-amber-600 dark:text-amber-400 border border-amber-300 dark:border-amber-800'
+                }`}>
+                  {isMasterPool ? <AlertTriangle className="w-5 h-5 text-rose-600" /> : <Trash2 className="w-5 h-5 text-amber-600 dark:text-amber-400" />}
+                </div>
+                <div>
+                  <h4 className="font-black text-sm text-slate-900 dark:text-white">
+                    {isMasterPool ? 'Xác nhận xoá khỏi Tổng Kho Nhân Sự' : `Xác nhận loại bỏ khỏi ${effectiveTitle}`}
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Nhân sự: <span className="font-bold text-slate-900 dark:text-white">{personToDelete.ingame}</span> ({personToDelete.className})
+                  </p>
+                </div>
+              </div>
+
+              {isMasterPool ? (
+                <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl space-y-1.5 text-xs text-rose-900 dark:text-rose-200">
+                  <div className="font-bold flex items-center gap-1.5 text-rose-700 dark:text-rose-300">
+                    <AlertTriangle className="w-4 h-4 shrink-0" />
+                    <span>LƯU Ý QUAN TRỌNG: ĐỒNG LOẠT BIẾN MẤT Ở CẢ 3 KHO CON</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    Xoá nhân sự <strong>"{personToDelete.ingame}"</strong> khỏi Tổng kho sẽ đồng loạt loại bỏ nhân sự này khỏi <strong>cả 3 kho con</strong> (Kho Raid, Kho Raid Update, Kho Bang Chiến) và các bảng liên quan!
+                  </p>
+                </div>
+              ) : (
+                <div className="p-3 bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-900/60 rounded-xl space-y-1 text-xs text-sky-900 dark:text-sky-200">
+                  <div className="font-bold flex items-center gap-1.5 text-sky-700 dark:text-sky-300">
+                    <ShieldCheck className="w-4 h-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                    <span>Tổng kho vẫn được bảo toàn 100%</span>
+                  </div>
+                  <p className="leading-relaxed">
+                    Loại bỏ nhân sự <strong>"{personToDelete.ingame}"</strong> khỏi <strong>{effectiveTitle}</strong> không làm mất dữ liệu gốc. Nhân sự vẫn được lưu trữ an toàn trong Tổng kho nhân sự.
+                  </p>
+                </div>
+              )}
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setPersonToDelete(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors border border-slate-200 dark:border-slate-700 cursor-pointer"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmDeletePerson}
+                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  {isMasterPool ? 'Đồng ý xoá (Xoá cả 3 kho con)' : 'Đồng ý loại bỏ'}
                 </button>
               </div>
             </div>

@@ -61,6 +61,7 @@ export interface RaidBoard {
   members: RaidMember[];
   parties: RaidParty[];
   createdAt: number;
+  poolType?: 'raid' | 'raid_update' | 'guild_war';
 }
 
 export interface PersonnelMember {

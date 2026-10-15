@@ -370,6 +370,7 @@ export default function App() {
       titlePrefix: b.titlePrefix || 'Raid 1',
       createdAt: b.createdAt,
       members: b.members,
+      poolType: 'raid' as const,
     }));
 
     // 2. Bảng Raid Update - phân biệt rõ với Raid thường (ví dụ: Raid Up 1)
@@ -385,6 +386,7 @@ export default function App() {
         titlePrefix: displayTitle,
         createdAt: b.createdAt,
         members: b.members,
+        poolType: 'raid_update' as const,
       };
     });
 
@@ -394,6 +396,7 @@ export default function App() {
       titlePrefix: b.title ? b.title.replace(/^(Bang Chiến|BANG CHIẾN)\s*/i, 'BC ') : 'Bang Chiến',
       createdAt: b.createdAt,
       members: (b.members || []) as any,
+      poolType: 'guild_war' as const,
     }));
 
     return [...raidList, ...updateList, ...gwList];
@@ -409,6 +412,7 @@ export default function App() {
         titlePrefix: b.titlePrefix || 'Raid 1',
         createdAt: b.createdAt,
         members: b.members,
+        poolType: 'raid' as const,
       }));
     }
     if (activePoolView === 'raid_update') {
@@ -424,6 +428,7 @@ export default function App() {
           titlePrefix: displayTitle,
           createdAt: b.createdAt,
           members: b.members,
+          poolType: 'raid_update' as const,
         };
       });
     }
@@ -433,6 +438,7 @@ export default function App() {
         titlePrefix: b.title ? b.title.replace(/^(Bang Chiến|BANG CHIẾN)\s*/i, 'BC ') : 'Bang Chiến',
         createdAt: b.createdAt,
         members: (b.members || []) as any,
+        poolType: 'guild_war' as const,
       }));
     }
     // Master pool: show all

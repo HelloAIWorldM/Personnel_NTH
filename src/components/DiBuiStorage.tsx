@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
 import { CustomClassColors, PersonnelMember, RaidClass } from '../types';
 import { normalizeName, compareVietnameseAlphabet, sortPersonnelAlphabetically } from '../utils/duplicates';
@@ -80,6 +81,7 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
 
   // Confirmation dialogs
   const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [personToDelete, setPersonToDelete] = useState<PersonnelMember | null>(null);
 
   // Pixel Note Bubble click-to-toggle state
   const [activeNotePerson, setActiveNotePerson] = useState<PersonnelMember | null>(null);
@@ -659,7 +661,7 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDelete(person.id)}
+                          onClick={() => setPersonToDelete(person)}
                           title="Xóa khỏi Kho Đi Bụi"
                           className="p-1 text-slate-400 hover:text-rose-500 rounded transition-colors"
                         >
@@ -725,6 +727,60 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
           </div>
         </div>
       )}
+
+      {/* Delete Single Person Confirmation Modal */}
+      {personToDelete &&
+        typeof document !== 'undefined' &&
+        createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 max-w-md w-full shadow-2xl space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 bg-rose-100 dark:bg-rose-950/70 text-rose-600 dark:text-rose-400 border border-rose-300 dark:border-rose-800">
+                  <Trash2 className="w-5 h-5 text-rose-600 dark:text-rose-400" />
+                </div>
+                <div>
+                  <h4 className="font-black text-sm text-slate-900 dark:text-white">
+                    Xác nhận xóa khỏi Kho Đi Bụi
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    Nhân sự: <span className="font-bold text-slate-900 dark:text-white">{personToDelete.ingame}</span> ({personToDelete.className})
+                  </p>
+                </div>
+              </div>
+
+              <div className="p-3 bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900/60 rounded-xl space-y-1 text-xs text-rose-900 dark:text-rose-200">
+                <div className="font-bold flex items-center gap-1.5 text-rose-700 dark:text-rose-300">
+                  <AlertTriangle className="w-4 h-4 shrink-0" />
+                  <span>Cảnh báo xóa nhân sự</span>
+                </div>
+                <p className="leading-relaxed">
+                  Bạn có chắc chắn muốn xóa nhân sự <strong>"{personToDelete.ingame}"</strong> khỏi Kho Đi Bụi? Thao tác này sẽ gỡ bỏ hoàn toàn nhân sự này khỏi danh sách đi bụi.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setPersonToDelete(null)}
+                  className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-200 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 rounded-xl transition-colors border border-slate-200 dark:border-slate-700 cursor-pointer"
+                >
+                  Huỷ
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleDelete(personToDelete.id);
+                    setPersonToDelete(null);
+                  }}
+                  className="px-4 py-2 text-xs font-bold text-white bg-rose-600 hover:bg-rose-700 active:bg-rose-800 rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  Đồng ý xóa
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Floating Pixel Note Bubble Modal / Tooltip (Style chuẩn theo mẫu ảnh) */}
       {activeNotePerson && noteAnchorRect && (
