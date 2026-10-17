@@ -96,10 +96,13 @@ export function getEmptyCloudGuildData(guildId: string = DEFAULT_GUILD_ID): Clou
     scheduleTime: 'MON 20:30',
     bossName: 'NIÊN DU',
     members: Array.from({ length: 12 }, (_, i) => ({
+      id: `m_${i + 1}`,
+      stt: i + 1,
       slot: i + 1,
       ingame: '',
       className: 'Toái Mộng',
       party: i < 6 ? 1 : 2,
+      loggedBy: '',
     })),
     parties: [
       { id: 1, name: 'PT 1' },
@@ -117,6 +120,9 @@ export function getEmptyCloudGuildData(guildId: string = DEFAULT_GUILD_ID): Clou
     members: [],
     minAttendanceRequired: 1,
     reportDate: new Date().toISOString().split('T')[0],
+    scheduleTime: '20:00',
+    targetName: '',
+    sessions: [],
     createdAt: timestamp,
     partyNotes: {},
   };

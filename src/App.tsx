@@ -1237,7 +1237,7 @@ export default function App() {
 
   // Debounced Auto-sync to Firebase Firestore Cloud (Thời gian thực)
   useEffect(() => {
-    if (!isStorageHydrated || !isAutoCloudSyncEnabled()) return;
+    if (!isStorageHydrated) return;
     if (isRemoteIncomingRef.current) return;
 
     const hasData =
