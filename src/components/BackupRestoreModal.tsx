@@ -18,7 +18,7 @@ import {
   FileJson,
 } from 'lucide-react';
 import { RaidBoard, PersonnelMember, CustomClassColors, GuildWarBoard } from '../types';
-import { CloudGuildData, GLOBAL_GUILD_ID } from '../services/cloudSync';
+import { CloudGuildData } from '../services/cloudSync';
 import {
   AutoSnapshot,
   getAutoSnapshots,
@@ -599,10 +599,7 @@ export const BackupRestoreModal: React.FC<BackupRestoreModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="p-3.5 px-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex items-center justify-between">
-          <div className="text-[11px] text-slate-500">
-            Mã định danh: <code className="font-mono text-sky-600 dark:text-sky-400">{GLOBAL_GUILD_ID}</code>
-          </div>
+        <div className="p-3.5 px-5 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-850 flex items-center justify-end">
           <button
             type="button"
             onClick={onClose}
