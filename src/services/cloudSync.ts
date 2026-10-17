@@ -7,7 +7,7 @@ import {
   CustomClassColors,
 } from '../types';
 
-export const GLOBAL_GUILD_ID = 'nth_guild_master';
+export const GLOBAL_GUILD_ID = 'NIENDU_RAID_THANG10';
 export const DEFAULT_GUILD_ID = GLOBAL_GUILD_ID;
 export const STORAGE_KEY_GUILD_ID = 'raid_roster_cloud_guild_id_v1';
 export const STORAGE_KEY_AUTO_CLOUD_SYNC = 'raid_roster_auto_cloud_sync_v1';
