@@ -124,6 +124,11 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
     return counts;
   }, [diBuiPool]);
 
+  // Chỉ lấy các môn phái thực tế đang có nhân sự đi bụi để giao diện gọn gàng
+  const activeClassesWithMembers = useMemo(() => {
+    return CLASS_LIST.filter((cls) => (classCountMap[cls] || 0) > 0);
+  }, [classCountMap]);
+
   // Filtered and sorted list
   const filteredList = useMemo(() => {
     const list = diBuiPool.filter((person) => {
@@ -217,29 +222,29 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
   return (
     <div className="bg-white dark:bg-[#0E1722] rounded-2xl border-2 border-amber-300 dark:border-amber-700/60 shadow-md flex flex-col overflow-hidden transition-all duration-200">
       {/* Header Bar */}
-      <div className="p-3 sm:p-3.5 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border-b border-amber-200 dark:border-amber-800/60 flex items-center justify-between gap-2">
+      <div className="p-2.5 sm:p-3 bg-gradient-to-r from-amber-500/10 via-orange-500/5 to-transparent border-b border-amber-200 dark:border-amber-800/60 flex items-center justify-between gap-2">
         <div
           onClick={toggleCollapse}
           className="flex items-center gap-2 cursor-pointer select-none group min-w-0 flex-1"
           title={isCollapsed ? 'Mở rộng Kho Đi Bụi' : 'Thu gọn Kho Đi Bụi'}
         >
-          <div className="w-8 h-8 rounded-xl bg-amber-500/15 dark:bg-amber-400/20 border border-amber-400/40 flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform shadow-2xs">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-amber-500/15 dark:bg-amber-400/20 border border-amber-400/40 flex items-center justify-center shrink-0 text-amber-600 dark:text-amber-400 group-hover:scale-105 transition-transform shadow-2xs">
             <Tent className="w-4 h-4" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
               <h3 className="text-xs sm:text-sm font-black text-amber-950 dark:text-amber-200 uppercase tracking-wide flex items-center gap-1.5">
                 <span>Kho Đi Bụi</span>
               </h3>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs">
+              <span className="px-1.5 py-0.2 rounded-full text-[10px] font-black bg-amber-100 text-amber-800 dark:bg-amber-900/60 dark:text-amber-300 border border-amber-300 dark:border-amber-700 shadow-2xs">
                 {diBuiPool.length} người
               </span>
               <span className="hidden sm:inline-block text-[10px] font-semibold text-slate-500 dark:text-slate-400">
-                (Tạm off / Chờ quay lại game)
+                (Tạm off / Chờ ngày quay lại)
               </span>
             </div>
             <p className="text-[10px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-              Kho độc lập chứa nhân sự nghỉ game tạm thời. Khi trở lại chỉ cần bấm nút để nạp về Kho.
+              Kho độc lập lưu trữ nhân sự tạm nghỉ game. Khi trở lại bấm "Quay lại game" để nạp vào {activePoolName}.
             </p>
           </div>
         </div>
@@ -256,7 +261,7 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
             title="Thêm nhân sự mới vào Kho Đi Bụi"
           >
             <UserPlus className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">{isAddingNew ? 'Đóng form' : '+ Thêm'}</span>
+            <span className="hidden sm:inline">{isAddingNew ? 'Đóng' : '+ Thêm'}</span>
           </button>
 
           <button
@@ -365,44 +370,44 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
             </form>
           )}
 
-          {/* Search Bar & Class Filter */}
-          <div className="p-3 border-b border-slate-200 dark:border-slate-800 space-y-2 bg-slate-50/60 dark:bg-slate-900/40">
-            {/* Search input */}
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+          {/* Unified Compact Toolbar: Search + Active Class Filter Chips + Sort */}
+          <div className="p-2 sm:p-2.5 px-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/70 dark:bg-slate-900/40 flex flex-wrap items-center justify-between gap-2">
+            {/* Search Input */}
+            <div className="relative flex-1 min-w-[170px] max-w-xs">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Tìm nhân sự đi bụi theo tên, môn phái, ghi chú..."
-                className="w-full pl-8 pr-7 py-1.5 text-xs font-bold bg-white dark:bg-[#0B1219] border border-slate-300 dark:border-slate-700 focus:border-amber-500 rounded-xl text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-2xs"
+                placeholder="Tìm tên, môn phái, ghi chú..."
+                className="w-full pl-7 pr-6 py-1 text-xs font-semibold bg-white dark:bg-[#0B1219] border border-slate-300 dark:border-slate-700 focus:border-amber-500 rounded-lg text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-1 focus:ring-amber-500 shadow-2xs"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-800 dark:hover:text-white"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-800 dark:hover:text-white"
                 >
-                  <X className="w-3.5 h-3.5" />
+                  <X className="w-3 h-3" />
                 </button>
               )}
             </div>
 
-            {/* Class Filter Chips */}
-            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            {/* Active Class Filter Chips: Chỉ hiển thị các môn phái thực tế đang có nhân sự đi bụi */}
+            <div className="flex items-center gap-1 flex-wrap">
               <button
                 type="button"
                 onClick={() => setSelectedClassFilter('ALL')}
-                className={`px-2 py-0.5 rounded-lg text-[10px] font-black shrink-0 transition-all shadow-2xs cursor-pointer ${
+                className={`px-2 py-0.5 rounded-md text-[10px] font-black shrink-0 transition-all shadow-2xs cursor-pointer ${
                   selectedClassFilter === 'ALL'
-                    ? 'bg-amber-500 text-slate-950 font-black scale-102'
-                    : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300'
+                    ? 'bg-amber-500 text-slate-950 font-black'
+                    : 'bg-slate-200 dark:bg-slate-800 text-slate-700 dark:text-slate-300 hover:bg-slate-300 dark:hover:bg-slate-700'
                 }`}
               >
                 Tất cả ({diBuiPool.length})
               </button>
 
-              {CLASS_LIST.map((cls) => {
+              {activeClassesWithMembers.map((cls) => {
                 const count = classCountMap[cls] || 0;
                 const isSelected = selectedClassFilter === cls;
                 const meta = getEffectiveClassMeta(cls, customColors);
@@ -416,9 +421,9 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
                       backgroundColor: meta.bgColor,
                       color: meta.textColor,
                     }}
-                    className={`px-2 py-0.5 rounded-lg text-[10px] font-bold shrink-0 flex items-center gap-1 transition-all shadow-2xs cursor-pointer ${
+                    className={`px-2 py-0.5 rounded-md text-[10px] font-bold shrink-0 flex items-center gap-1 transition-all shadow-2xs cursor-pointer ${
                       isSelected
-                        ? 'ring-2 ring-amber-500 scale-105 shadow-md font-black'
+                        ? 'ring-2 ring-amber-500 scale-102 shadow-xs font-black'
                         : 'opacity-90 hover:opacity-100'
                     }`}
                   >
@@ -431,247 +436,234 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
               })}
             </div>
 
-            {/* Sắp xếp Alphabet Controls */}
-            <div className="flex items-center justify-between pt-1 border-t border-slate-200/60 dark:border-slate-800/80 text-[11px]">
-              <span className="text-slate-500 dark:text-slate-400 font-semibold text-[10px]">
-                Sắp xếp danh sách:
-              </span>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => setSortOrder((prev) => (prev === 'alpha-asc' ? 'alpha-desc' : 'alpha-asc'))}
-                  title={sortOrder === 'alpha-asc' ? 'Đang xếp A → Z (Bấm để xếp Z → A)' : 'Đang xếp Z → A (Bấm để xếp A → Z)'}
-                  className={`flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all shadow-2xs border cursor-pointer ${
-                    sortOrder === 'alpha-asc' || sortOrder === 'alpha-desc'
-                      ? 'bg-amber-500 text-slate-950 border-amber-400 font-black'
-                      : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-300 dark:border-slate-700'
-                  }`}
-                >
-                  {sortOrder === 'alpha-desc' ? (
-                    <>
-                      <ArrowUpZA className="w-3 h-3" />
-                      <span>Z → A</span>
-                    </>
-                  ) : (
-                    <>
-                      <ArrowDownAZ className="w-3 h-3" />
-                      <span>A → Z</span>
-                    </>
-                  )}
-                </button>
+            {/* Sort Controls */}
+            <div className="flex items-center gap-1 shrink-0 ml-auto">
+              <button
+                type="button"
+                onClick={() => setSortOrder((prev) => (prev === 'alpha-asc' ? 'alpha-desc' : 'alpha-asc'))}
+                title={sortOrder === 'alpha-asc' ? 'Đang xếp A → Z (Bấm để xếp Z → A)' : 'Đang xếp Z → A (Bấm để xếp A → Z)'}
+                className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:border-amber-400 transition-all shadow-2xs cursor-pointer"
+              >
+                {sortOrder === 'alpha-desc' ? (
+                  <>
+                    <ArrowUpZA className="w-3 h-3 text-amber-500" />
+                    <span>Z → A</span>
+                  </>
+                ) : (
+                  <>
+                    <ArrowDownAZ className="w-3 h-3 text-amber-500" />
+                    <span>A → Z</span>
+                  </>
+                )}
+              </button>
 
-                <button
-                  type="button"
-                  onClick={handleSortDiBuiPermanently}
-                  title="Lưu thứ tự Alphabet A-Z vĩnh viễn vào Kho Đi Bụi"
-                  className="flex items-center gap-1 px-2 py-0.5 rounded-lg text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-300 dark:border-amber-800 transition-all cursor-pointer"
-                >
-                  <Sparkles className="w-3 h-3 text-amber-600 dark:text-amber-400" />
-                  <span>Lưu A-Z kho</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={handleSortDiBuiPermanently}
+                title="Lưu thứ tự Alphabet A-Z vĩnh viễn vào Kho Đi Bụi"
+                className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 border border-amber-300 dark:border-amber-800 transition-all cursor-pointer"
+              >
+                <Sparkles className="w-3 h-3 text-amber-600 dark:text-amber-400" />
+                <span className="hidden sm:inline">Lưu A-Z</span>
+              </button>
             </div>
           </div>
 
-          {/* List of Personnel in Kho Đi Bụi */}
-          <div className="p-2 sm:p-3 overflow-y-auto space-y-1.5 max-h-[360px]">
+          {/* List of Personnel in Kho Đi Bụi - Responsive Card Grid */}
+          <div className="p-2.5 sm:p-3 overflow-y-auto max-h-[360px]">
             {filteredList.length === 0 ? (
-              <div className="py-6 text-center text-xs text-slate-500 dark:text-slate-400">
-                <Tent className="w-7 h-7 mx-auto text-amber-500/50 mb-1.5" />
+              <div className="py-8 text-center text-xs text-slate-500 dark:text-slate-400">
+                <Tent className="w-8 h-8 mx-auto text-amber-500/50 mb-2" />
                 <p className="font-bold text-slate-700 dark:text-slate-300">
                   {diBuiPool.length === 0
                     ? 'Chưa có nhân sự nào trong Kho Đi Bụi'
                     : 'Không tìm thấy nhân sự phù hợp với bộ lọc'}
                 </p>
-                <p className="text-[11px] mt-0.5 text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
+                <p className="text-[11px] mt-1 text-slate-500 dark:text-slate-400 max-w-sm mx-auto">
                   {diBuiPool.length === 0
                     ? 'Khi có thành viên tạm nghỉ hoặc chờ ngày quay lại game, hãy bấm nút "+ Thêm" hoặc chuyển từ Kho Nhân Sự sang đây để lưu trữ.'
                     : 'Hãy thử xóa bớt điều kiện tìm kiếm hoặc chọn "Tất cả".'}
                 </p>
               </div>
             ) : (
-              filteredList.map((person) => {
-                const classMeta = getEffectiveClassMeta(person.className, customColors);
-                const isEditing = editingId === person.id;
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                {filteredList.map((person) => {
+                  const classMeta = getEffectiveClassMeta(person.className, customColors);
+                  const isEditing = editingId === person.id;
 
-                if (isEditing) {
+                  if (isEditing) {
+                    return (
+                      <div
+                        key={person.id}
+                        className="col-span-1 sm:col-span-2 lg:col-span-3 p-3 bg-amber-50 dark:bg-slate-800 rounded-xl border border-amber-300 dark:border-amber-700/60 shadow-xs space-y-2 text-xs"
+                      >
+                        <div className="font-bold text-amber-900 dark:text-amber-300 text-[11px]">
+                          Chỉnh sửa thông tin đi bụi: {person.ingame}
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1.5">
+                          <input
+                            type="text"
+                            value={editIngame}
+                            onChange={(e) => setEditIngame(e.target.value)}
+                            placeholder="Ingame..."
+                            className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
+                          />
+                          <select
+                            value={editClass}
+                            onChange={(e) => setEditClass(e.target.value as RaidClass)}
+                            className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
+                          >
+                            {CLASS_LIST.map((cls) => (
+                              <option key={cls} value={cls}>
+                                {cls}
+                              </option>
+                            ))}
+                          </select>
+                          <input
+                            type="text"
+                            value={editLoggedBy}
+                            onChange={(e) => setEditLoggedBy(e.target.value)}
+                            placeholder="Logged by..."
+                            className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
+                          />
+                          <input
+                            type="text"
+                            value={editNote}
+                            onChange={(e) => setEditNote(e.target.value)}
+                            placeholder="Ghi chú hẹn ngày..."
+                            className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
+                          />
+                        </div>
+                        <div className="flex justify-end gap-1.5 pt-0.5">
+                          <button
+                            type="button"
+                            onClick={() => setEditingId(null)}
+                            className="px-2.5 py-1 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400 cursor-pointer"
+                          >
+                            Hủy
+                          </button>
+                          <button
+                            type="submit"
+                            onClick={() => handleSaveEdit(person.id)}
+                            className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg font-bold text-xs flex items-center gap-1 shadow-2xs cursor-pointer"
+                          >
+                            <Check className="w-3 h-3" />
+                            <span>Lưu</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   return (
                     <div
                       key={person.id}
-                      className="p-2.5 bg-amber-50 dark:bg-slate-800 rounded-xl border border-amber-300 dark:border-amber-700/60 shadow-xs space-y-2 text-xs"
+                      data-person-card="true"
+                      className="group flex flex-col justify-between p-2.5 rounded-xl border border-amber-200/80 dark:border-slate-800 bg-amber-50/30 dark:bg-[#121B26] hover:border-amber-400 dark:hover:border-amber-600/70 shadow-2xs hover:shadow-xs transition-all gap-2"
                     >
-                      <div className="font-bold text-amber-900 dark:text-amber-300 text-[11px]">
-                        Chỉnh sửa thông tin đi bụi
-                      </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-1.5">
-                        <input
-                          type="text"
-                          value={editIngame}
-                          onChange={(e) => setEditIngame(e.target.value)}
-                          placeholder="Ingame..."
-                          className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
-                        />
-                        <select
-                          value={editClass}
-                          onChange={(e) => setEditClass(e.target.value as RaidClass)}
-                          className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
+                      {/* Top Row: Name + Class Badge */}
+                      <div className="flex items-center justify-between gap-1.5 min-w-0">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Đang đi bụi" />
+                          <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate" title={person.ingame}>
+                            {person.ingame}
+                          </span>
+                        </div>
+                        <span
+                          className="px-2 py-0.5 rounded-md text-[10px] font-black shrink-0 shadow-2xs"
+                          style={{
+                            backgroundColor: classMeta.bgColor,
+                            color: classMeta.textColor,
+                          }}
                         >
-                          {CLASS_LIST.map((cls) => (
-                            <option key={cls} value={cls}>
-                              {cls}
-                            </option>
-                          ))}
-                        </select>
-                        <input
-                          type="text"
-                          value={editLoggedBy}
-                          onChange={(e) => setEditLoggedBy(e.target.value)}
-                          placeholder="Logged by..."
-                          className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
-                        />
-                        <input
-                          type="text"
-                          value={editNote}
-                          onChange={(e) => setEditNote(e.target.value)}
-                          placeholder="Ghi chú hẹn ngày..."
-                          className="px-2 py-1 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-900 dark:text-white text-xs font-bold"
-                        />
+                          {person.className}
+                        </span>
                       </div>
-                      <div className="flex justify-end gap-1.5">
+
+                      {/* Middle: Log & Note */}
+                      <div className="flex items-center justify-between gap-1 text-[11px] min-w-0">
+                        <span className="text-slate-500 dark:text-slate-400 truncate text-[10px]">
+                          Log: <strong className="text-slate-700 dark:text-slate-300 font-bold">{person.loggedBy || person.ingame}</strong>
+                        </span>
+
+                        {person.note && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
+                              handleToggleNoteForPerson(
+                                person,
+                                card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
+                              );
+                            }}
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 truncate max-w-[130px] cursor-pointer"
+                            title={`Ghi chú: ${person.note}\n(Click để xem/sửa pixel note)`}
+                          >
+                            <MessageSquare className="w-2.5 h-2.5 text-amber-700 dark:text-amber-300 shrink-0" />
+                            <span className="truncate">{person.note}</span>
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Bottom Row: Quay Lại Game Button + Quick Actions */}
+                      <div className="flex items-center justify-between gap-1 pt-1.5 border-t border-amber-100/80 dark:border-slate-800/80">
+                        {/* Button: Quay Lại Game */}
                         <button
                           type="button"
-                          onClick={() => setEditingId(null)}
-                          className="px-2 py-0.5 text-xs text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                          onClick={() => onRestoreToActivePool(person)}
+                          title={`Chuyển "${person.ingame}" quay lại ${activePoolName}`}
+                          className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-lg text-[11px] font-black transition-all shadow-xs active:scale-95 cursor-pointer"
                         >
-                          Hủy
+                          <RotateCcw className="w-3 h-3 stroke-[2.5]" />
+                          <span>Quay lại game</span>
                         </button>
-                        <button
-                          type="submit"
-                          onClick={() => handleSaveEdit(person.id)}
-                          className="px-2.5 py-0.5 bg-amber-600 hover:bg-amber-700 text-white rounded font-bold text-xs flex items-center gap-1"
-                        >
-                          <Check className="w-3 h-3" />
-                          <span>Lưu</span>
-                        </button>
+
+                        {/* Quick actions: Note, Edit, Delete */}
+                        <div className="flex items-center gap-0.5">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
+                              handleToggleNoteForPerson(
+                                person,
+                                card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
+                              );
+                            }}
+                            title={person.note ? 'Xem & sửa ghi chú' : 'Thêm ghi chú'}
+                            className={`p-1 rounded transition-colors cursor-pointer ${
+                              activeNotePerson?.id === person.id
+                                ? 'text-amber-500 bg-amber-100 dark:bg-amber-950/70 ring-1 ring-amber-400'
+                                : person.note
+                                ? 'text-amber-500 hover:text-amber-600 bg-amber-50 dark:bg-amber-950/40'
+                                : 'text-slate-400 hover:text-slate-800 dark:hover:text-white'
+                            }`}
+                          >
+                            <MessageSquare className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleStartEdit(person)}
+                            title="Chỉnh sửa"
+                            className="p-1 text-slate-400 hover:text-slate-800 dark:hover:text-white rounded transition-colors cursor-pointer"
+                          >
+                            <Edit2 className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setPersonToDelete(person)}
+                            title="Xóa khỏi Kho Đi Bụi"
+                            className="p-1 text-slate-400 hover:text-rose-500 rounded transition-colors cursor-pointer"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   );
-                }
-
-                return (
-                  <div
-                    key={person.id}
-                    data-person-card="true"
-                    className="group flex items-center justify-between gap-2 p-2.5 rounded-xl border border-amber-200/80 dark:border-slate-800 bg-amber-50/30 dark:bg-[#121B26] hover:border-amber-400 dark:hover:border-amber-600/70 shadow-2xs hover:shadow-xs transition-all"
-                  >
-                    {/* Left: Info */}
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                      <div className="w-2 h-2 rounded-full bg-amber-400 shrink-0" title="Đang đi bụi" />
-
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="text-xs sm:text-sm font-black text-slate-900 dark:text-white truncate">
-                            {person.ingame}
-                          </span>
-                          {person.note && (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
-                                handleToggleNoteForPerson(
-                                  person,
-                                  card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
-                                );
-                              }}
-                              className="inline-flex items-start gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100 hover:bg-amber-200 text-amber-800 dark:bg-amber-950/80 dark:text-amber-300 border border-amber-300 dark:border-amber-800 whitespace-pre-line text-left break-words max-w-full cursor-pointer"
-                              title={`Ghi chú:\n${person.note}\n(Click để ẩn/hiện)`}
-                            >
-                              <MessageSquare className="w-3 h-3 text-amber-700 dark:text-amber-300 shrink-0 mt-0.5" />
-                              <span className="whitespace-pre-line break-words text-left">{person.note}</span>
-                            </button>
-                          )}
-                        </div>
-
-                        <div className="text-[11px] truncate flex items-center gap-2 text-slate-500 dark:text-slate-400 mt-0.5">
-                          <span>
-                            Log:{' '}
-                            <strong className="text-slate-700 dark:text-slate-300 font-bold">
-                              {person.loggedBy || person.ingame}
-                            </strong>
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Right: Class & Action Buttons */}
-                    <div className="flex items-center gap-1.5 shrink-0">
-                      {/* Class Badge */}
-                      <span
-                        className="px-2 py-0.5 rounded-lg text-[11px] font-black shrink-0 shadow-2xs"
-                        style={{
-                          backgroundColor: classMeta.bgColor,
-                          color: classMeta.textColor,
-                        }}
-                      >
-                        {person.className}
-                      </span>
-
-                      {/* Button: Quay Lại Game (Chuyển về Kho Nhân Sự) */}
-                      <button
-                        type="button"
-                        onClick={() => onRestoreToActivePool(person)}
-                        title={`Chuyển "${person.ingame}" quay lại ${activePoolName}`}
-                        className="flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white rounded-lg text-xs font-black transition-all shadow-[0_0_10px_rgba(16,185,129,0.3)] active:scale-95 cursor-pointer"
-                      >
-                        <RotateCcw className="w-3 h-3 stroke-[2.5]" />
-                        <span>Quay lại game</span>
-                      </button>
-
-                      {/* Note, Edit & Delete */}
-                      <div className="flex items-center gap-0.5 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const card = e.currentTarget.closest('[data-person-card]') as HTMLElement;
-                            handleToggleNoteForPerson(
-                              person,
-                              card ? card.getBoundingClientRect() : e.currentTarget.getBoundingClientRect()
-                            );
-                          }}
-                          title={person.note ? 'Xem & sửa ghi chú (Click để ẩn/hiện)' : 'Thêm ghi chú (Click để ẩn/hiện)'}
-                          className={`p-1 rounded transition-colors cursor-pointer ${
-                            activeNotePerson?.id === person.id
-                              ? 'text-amber-500 bg-amber-100 dark:bg-amber-950/70 ring-1 ring-amber-400'
-                              : person.note
-                              ? 'text-amber-500 hover:text-amber-600 bg-amber-50 dark:bg-amber-950/40'
-                              : 'text-slate-400 hover:text-slate-800 dark:hover:text-white'
-                          }`}
-                        >
-                          <MessageSquare className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleStartEdit(person)}
-                          title="Chỉnh sửa"
-                          className="p-1 text-slate-400 hover:text-slate-800 dark:hover:text-white rounded transition-colors"
-                        >
-                          <Edit2 className="w-3.5 h-3.5" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setPersonToDelete(person)}
-                          title="Xóa khỏi Kho Đi Bụi"
-                          className="p-1 text-slate-400 hover:text-rose-500 rounded transition-colors"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })
+                })}
+              </div>
             )}
           </div>
 

@@ -3346,22 +3346,6 @@ export default function App() {
                   onSyncFromGuildWar={handleSyncGuildWarToMaster}
                   subPoolMembershipMap={subPoolMembershipMap}
                 />
-
-                {/* Kho Đi Bụi - Vị trí phía dưới Kho Nhân Sự */}
-                <DiBuiStorage
-                  diBuiPool={diBuiPersonnelPool}
-                  onUpdateDiBuiPool={handleUpdateDiBuiPersonnelPool}
-                  onRestoreToActivePool={handleRestoreFromDiBui}
-                  customColors={customColors}
-                  isCompact={false}
-                  activePoolName={
-                    activePoolView === 'raid_update'
-                      ? 'Kho Raid Update'
-                      : activePoolView === 'guild_war'
-                      ? 'Kho Bang Chiến'
-                      : 'Kho Raid'
-                  }
-                />
               </div>
             )}
 
@@ -3448,7 +3432,7 @@ export default function App() {
         )}
 
         {/* Kho Đi Bụi - Thay thế vị trí Danh Sách Chỉnh Màu Môn Phái */}
-        <section aria-label="Kho Đi Bụi" className="mt-8">
+        <section aria-label="Kho Đi Bụi" className="mt-6 max-w-5xl mx-auto">
           <DiBuiStorage
             diBuiPool={diBuiPersonnelPool}
             onUpdateDiBuiPool={handleUpdateDiBuiPersonnelPool}
