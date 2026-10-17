@@ -131,7 +131,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                 />
                 <div>
                   <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <span>Máy chủ: Bang Niên Du</span>
+                    <span>Máy chủ: Guild_NiênDu</span>
                   </div>
                   <div className="text-[11px] text-slate-400">
                     Trạng thái:{' '}

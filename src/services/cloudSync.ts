@@ -7,8 +7,9 @@ import {
   CustomClassColors,
 } from '../types';
 
-export const GLOBAL_GUILD_ID = 'NIENDU_RAID_THANG10';
+export const GLOBAL_GUILD_ID = 'Guild_NienDu';
 export const DEFAULT_GUILD_ID = GLOBAL_GUILD_ID;
+export const BACKUP_MIRROR_GUILD_ID = 'NIENDU_RAID_THANG10';
 export const STORAGE_KEY_GUILD_ID = 'raid_roster_cloud_guild_id_v1';
 export const STORAGE_KEY_AUTO_CLOUD_SYNC = 'raid_roster_auto_cloud_sync_v1';
 
@@ -204,7 +205,7 @@ export async function pushToCloud(
       activeGuildWarBoardId: String(payload.activeGuildWarBoardId || '').slice(0, 128),
       customColors: payload.customColors || {},
       updatedAt: Date.now(),
-      title: payload.title ? String(payload.title).slice(0, 200) : 'Bang Niên Du (Chính thức)',
+      title: payload.title ? String(payload.title).slice(0, 200) : 'Guild_NiênDu (Bang Niên Du)',
     };
 
     if (payload.updateBoards && Array.isArray(payload.updateBoards)) {
@@ -231,6 +232,15 @@ export async function pushToCloud(
     const docData: CloudGuildData = JSON.parse(JSON.stringify(cleaned));
 
     await setDoc(docRef, docData, { merge: true });
+
+    // Đồng bộ song song sang phòng dự phòng BACKUP_MIRROR_GUILD_ID để đảm bảo không bao giờ mất dữ liệu
+    if (targetId === GLOBAL_GUILD_ID) {
+      try {
+        const mirrorRef = doc(db, 'guilds', BACKUP_MIRROR_GUILD_ID);
+        await setDoc(mirrorRef, docData, { merge: true });
+      } catch {}
+    }
+
     return { success: true };
   } catch (err: any) {
     console.error('[CloudSync] Push error:', err);
@@ -252,6 +262,17 @@ export async function pullFromCloud(guildId: string = GLOBAL_GUILD_ID): Promise<
     const snap = await getDoc(docRef);
 
     if (!snap.exists()) {
+      // Fallback kiểm tra phòng dự phòng BACKUP_MIRROR_GUILD_ID
+      if (targetId === GLOBAL_GUILD_ID) {
+        try {
+          const mirrorRef = doc(db, 'guilds', BACKUP_MIRROR_GUILD_ID);
+          const mirrorSnap = await getDoc(mirrorRef);
+          if (mirrorSnap.exists()) {
+            const mData = mirrorSnap.data() as CloudGuildData;
+            return { success: true, data: mData };
+          }
+        } catch {}
+      }
       return { success: false, error: 'Chưa có dữ liệu trên Cloud' };
     }
 
