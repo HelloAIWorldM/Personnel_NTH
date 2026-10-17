@@ -78,8 +78,10 @@ import {
   X,
 } from 'lucide-react';
 import { CloudSyncModal } from './components/CloudSyncModal';
+import { BackupRestoreModal } from './components/BackupRestoreModal';
 import { DonateModal } from './components/DonateModal';
 import { ImportRaidImageModal } from './components/ImportRaidImageModal';
+import { checkAndRunAutoDailyBackup } from './services/backupService';
 import {
   pushToCloud,
   pullFromCloud,
@@ -212,6 +214,7 @@ export default function App() {
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
   const [isCreateGuildWarModalOpen, setIsCreateGuildWarModalOpen] = useState(false);
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
+  const [isBackupModalOpen, setIsBackupModalOpen] = useState(false);
   const [isCloudSyncing, setIsCloudSyncing] = useState(false);
   const [lastCloudSyncTime, setLastCloudSyncTime] = useState<number | null>(null);
   const [isDonateModalOpen, setIsDonateModalOpen] = useState(false);
@@ -886,6 +889,40 @@ export default function App() {
     };
   }, [isStorageHydrated, applyCloudDataToState]);
 
+  // Tự động kiểm tra và tạo bản sao lưu ngày mới (Daily Backup) khi mở web hoặc khi có dữ liệu mới
+  useEffect(() => {
+    if (!isStorageHydrated) return;
+    const timer = setTimeout(() => {
+      checkAndRunAutoDailyBackup({
+        boards,
+        personnelPool,
+        guildWarBoards,
+        updateBoards,
+        updatePersonnelPool,
+        diBuiPersonnelPool,
+        masterPersonnelPool,
+        guildWarPersonnelPool,
+        customColors,
+        activeBoardId,
+        activeGuildWarBoardId,
+        activeUpdateBoardId,
+        updatedAt: Date.now(),
+      }).then((didBackup) => {
+        if (didBackup) {
+          console.info('[DailyBackup] Đã tự động tạo bản sao lưu thành công cho ngày hôm nay');
+        }
+      });
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [
+    isStorageHydrated,
+    boards,
+    masterPersonnelPool,
+    personnelPool,
+    guildWarBoards,
+  ]);
+
   // Ghi nhận thời điểm chỉnh sửa gần nhất của người dùng cục bộ
   useEffect(() => {
     if (!isStorageHydrated) return;
@@ -1330,6 +1367,13 @@ export default function App() {
     } finally {
       setIsCloudSyncing(false);
     }
+  };
+
+  const handleRestoreBackupData = (restored: Partial<CloudGuildData>) => {
+    applyCloudDataToState(restored as CloudGuildData);
+    // Đồng bộ ngay lên Cloud Master để các máy khác cùng cập nhật
+    pushToCloud(restored as any, GLOBAL_GUILD_ID);
+    showToast('Đã khôi phục dữ liệu bản sao lưu thành công!');
   };
 
   // Guild War Board Handlers
@@ -2630,6 +2674,19 @@ export default function App() {
               )}
             </button>
 
+            {/* Daily Backup Button */}
+            <button
+              type="button"
+              id="btn-open-backup-modal"
+              onClick={() => setIsBackupModalOpen(true)}
+              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-[#F0FDFA] dark:bg-[#0D2838] hover:bg-[#CCFBF1] dark:hover:bg-[#153B52] text-[#0284C7] dark:text-[#7DD3FC] border border-[#7DD3FC] dark:border-[#163E56] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
+              title="Quản lý sao lưu dữ liệu mỗi ngày (Daily Backup)"
+            >
+              <Database className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0284C7] dark:text-[#38BDF8]" />
+              <span className="hidden sm:inline">Sao lưu</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 inline-block" />
+            </button>
+
             {/* Import Raid from Image Button */}
             <button
               type="button"
@@ -3471,6 +3528,27 @@ export default function App() {
         updatePersonnelCount={updatePersonnelPool.length}
         diBuiCount={diBuiPersonnelPool.length}
         showToast={showToast}
+        onOpenBackupModal={() => setIsBackupModalOpen(true)}
+      />
+
+      {/* Daily Backup & Restore Modal */}
+      <BackupRestoreModal
+        isOpen={isBackupModalOpen}
+        onClose={() => setIsBackupModalOpen(false)}
+        boards={boards}
+        personnelPool={personnelPool}
+        customColors={customColors}
+        guildWarBoards={guildWarBoards}
+        updateBoards={updateBoards}
+        updatePersonnelPool={updatePersonnelPool}
+        diBuiPersonnelPool={diBuiPersonnelPool}
+        masterPersonnelPool={masterPersonnelPool}
+        guildWarPersonnelPool={guildWarPersonnelPool}
+        activeBoardId={activeBoardId}
+        activeGuildWarBoardId={activeGuildWarBoardId}
+        activeUpdateBoardId={activeUpdateBoardId}
+        onRestoreData={handleRestoreBackupData}
+        onShowToast={showToast}
       />
 
       {/* Import Raid From Image Modal */}

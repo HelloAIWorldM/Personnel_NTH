@@ -108,10 +108,7 @@ export function getEmptyCloudGuildData(guildId: string = DEFAULT_GUILD_ID): Clou
       { id: 1, name: 'PT 1' },
       { id: 2, name: 'PT 2' },
     ],
-    minAttendanceRequired: 1,
-    reportDate: new Date().toISOString().split('T')[0],
     createdAt: timestamp,
-    partyNotes: {},
   };
 
   const emptyGuildWarBoard: GuildWarBoard = {

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Cloud, CloudUpload, CloudDownload, Sparkles, RefreshCw, X, ShieldCheck } from 'lucide-react';
+import { Cloud, CloudUpload, CloudDownload, Sparkles, RefreshCw, X, ShieldCheck, Database, Calendar } from 'lucide-react';
 import { CloudGuildData } from '../services/cloudSync';
 
 interface CloudSyncModalProps {
@@ -17,6 +17,7 @@ interface CloudSyncModalProps {
   updatePersonnelCount?: number;
   diBuiCount?: number;
   showToast: (msg: string) => void;
+  onOpenBackupModal?: () => void;
 }
 
 export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
@@ -34,6 +35,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
   updatePersonnelCount = 0,
   diBuiCount = 0,
   showToast,
+  onOpenBackupModal,
 }) => {
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
@@ -207,6 +209,40 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
               </button>
             </div>
           </div>
+
+          {/* Daily Backup Integration Card */}
+          {onOpenBackupModal && (
+            <div className="p-3.5 rounded-xl bg-gradient-to-r from-sky-950/40 via-indigo-950/40 to-slate-900 border border-sky-500/30 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-sky-500/20 text-sky-400 border border-sky-500/30 flex items-center justify-center shrink-0">
+                  <Database className="w-4 h-4" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Sao lưu dữ liệu mỗi ngày</span>
+                    <span className="px-1.5 py-0.2 rounded text-[10px] font-semibold bg-emerald-500/20 text-emerald-300">
+                      Tự động
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    Xem lịch sử sao lưu theo ngày và khôi phục khi cần
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => {
+                  onClose();
+                  onOpenBackupModal();
+                }}
+                className="px-3 py-1.5 rounded-lg bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs shadow-xs transition-colors shrink-0 cursor-pointer flex items-center gap-1.5"
+              >
+                <Calendar className="w-3.5 h-3.5" />
+                <span>Xem lịch sử</span>
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
