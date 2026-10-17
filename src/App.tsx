@@ -81,12 +81,11 @@ import {
 import { CloudSyncModal } from './components/CloudSyncModal';
 import { DonateModal } from './components/DonateModal';
 import { ImportRaidImageModal } from './components/ImportRaidImageModal';
-import { PublicRoomNoticeModal } from './components/PublicRoomNoticeModal';
 import {
-  getSavedGuildId,
   pushToCloud,
   pullFromCloud,
-  isAutoCloudSyncEnabled,
+  subscribeToCloud,
+  GLOBAL_GUILD_ID,
   CloudGuildData,
 } from './services/cloudSync';
 import {
@@ -222,7 +221,8 @@ export default function App() {
   const [selectedClassFilter, setSelectedClassFilter] = useState<RaidClass | null>(null);
   const [boardToDelete, setBoardToDelete] = useState<RaidBoard | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [isPublicNoticeOpen, setIsPublicNoticeOpen] = useState(true);
+  const isRemoteIncomingRef = useRef(false);
+  const lastLocalEditTimeRef = useRef(0);
 
   // App Mode: 'RAID' (Bảng Raid), 'RAID_UPDATE' (Bảng Raid Update), or 'GUILD_WAR' (Bảng Bang Chiến)
   const [appMode, setAppMode] = useState<AppMode>(() => {
@@ -520,6 +520,78 @@ export default function App() {
 
   const [isStorageHydrated, setIsStorageHydrated] = useState(false);
 
+  // Helper áp dụng dữ liệu từ Cloud Firestore vào toàn bộ state và storage an toàn
+  const applyCloudDataToState = useCallback((cd: CloudGuildData) => {
+    isRemoteIncomingRef.current = true;
+    try {
+      if (cd.boards && cd.boards.length > 0) {
+        setBoards(cd.boards);
+        safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(cd.boards));
+        saveToIndexedDB('boards', cd.boards);
+        if (cd.activeBoardId) {
+          setActiveBoardId(cd.activeBoardId);
+          safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD, cd.activeBoardId);
+        }
+      }
+      if (cd.personnelPool) {
+        setPersonnelPool(cd.personnelPool);
+        safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(cd.personnelPool));
+        saveToIndexedDB('personnelPool', cd.personnelPool);
+      }
+      if (cd.masterPersonnelPool) {
+        setMasterPersonnelPool(cd.masterPersonnelPool);
+        safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(cd.masterPersonnelPool));
+        saveToIndexedDB('masterPersonnelPool', cd.masterPersonnelPool);
+      }
+      if (cd.guildWarBoards && cd.guildWarBoards.length > 0) {
+        setGuildWarBoards(cd.guildWarBoards);
+        safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(cd.guildWarBoards));
+        saveToIndexedDB('guildWarBoards', cd.guildWarBoards);
+        if (cd.activeGuildWarBoardId) {
+          setActiveGuildWarBoardId(cd.activeGuildWarBoardId);
+          safeLocalStorageSet(STORAGE_KEY_ACTIVE_GUILDWAR, cd.activeGuildWarBoardId);
+        }
+      }
+      if (cd.guildWarPersonnelPool) {
+        setGuildWarPersonnelPool(cd.guildWarPersonnelPool);
+        safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(cd.guildWarPersonnelPool));
+        saveToIndexedDB('guildWarPersonnelPool', cd.guildWarPersonnelPool);
+      }
+      if (cd.updateBoards && cd.updateBoards.length > 0) {
+        setUpdateBoards(cd.updateBoards);
+        safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(cd.updateBoards));
+        saveToIndexedDB('updateBoards', cd.updateBoards);
+        if (cd.activeUpdateBoardId) {
+          setActiveUpdateBoardId(cd.activeUpdateBoardId);
+          safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD_UPDATE, cd.activeUpdateBoardId);
+          saveToIndexedDB('activeUpdateBoardId', cd.activeUpdateBoardId);
+        }
+      }
+      if (cd.updatePersonnelPool) {
+        setUpdatePersonnelPool(cd.updatePersonnelPool);
+        safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(cd.updatePersonnelPool));
+        saveToIndexedDB('updatePersonnelPool', cd.updatePersonnelPool);
+      }
+      if (cd.diBuiPersonnelPool) {
+        setDiBuiPersonnelPool(cd.diBuiPersonnelPool);
+        safeLocalStorageSet(STORAGE_KEY_PERSONNEL_DI_BUI, JSON.stringify(cd.diBuiPersonnelPool));
+        saveToIndexedDB('diBuiPersonnelPool', cd.diBuiPersonnelPool);
+      }
+      if (cd.customColors && Object.keys(cd.customColors).length > 0) {
+        setCustomColors(cd.customColors);
+        safeLocalStorageSet(STORAGE_KEY_COLORS, JSON.stringify(cd.customColors));
+        saveToIndexedDB('customColors', cd.customColors);
+      }
+      if (cd.updatedAt) {
+        setLastCloudSyncTime(cd.updatedAt);
+      }
+    } finally {
+      setTimeout(() => {
+        isRemoteIncomingRef.current = false;
+      }, 500);
+    }
+  }, []);
+
   // Initialize and recover from IndexedDB if localStorage was cleared, and listen for share links
   useEffect(() => {
     let isMounted = true;
@@ -712,129 +784,72 @@ export default function App() {
           }
         }
 
-        // 4. Nếu thiết bị vừa bị xoá sạch dữ liệu (Brave "Forget me", ẩn danh, thiết bị mới),
-        // tự động kiểm tra và phục hồi từ Firebase Firestore Cloud (chỉ áp dụng cho phòng riêng, không áp dụng cho mã public nth_guild)
+        // 4. Khôi phục từ Firestore Cloud database duy nhất (GLOBAL_GUILD_ID)
         try {
-          const currentGid = getSavedGuildId();
-          if (currentGid !== 'nth_guild') {
-            const cloudRes = await pullFromCloud(currentGid);
-            if (cloudRes.success && cloudRes.data && isMounted) {
+          const cloudRes = await pullFromCloud(GLOBAL_GUILD_ID);
+          if (cloudRes.success && cloudRes.data && isMounted) {
             const cd = cloudRes.data;
-            let restoredFromCloud = false;
+            const cloudTotal =
+              (cd.masterPersonnelPool?.length || 0) +
+              (cd.personnelPool?.length || 0) +
+              (cd.boards?.length || 0) +
+              (cd.guildWarBoards?.length || 0) +
+              (cd.updateBoards?.length || 0);
 
-            setPersonnelPool((curr) => {
-              if (curr.length === 0 && cd.personnelPool && cd.personnelPool.length > 0) {
-                safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(cd.personnelPool));
-                saveToIndexedDB('personnelPool', cd.personnelPool);
-                restoredFromCloud = true;
-                return cd.personnelPool;
+            if (cloudTotal > 0) {
+              applyCloudDataToState(cd);
+              console.info('[CloudSync] Đã nạp thành công dữ liệu từ Cloud Master:', cd.updatedAt);
+            } else {
+              // Cloud chưa có dữ liệu nhưng máy local đang có dữ liệu -> Đẩy dữ liệu khởi tạo lên Cloud
+              const localHasData =
+                boards.length > 0 ||
+                personnelPool.length > 0 ||
+                guildWarBoards.length > 0 ||
+                masterPersonnelPool.length > 0;
+              if (localHasData) {
+                console.info('[CloudSync] Khởi tạo dữ liệu Cloud Master từ máy cục bộ...');
+                pushToCloud({
+                  boards,
+                  personnelPool,
+                  guildWarBoards,
+                  activeBoardId,
+                  activeGuildWarBoardId,
+                  customColors,
+                  updateBoards,
+                  updatePersonnelPool,
+                  activeUpdateBoardId,
+                  diBuiPersonnelPool,
+                  masterPersonnelPool,
+                  guildWarPersonnelPool,
+                }, GLOBAL_GUILD_ID);
               }
-              return curr;
-            });
-
-            setBoards((curr) => {
-              const localCount = countMembersWithData(curr);
-              const cloudCount = countMembersWithData(cd.boards || []);
-              if (localCount === 0 && cloudCount > 0) {
-                safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(cd.boards));
-                saveToIndexedDB('boards', cd.boards);
-                if (cd.activeBoardId) {
-                  setActiveBoardId(cd.activeBoardId);
-                  safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD, cd.activeBoardId);
-                }
-                restoredFromCloud = true;
-                return cd.boards;
-              }
-              return curr;
-            });
-
-            setGuildWarBoards((curr) => {
-              const localGwCount = countGuildWarMembers(curr);
-              const cloudGwCount = countGuildWarMembers(cd.guildWarBoards || []);
-              if (localGwCount === 0 && cloudGwCount > 0) {
-                safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(cd.guildWarBoards));
-                saveToIndexedDB('guildWarBoards', cd.guildWarBoards);
-                if (cd.activeGuildWarBoardId) {
-                  setActiveGuildWarBoardId(cd.activeGuildWarBoardId);
-                  safeLocalStorageSet(STORAGE_KEY_ACTIVE_GUILDWAR, cd.activeGuildWarBoardId);
-                }
-                restoredFromCloud = true;
-                return cd.guildWarBoards;
-              }
-              return curr;
-            });
-
-            // Phục hồi Raid Update Pool từ Cloud nếu máy hiện tại trống
-            setUpdatePersonnelPool((curr) => {
-              if (curr.length === 0 && cd.updatePersonnelPool && cd.updatePersonnelPool.length > 0) {
-                safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(cd.updatePersonnelPool));
-                saveToIndexedDB('updatePersonnelPool', cd.updatePersonnelPool);
-                restoredFromCloud = true;
-                return cd.updatePersonnelPool;
-              }
-              return curr;
-            });
-
-            // Phục hồi các Bảng Raid Update từ Cloud nếu máy hiện tại trống
-            setUpdateBoards((curr) => {
-              const localCount = countMembersWithData(curr);
-              const cloudCount = countMembersWithData(cd.updateBoards || []);
-              if (localCount === 0 && cloudCount > 0) {
-                safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(cd.updateBoards));
-                saveToIndexedDB('updateBoards', cd.updateBoards);
-                if (cd.activeUpdateBoardId) {
-                  setActiveUpdateBoardId(cd.activeUpdateBoardId);
-                  safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD_UPDATE, cd.activeUpdateBoardId);
-                  saveToIndexedDB('activeUpdateBoardId', cd.activeUpdateBoardId);
-                }
-                restoredFromCloud = true;
-                return cd.updateBoards || curr;
-              }
-              return curr;
-            });
-
-            // Phục hồi Kho Đi Bụi từ Cloud nếu máy hiện tại trống
-            setDiBuiPersonnelPool((curr) => {
-              if (curr.length === 0 && cd.diBuiPersonnelPool && cd.diBuiPersonnelPool.length > 0) {
-                safeLocalStorageSet(STORAGE_KEY_PERSONNEL_DI_BUI, JSON.stringify(cd.diBuiPersonnelPool));
-                saveToIndexedDB('diBuiPersonnelPool', cd.diBuiPersonnelPool);
-                restoredFromCloud = true;
-                return cd.diBuiPersonnelPool;
-              }
-              return curr;
-            });
-
-            // Phục hồi Tổng Kho Nhân Sự từ Cloud nếu máy hiện tại trống
-            setMasterPersonnelPool((curr) => {
-              if (curr.length === 0 && cd.masterPersonnelPool && cd.masterPersonnelPool.length > 0) {
-                safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(cd.masterPersonnelPool));
-                saveToIndexedDB('masterPersonnelPool', cd.masterPersonnelPool);
-                restoredFromCloud = true;
-                return cd.masterPersonnelPool;
-              }
-              return curr;
-            });
-
-            // Phục hồi Kho Bang Chiến từ Cloud nếu máy hiện tại trống
-            setGuildWarPersonnelPool((curr) => {
-              if (curr.length === 0 && cd.guildWarPersonnelPool && cd.guildWarPersonnelPool.length > 0) {
-                safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(cd.guildWarPersonnelPool));
-                saveToIndexedDB('guildWarPersonnelPool', cd.guildWarPersonnelPool);
-                restoredFromCloud = true;
-                return cd.guildWarPersonnelPool;
-              }
-              return curr;
-            });
-
-            if (cd.updatedAt) {
-              setLastCloudSyncTime(cd.updatedAt);
             }
-            if (restoredFromCloud) {
-              showToast('Đã tự động phục hồi toàn bộ dữ liệu từ Cloud Firestore!');
+          } else if (isMounted) {
+            // Trường hợp document chưa tồn tại trên Firestore
+            const localHasData =
+              boards.length > 0 ||
+              personnelPool.length > 0 ||
+              guildWarBoards.length > 0 ||
+              masterPersonnelPool.length > 0;
+            if (localHasData) {
+              console.info('[CloudSync] Đẩy dữ liệu ban đầu lên Cloud Master...');
+              pushToCloud({
+                boards,
+                personnelPool,
+                guildWarBoards,
+                activeBoardId,
+                activeGuildWarBoardId,
+                customColors,
+                updateBoards,
+                updatePersonnelPool,
+                activeUpdateBoardId,
+                diBuiPersonnelPool,
+                masterPersonnelPool,
+                guildWarPersonnelPool,
+              }, GLOBAL_GUILD_ID);
             }
           }
-        }
-      } catch (cloudErr) {
+        } catch (cloudErr) {
           console.warn('[CloudSync] Initial check error:', cloudErr);
         }
       } catch (err) {
@@ -850,6 +865,46 @@ export default function App() {
       isMounted = false;
     };
   }, []);
+
+  // Lắng nghe cập nhật thời gian thực từ Cloud Firestore (Real-time synchronization)
+  useEffect(() => {
+    if (!isStorageHydrated) return;
+
+    const unsubscribe = subscribeToCloud((incomingData, isLocalWrite) => {
+      // Bỏ qua nếu snapshot này xuất phát từ chính lần ghi cục bộ đang pending của máy này
+      if (isLocalWrite) return;
+
+      // Bỏ qua nếu người dùng vừa mới gõ/thao tác trong vòng 1.5 giây gần nhất để tránh giật lag con trỏ
+      if (Date.now() - lastLocalEditTimeRef.current < 1500) {
+        return;
+      }
+
+      console.info('[CloudSync] Nhận dữ liệu thời gian thực từ Firestore:', incomingData.updatedAt);
+      applyCloudDataToState(incomingData);
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, [isStorageHydrated, applyCloudDataToState]);
+
+  // Ghi nhận thời điểm chỉnh sửa gần nhất của người dùng cục bộ
+  useEffect(() => {
+    if (!isStorageHydrated) return;
+    if (isRemoteIncomingRef.current) return;
+    lastLocalEditTimeRef.current = Date.now();
+  }, [
+    boards,
+    personnelPool,
+    guildWarBoards,
+    updateBoards,
+    updatePersonnelPool,
+    diBuiPersonnelPool,
+    masterPersonnelPool,
+    guildWarPersonnelPool,
+    customColors,
+    isStorageHydrated,
+  ]);
 
   // Tự động sửa/phục hồi tên Logged By cho Kho Raid Update nếu trước đó bị lỗi gán tên nguồn (như "Kho Nhân Sự Raid" hay "Bang Chiến")
   useEffect(() => {
@@ -1180,9 +1235,10 @@ export default function App() {
     }
   }, [guildWarPersonnelPool, isStorageHydrated]);
 
-  // Debounced Auto-sync to Firebase Firestore Cloud
+  // Debounced Auto-sync to Firebase Firestore Cloud (Thời gian thực)
   useEffect(() => {
     if (!isStorageHydrated || !isAutoCloudSyncEnabled()) return;
+    if (isRemoteIncomingRef.current) return;
 
     const hasData =
       boards.length > 0 ||
@@ -1197,13 +1253,8 @@ export default function App() {
 
     const timer = setTimeout(async () => {
       try {
-        const currentGid = getSavedGuildId();
-        // Không tự động lưu lên mã phòng public nth_guild (luôn để trống)
-        if (currentGid === 'nth_guild') {
-          return;
-        }
         setIsCloudSyncing(true);
-        const res = await pushToCloud(currentGid, {
+        const res = await pushToCloud({
           boards,
           personnelPool,
           guildWarBoards,
@@ -1216,16 +1267,16 @@ export default function App() {
           diBuiPersonnelPool,
           masterPersonnelPool,
           guildWarPersonnelPool,
-        });
+        }, GLOBAL_GUILD_ID);
         if (res.success) {
           setLastCloudSyncTime(Date.now());
         }
       } catch (err) {
-        console.warn('[CloudSync] Debounced push error:', err);
+        console.warn('[CloudSync] Debounced auto-push error:', err);
       } finally {
         setIsCloudSyncing(false);
       }
-    }, 2500);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, [
@@ -1244,10 +1295,10 @@ export default function App() {
     isStorageHydrated,
   ]);
 
-  const handlePushToCloudManual = async (targetGuildId: string) => {
+  const handlePushToCloudManual = async () => {
     setIsCloudSyncing(true);
     try {
-      const res = await pushToCloud(targetGuildId, {
+      const res = await pushToCloud({
         boards,
         personnelPool,
         guildWarBoards,
@@ -1260,7 +1311,7 @@ export default function App() {
         diBuiPersonnelPool,
         masterPersonnelPool,
         guildWarPersonnelPool,
-      });
+      }, GLOBAL_GUILD_ID);
       if (res.success) {
         setLastCloudSyncTime(Date.now());
       }
@@ -1270,70 +1321,12 @@ export default function App() {
     }
   };
 
-  const handlePullFromCloudManual = async (targetGuildId: string) => {
+  const handlePullFromCloudManual = async () => {
     setIsCloudSyncing(true);
     try {
-      const res = await pullFromCloud(targetGuildId);
+      const res = await pullFromCloud(GLOBAL_GUILD_ID);
       if (res.success && res.data) {
-        const cd = res.data;
-        if (cd.boards && cd.boards.length > 0) {
-          setBoards(cd.boards);
-          safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(cd.boards));
-          saveToIndexedDB('boards', cd.boards);
-          if (cd.activeBoardId) {
-            setActiveBoardId(cd.activeBoardId);
-            safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD, cd.activeBoardId);
-          }
-        }
-        if (cd.personnelPool) {
-          setPersonnelPool(cd.personnelPool);
-          safeLocalStorageSet(STORAGE_KEY_PERSONNEL, JSON.stringify(cd.personnelPool));
-          saveToIndexedDB('personnelPool', cd.personnelPool);
-        }
-        if (cd.masterPersonnelPool) {
-          setMasterPersonnelPool(cd.masterPersonnelPool);
-          safeLocalStorageSet(STORAGE_KEY_MASTER_PERSONNEL, JSON.stringify(cd.masterPersonnelPool));
-          saveToIndexedDB('masterPersonnelPool', cd.masterPersonnelPool);
-        }
-        if (cd.guildWarBoards && cd.guildWarBoards.length > 0) {
-          setGuildWarBoards(cd.guildWarBoards);
-          safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(cd.guildWarBoards));
-          saveToIndexedDB('guildWarBoards', cd.guildWarBoards);
-          if (cd.activeGuildWarBoardId) {
-            setActiveGuildWarBoardId(cd.activeGuildWarBoardId);
-            safeLocalStorageSet(STORAGE_KEY_ACTIVE_GUILDWAR, cd.activeGuildWarBoardId);
-          }
-        }
-        if (cd.guildWarPersonnelPool) {
-          setGuildWarPersonnelPool(cd.guildWarPersonnelPool);
-          safeLocalStorageSet(STORAGE_KEY_GUILDWAR_PERSONNEL, JSON.stringify(cd.guildWarPersonnelPool));
-          saveToIndexedDB('guildWarPersonnelPool', cd.guildWarPersonnelPool);
-        }
-        if (cd.updateBoards && cd.updateBoards.length > 0) {
-          setUpdateBoards(cd.updateBoards);
-          safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(cd.updateBoards));
-          saveToIndexedDB('updateBoards', cd.updateBoards);
-          if (cd.activeUpdateBoardId) {
-            setActiveUpdateBoardId(cd.activeUpdateBoardId);
-            safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD_UPDATE, cd.activeUpdateBoardId);
-            saveToIndexedDB('activeUpdateBoardId', cd.activeUpdateBoardId);
-          }
-        }
-        if (cd.updatePersonnelPool) {
-          setUpdatePersonnelPool(cd.updatePersonnelPool);
-          safeLocalStorageSet(STORAGE_KEY_PERSONNEL_UPDATE, JSON.stringify(cd.updatePersonnelPool));
-          saveToIndexedDB('updatePersonnelPool', cd.updatePersonnelPool);
-        }
-        if (cd.diBuiPersonnelPool) {
-          setDiBuiPersonnelPool(cd.diBuiPersonnelPool);
-          safeLocalStorageSet(STORAGE_KEY_PERSONNEL_DI_BUI, JSON.stringify(cd.diBuiPersonnelPool));
-          saveToIndexedDB('diBuiPersonnelPool', cd.diBuiPersonnelPool);
-        }
-        if (cd.customColors && Object.keys(cd.customColors).length > 0) {
-          setCustomColors(cd.customColors);
-          safeLocalStorageSet(STORAGE_KEY_COLORS, JSON.stringify(cd.customColors));
-        }
-        setLastCloudSyncTime(cd.updatedAt || Date.now());
+        applyCloudDataToState(res.data);
       }
       return res;
     } finally {
@@ -2570,29 +2563,17 @@ export default function App() {
                   </button>
                 </h1>
                 {/* Active Cloud Sync Status Pill */}
-                <div
+                <button
+                  type="button"
                   onClick={() => setIsCloudModalOpen(true)}
-                  title="Nhấn để mở cài đặt Cloud Sync"
+                  title="Nhấn để xem trạng thái đồng bộ thời gian thực"
                   className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-all border shrink-0 bg-[#F0FDFA] hover:bg-[#CCFBF1] dark:bg-[#153B52] dark:hover:bg-[#1E4D6B] border-[#7DD3FC] dark:border-[#1E4D6B]"
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${isCloudSyncing ? 'bg-amber-400 animate-ping' : 'bg-[#00B4D8] shadow-[0_0_6px_rgba(0,180,216,0.8)]'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${isCloudSyncing ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]'}`} />
                   <span className="text-[#0369A1] dark:text-[#7DD3FC]">
-                    {isCloudSyncing ? 'Đang lưu...' : 'Cloud An Toàn'}
+                    {isCloudSyncing ? 'Đang đồng bộ...' : '🟢 Đồng bộ trực tiếp'}
                   </span>
-                </div>
-
-                {/* Public Room Notice Pill */}
-                {getSavedGuildId() === 'nth_guild' && (
-                  <button
-                    type="button"
-                    onClick={() => setIsPublicNoticeOpen(true)}
-                    title="Nhấn để xem lại thông báo & hướng dẫn đổi mã phòng public nth_guild"
-                    className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border shrink-0 bg-amber-50 hover:bg-amber-100 dark:bg-amber-950/40 dark:hover:bg-amber-900/50 text-amber-800 dark:text-amber-300 border-amber-300 dark:border-amber-700/60 transition-all cursor-pointer shadow-2xs"
-                  >
-                    <AlertTriangle className="w-3 h-3 text-amber-600 dark:text-amber-400 shrink-0" />
-                    <span>Phòng public: nth_guild</span>
-                  </button>
-                )}
+                </button>
               </div>
               <p className="text-[11px] text-[#0369A1] dark:text-[#BAE6FD] hidden sm:flex items-center gap-2 truncate font-medium">
                 <span>
@@ -3601,13 +3582,6 @@ export default function App() {
         onClose={() => setIsDonateModalOpen(false)}
       />
 
-      {/* Public Room Notice Modal */}
-      <PublicRoomNoticeModal
-        isOpen={isPublicNoticeOpen}
-        onClose={() => setIsPublicNoticeOpen(false)}
-        onOpenCloudModal={() => setIsCloudModalOpen(true)}
-        onOpenDonateModal={() => setIsDonateModalOpen(true)}
-      />
 
       {/* Create Board Modal */}
       <CreateBoardModal

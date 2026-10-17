@@ -7,7 +7,8 @@ import {
   CustomClassColors,
 } from '../types';
 
-export const DEFAULT_GUILD_ID = 'nth_guild';
+export const GLOBAL_GUILD_ID = 'nth_guild_master';
+export const DEFAULT_GUILD_ID = GLOBAL_GUILD_ID;
 export const STORAGE_KEY_GUILD_ID = 'raid_roster_cloud_guild_id_v1';
 export const STORAGE_KEY_AUTO_CLOUD_SYNC = 'raid_roster_auto_cloud_sync_v1';
 
@@ -28,26 +29,18 @@ export interface CloudGuildData {
   title?: string;
 }
 
-export function sanitizeGuildId(raw: string): string {
+export function sanitizeGuildId(raw?: string): string {
+  if (!raw) return GLOBAL_GUILD_ID;
   const cleaned = raw.trim().replace(/[^a-zA-Z0-9_.-]/g, '_');
-  return cleaned.slice(0, 64) || DEFAULT_GUILD_ID;
+  return cleaned.slice(0, 64) || GLOBAL_GUILD_ID;
 }
 
 export function getSavedGuildId(): string {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY_GUILD_ID);
-    if (saved && saved.trim().length > 0) {
-      return sanitizeGuildId(saved);
-    }
-  } catch {}
-  return DEFAULT_GUILD_ID;
+  return GLOBAL_GUILD_ID;
 }
 
-export function saveGuildId(guildId: string): void {
-  try {
-    const cleaned = sanitizeGuildId(guildId);
-    localStorage.setItem(STORAGE_KEY_GUILD_ID, cleaned);
-  } catch {}
+export function saveGuildId(_guildId?: string): void {
+  // Không cần lưu mã phòng riêng nữa, web luôn dùng GLOBAL_GUILD_ID
 }
 
 export function isAutoCloudSyncEnabled(): boolean {
@@ -163,37 +156,40 @@ export async function resetNthGuildOnCloud(): Promise<{ success: boolean; error?
 
 /**
  * Lưu dữ liệu lên Firestore an toàn tuân thủ chặt chẽ firestore.rules
+ * Mặc định lưu vào database duy nhất của Bang NTH (GLOBAL_GUILD_ID = 'nth_guild_master')
  */
 export async function pushToCloud(
-  guildId: string,
-  payload: {
-    boards: RaidBoard[];
-    personnelPool: PersonnelMember[];
-    guildWarBoards: GuildWarBoard[];
-    activeBoardId: string;
-    activeGuildWarBoardId: string;
-    customColors: CustomClassColors;
-    updateBoards?: RaidBoard[];
-    updatePersonnelPool?: PersonnelMember[];
-    activeUpdateBoardId?: string;
-    diBuiPersonnelPool?: PersonnelMember[];
-    masterPersonnelPool?: PersonnelMember[];
-    guildWarPersonnelPool?: PersonnelMember[];
-    title?: string;
-  }
+  arg1:
+    | {
+        boards: RaidBoard[];
+        personnelPool: PersonnelMember[];
+        guildWarBoards: GuildWarBoard[];
+        activeBoardId: string;
+        activeGuildWarBoardId: string;
+        customColors: CustomClassColors;
+        updateBoards?: RaidBoard[];
+        updatePersonnelPool?: PersonnelMember[];
+        activeUpdateBoardId?: string;
+        diBuiPersonnelPool?: PersonnelMember[];
+        masterPersonnelPool?: PersonnelMember[];
+        guildWarPersonnelPool?: PersonnelMember[];
+        title?: string;
+      }
+    | string,
+  arg2?: any
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const targetId = sanitizeGuildId(guildId);
-
-    // Bảo vệ mã phòng public nth_guild: Luôn luôn giữ trống, không cho lưu đè dữ liệu cá nhân
-    if (targetId === DEFAULT_GUILD_ID) {
-      return {
-        success: false,
-        error:
-          'Mã "nth_guild" là phòng public và sẽ tự reset dữ liệu. Vui lòng đổi tên nth_guild thành tên bạn muốn rồi ấn Đổi mã & Lưu lên cloud ngay!',
-      };
+    let targetId = GLOBAL_GUILD_ID;
+    let payload: any;
+    if (typeof arg1 === 'string') {
+      targetId = sanitizeGuildId(arg1);
+      payload = arg2 || {};
+    } else {
+      payload = arg1 || {};
+      if (typeof arg2 === 'string') {
+        targetId = sanitizeGuildId(arg2);
+      }
     }
-
     const docRef = doc(db, 'guilds', targetId);
 
     // Chuẩn hóa và giới hạn kích thước theo firestore.rules
@@ -205,7 +201,7 @@ export async function pushToCloud(
       activeGuildWarBoardId: String(payload.activeGuildWarBoardId || '').slice(0, 128),
       customColors: payload.customColors || {},
       updatedAt: Date.now(),
-      title: payload.title ? String(payload.title).slice(0, 200) : 'Bang NTH',
+      title: payload.title ? String(payload.title).slice(0, 200) : 'Bang NTH (Chính thức)',
     };
 
     if (payload.updateBoards && Array.isArray(payload.updateBoards)) {
@@ -240,26 +236,20 @@ export async function pushToCloud(
 }
 
 /**
- * Tải dữ liệu từ Firestore
+ * Tải dữ liệu từ Firestore database duy nhất
  */
-export async function pullFromCloud(guildId: string): Promise<{
+export async function pullFromCloud(guildId: string = GLOBAL_GUILD_ID): Promise<{
   success: boolean;
   data?: CloudGuildData;
   error?: string;
 }> {
   try {
     const targetId = sanitizeGuildId(guildId);
-
-    // Mã phòng public nth_guild: Luôn luôn trả về dữ liệu mẫu trống
-    if (targetId === DEFAULT_GUILD_ID) {
-      return { success: true, data: getEmptyCloudGuildData(DEFAULT_GUILD_ID) };
-    }
-
     const docRef = doc(db, 'guilds', targetId);
     const snap = await getDoc(docRef);
 
     if (!snap.exists()) {
-      return { success: false, error: 'Phòng bang chưa có dữ liệu trên Cloud' };
+      return { success: false, error: 'Chưa có dữ liệu trên Cloud' };
     }
 
     const data = snap.data() as CloudGuildData;
@@ -271,12 +261,12 @@ export async function pullFromCloud(guildId: string): Promise<{
 }
 
 /**
- * Lắng nghe cập nhật thời gian thực từ Cloud
+ * Lắng nghe cập nhật thời gian thực từ Cloud với cờ isLocalWrite
  */
 export function subscribeToCloud(
-  guildId: string,
-  onData: (data: CloudGuildData) => void,
-  onError?: (err: any) => void
+  onData: (data: CloudGuildData, isLocalWrite: boolean) => void,
+  onError?: (err: any) => void,
+  guildId: string = GLOBAL_GUILD_ID
 ): () => void {
   try {
     const targetId = sanitizeGuildId(guildId);
@@ -284,10 +274,12 @@ export function subscribeToCloud(
 
     const unsubscribe = onSnapshot(
       docRef,
+      { includeMetadataChanges: true },
       (snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.data() as CloudGuildData;
-          onData(data);
+          const isLocalWrite = snapshot.metadata.hasPendingWrites;
+          onData(data, isLocalWrite);
         }
       },
       (error) => {

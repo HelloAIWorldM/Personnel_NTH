@@ -1,18 +1,12 @@
 import React, { useState } from 'react';
-import { Cloud, CloudUpload, CloudDownload, Check, AlertCircle, RefreshCw, X } from 'lucide-react';
-import {
-  getSavedGuildId,
-  saveGuildId,
-  isAutoCloudSyncEnabled,
-  setAutoCloudSyncEnabled,
-  CloudGuildData,
-} from '../services/cloudSync';
+import { Cloud, CloudUpload, CloudDownload, Sparkles, RefreshCw, X, ShieldCheck } from 'lucide-react';
+import { CloudGuildData } from '../services/cloudSync';
 
 interface CloudSyncModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onPushToCloud: (guildId: string) => Promise<{ success: boolean; error?: string }>;
-  onPullFromCloud: (guildId: string) => Promise<{ success: boolean; data?: CloudGuildData; error?: string }>;
+  onPushToCloud: () => Promise<{ success: boolean; error?: string }>;
+  onPullFromCloud: () => Promise<{ success: boolean; data?: CloudGuildData; error?: string }>;
   lastSyncTime: number | null;
   isSyncing: boolean;
   masterPersonnelCount?: number;
@@ -41,33 +35,16 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
   diBuiCount = 0,
   showToast,
 }) => {
-  const [guildId, setGuildId] = useState<string>(() => getSavedGuildId());
-  const [autoSync, setAutoSync] = useState<boolean>(() => isAutoCloudSyncEnabled());
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
 
   if (!isOpen) return null;
 
-  const handleSaveGuildId = () => {
-    saveGuildId(guildId);
-    showToast(`Đã lưu mã phòng: "${guildId}"`);
-  };
-
-  const handleToggleAutoSync = (checked: boolean) => {
-    setAutoSync(checked);
-    setAutoCloudSyncEnabled(checked);
-    showToast(checked ? 'Đã BẬT tự động đồng bộ Cloud' : 'Đã TẮT tự động đồng bộ Cloud');
-  };
-
   const handlePush = async () => {
-    if (guildId.trim() === 'nth_guild') {
-      showToast('"nth_guild" là phòng public và tự reset. Vui lòng đổi sang tên mã phòng riêng của bạn rồi ấn Đổi mã & Lưu lên cloud ngay!');
-      return;
-    }
     setIsProcessing(true);
     try {
-      const res = await onPushToCloud(guildId);
+      const res = await onPushToCloud();
       if (res.success) {
-        showToast('Đã lưu toàn bộ dữ liệu lên Cloud thành công!');
+        showToast('Đã lưu toàn bộ dữ liệu lên Máy chủ Đám mây thành công!');
       } else {
         showToast(`Lỗi lưu Cloud: ${res.error || 'Thử lại sau'}`);
       }
@@ -77,22 +54,20 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
   };
 
   const handlePull = async () => {
-    const isPublic = guildId.trim() === 'nth_guild';
-    const confirmMsg = isPublic
-      ? 'Mã "nth_guild" là phòng public mẫu và luôn là dữ liệu trống. Hành động này sẽ nạp dữ liệu trống về máy bạn. Bạn có chắc chắn muốn nạp?'
-      : 'Hành động này sẽ nạp dữ liệu từ Cloud về máy bạn và thay thế dữ liệu hiện tại trên màn hình. Bạn có chắc chắn muốn nạp?';
+    const confirmMsg =
+      'Hành động này sẽ nạp dữ liệu mới nhất từ Máy chủ Cloud về máy bạn và thay thế dữ liệu hiện tại trên màn hình. Bạn có chắc chắn muốn nạp lại?';
 
     if (!window.confirm(confirmMsg)) {
       return;
     }
     setIsProcessing(true);
     try {
-      const res = await onPullFromCloud(guildId);
+      const res = await onPullFromCloud();
       if (res.success) {
-        showToast(isPublic ? 'Đã nạp bảng trống mẫu từ Cloud về máy thành công!' : 'Đã nạp dữ liệu từ Cloud về máy thành công!');
+        showToast('Đã nạp dữ liệu mới nhất từ Máy chủ Cloud về máy thành công!');
         onClose();
       } else {
-        showToast(`Không thể tải: ${res.error || 'Phòng chưa có dữ liệu'}`);
+        showToast(`Không thể tải: ${res.error || 'Chưa có dữ liệu trên máy chủ'}`);
       }
     } finally {
       setIsProcessing(false);
@@ -100,9 +75,13 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
   };
 
   const formatLastSync = (ts: number | null) => {
-    if (!ts) return 'Chưa đồng bộ phiên này';
+    if (!ts) return 'Đang kết nối thời gian thực';
     const date = new Date(ts);
-    return date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + date.toLocaleDateString('vi-VN');
+    return (
+      date.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) +
+      ' ' +
+      date.toLocaleDateString('vi-VN')
+    );
   };
 
   return (
@@ -116,19 +95,20 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                Đồng Bộ Đám Mây (Cloud Sync)
-                <span className="px-2 py-0.5 text-xs font-semibold bg-[#88DCFA]/20 text-[#88DCFA] border border-[#88DCFA]/30 rounded-full">
-                  Firebase
+                Đồng Bộ Thời Gian Thực (Live Sync)
+                <span className="px-2 py-0.5 text-xs font-semibold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Live
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                Lưu trữ an toàn trên Google Cloud – Chống mất dữ liệu 100%
+                Database duy nhất của Bang NTH – Tự động đồng bộ ngay lập tức
               </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800/80 transition-colors cursor-pointer"
           >
             <X className="w-5 h-5" />
           </button>
@@ -137,111 +117,104 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
         {/* Body */}
         <div className="p-6 space-y-5 text-sm text-slate-300 overflow-y-auto max-h-[75vh]">
           {/* Status Card */}
-          <div className="p-3.5 rounded-xl bg-slate-800/60 border border-slate-700/60 flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <div className={`w-3 h-3 rounded-full ${isSyncing || isProcessing ? 'bg-amber-400 animate-ping' : 'bg-[#88DCFA] shadow-[0_0_8px_rgba(136,220,250,0.6)]'}`} />
-              <div>
-                <div className="text-xs font-semibold text-slate-200">
-                  {isSyncing || isProcessing ? 'Đang kết nối & xử lý Cloud...' : 'Trạng thái: Sẵn sàng kết nối'}
-                </div>
-                <div className="text-[11px] text-slate-400">
-                  Lần lưu gần nhất: <span className="text-blue-300 font-medium">{formatLastSync(lastSyncTime)}</span>
+          <div className="p-4 rounded-xl bg-slate-800/60 border border-slate-700/60 space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div
+                  className={`w-3 h-3 rounded-full ${
+                    isSyncing || isProcessing
+                      ? 'bg-amber-400 animate-ping'
+                      : 'bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]'
+                  }`}
+                />
+                <div>
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <span>Máy chủ: Bang NTH (Duy Nhất)</span>
+                  </div>
+                  <div className="text-[11px] text-slate-400">
+                    Trạng thái:{' '}
+                    <span className="text-emerald-400 font-semibold">
+                      {isSyncing || isProcessing ? 'Đang gửi cập nhật...' : 'Đang kết nối trực tiếp'}
+                    </span>
+                  </div>
                 </div>
               </div>
+
+              <div className="text-right text-[11px] text-slate-400">
+                <div>Cập nhật gần nhất:</div>
+                <div className="text-sky-300 font-medium">{formatLastSync(lastSyncTime)}</div>
+              </div>
             </div>
-            <div className="text-right text-[11px] text-slate-400 space-y-0.5">
-              <div>Tổng kho: <strong className="text-sky-400">{masterPersonnelCount}</strong> | Raid: <strong className="text-amber-400">{personnelCount}</strong></div>
-              <div>Bảng: <strong className="text-blue-400">{raidBoardsCount} Raid</strong> | <strong className="text-purple-400">{guildWarBoardsCount} Bang chiến</strong></div>
-              <div>Raid Update: <strong className="text-emerald-400">{updateBoardsCount} bảng</strong> • <strong className="text-emerald-300">{updatePersonnelCount} người</strong></div>
+
+            {/* Quick Counters */}
+            <div className="pt-2 border-t border-slate-700/50 grid grid-cols-3 gap-2 text-center text-xs">
+              <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+                <div className="text-slate-400 text-[10px]">Tổng Kho</div>
+                <div className="text-sky-400 font-black text-sm">{masterPersonnelCount}</div>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+                <div className="text-slate-400 text-[10px]">Bảng Raid</div>
+                <div className="text-amber-400 font-black text-sm">{raidBoardsCount} bảng</div>
+              </div>
+              <div className="p-2 rounded-lg bg-slate-900/60 border border-slate-800">
+                <div className="text-slate-400 text-[10px]">Bang Chiến</div>
+                <div className="text-purple-400 font-black text-sm">{guildWarBoardsCount} bảng</div>
+              </div>
             </div>
           </div>
 
-          {/* Guild Code Input */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-300 flex items-center justify-between">
-              <span>Mã Phòng / Bang (Guild ID):</span>
-              <span className="text-[10px] text-slate-400 font-normal">Chung mã để xem & xếp chung</span>
-            </label>
-            <div className="flex gap-2">
-              <input
-                type="text"
-                value={guildId}
-                onChange={(e) => setGuildId(e.target.value)}
-                placeholder="nth_guild"
-                className="flex-1 px-3 py-2 text-sm bg-slate-800/90 border border-slate-700 rounded-lg text-white font-mono focus:outline-none focus:border-blue-500"
-              />
+          {/* Real-time sync explanation banner */}
+          <div className="p-3.5 rounded-xl bg-gradient-to-br from-emerald-950/40 to-slate-900 border border-emerald-500/30 text-emerald-200/90 text-xs space-y-1.5">
+            <div className="font-bold flex items-center gap-1.5 text-emerald-300">
+              <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
+              <span>Cơ chế đồng bộ tự động 100% thời gian thực</span>
+            </div>
+            <p className="text-[11.5px] leading-relaxed text-slate-300">
+              Mọi thay đổi khi bạn hoặc bất kỳ thành viên nào nhập liệu (thêm nhân sự, xếp slot, sửa ghi chú) đều được tự động lưu và cập nhật ngay lập tức đến tất cả các máy đang mở web.
+            </p>
+          </div>
+
+          {/* Manual sync actions */}
+          <div className="space-y-2">
+            <div className="text-xs font-semibold text-slate-400">Thao tác thủ công (khi cần thiết):</div>
+            <div className="grid grid-cols-2 gap-3">
               <button
-                onClick={handleSaveGuildId}
-                className="px-3 py-2 text-xs font-semibold bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded-lg transition-colors cursor-pointer"
+                type="button"
+                onClick={handlePush}
+                disabled={isProcessing || isSyncing}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg shadow-blue-500/20 disabled:opacity-50 transition-all cursor-pointer"
               >
-                Đổi mã
+                {isProcessing ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CloudUpload className="w-4 h-4" />
+                )}
+                Lưu lên Cloud ngay
+              </button>
+
+              <button
+                type="button"
+                onClick={handlePull}
+                disabled={isProcessing || isSyncing}
+                className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-600/80 font-bold text-xs disabled:opacity-50 transition-all cursor-pointer"
+              >
+                {isProcessing ? (
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                ) : (
+                  <CloudDownload className="w-4 h-4" />
+                )}
+                Nạp lại từ Cloud
               </button>
             </div>
-
-            {guildId.trim() === 'nth_guild' && (
-              <div className="p-3 rounded-xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5 mt-2">
-                <AlertCircle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
-                <div className="space-y-1">
-                  <div className="font-bold text-amber-300">Phòng public & tự động làm trống</div>
-                  <p className="text-[11px] text-amber-200/90 leading-relaxed">
-                    Mã <code>nth_guild</code> là phòng public và sẽ tự reset dữ liệu. Hãy đổi tên <code>nth_guild</code> thành tên mà bạn muốn sau đó ấn <strong>Đổi mã</strong> và ấn <strong>Lưu lên cloud ngay</strong> để tạo một database riêng nhé!
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Auto Sync Toggle */}
-          <label className="flex items-center gap-3 p-3 rounded-xl bg-slate-800/40 border border-slate-700/50 cursor-pointer hover:bg-slate-800/70 transition-colors">
-            <input
-              type="checkbox"
-              checked={autoSync}
-              onChange={(e) => handleToggleAutoSync(e.target.checked)}
-              className="w-4 h-4 rounded text-blue-600 bg-slate-700 border-slate-600 focus:ring-blue-500"
-            />
-            <div className="text-xs">
-              <div className="font-semibold text-white">Tự động đồng bộ lên Cloud khi có thay đổi</div>
-              <div className="text-slate-400 text-[11px]">
-                Tự động gửi cập nhật lên máy chủ sau mỗi lần thêm/sửa nhân sự hoặc bảng
-              </div>
-            </div>
-          </label>
-
-          {/* Actions */}
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <button
-              onClick={handlePush}
-              disabled={isProcessing || isSyncing}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold text-xs shadow-lg shadow-blue-500/20 disabled:opacity-50 transition-all cursor-pointer"
-            >
-              {isProcessing ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <CloudUpload className="w-4 h-4" />
-              )}
-              Lưu lên Cloud ngay
-            </button>
-
-            <button
-              onClick={handlePull}
-              disabled={isProcessing || isSyncing}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-600/80 font-semibold text-xs disabled:opacity-50 transition-all cursor-pointer"
-            >
-              {isProcessing ? (
-                <RefreshCw className="w-4 h-4 animate-spin" />
-              ) : (
-                <CloudDownload className="w-4 h-4" />
-              )}
-              Nạp từ Cloud về máy
-            </button>
           </div>
         </div>
 
         {/* Footer */}
         <div className="px-6 py-3 bg-slate-950 border-t border-slate-800/80 flex items-center justify-end">
           <button
+            type="button"
             onClick={onClose}
-            className="px-4 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+            className="px-4 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors cursor-pointer"
           >
             Đóng
           </button>
