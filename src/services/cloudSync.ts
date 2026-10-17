@@ -207,7 +207,7 @@ export async function pushToCloud(
       activeGuildWarBoardId: String(payload.activeGuildWarBoardId || '').slice(0, 128),
       customColors: payload.customColors || {},
       updatedAt: Date.now(),
-      title: payload.title ? String(payload.title).slice(0, 200) : 'Bang NTH (Chính thức)',
+      title: payload.title ? String(payload.title).slice(0, 200) : 'Bang Niên Du (Chính thức)',
     };
 
     if (payload.updateBoards && Array.isArray(payload.updateBoards)) {

@@ -41,7 +41,6 @@ import { ThemeModal, AppThemeKey } from './components/ThemeModal';
 import { FeedbackChatbox } from './components/FeedbackChatbox';
 import { GoogleSheetsModal } from './components/GoogleSheetsModal';
 import { ExportModal } from './components/ExportModal';
-import { ColorCustomizerModal } from './components/ColorCustomizerModal';
 import { CreateBoardModal } from './components/CreateBoardModal';
 import { AllBoardsOverview } from './components/AllBoardsOverview';
 import { CopyPersonnelToUpdateModal } from './components/CopyPersonnelToUpdateModal';
@@ -52,7 +51,7 @@ import {
   Share2,
   Users,
   Info,
-  Palette,
+  ShieldCheck,
   Table as TableIcon,
   Sun,
   Moon,
@@ -210,7 +209,6 @@ export default function App() {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isColorModalOpen, setIsColorModalOpen] = useState(false);
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
   const [isCreateGuildWarModalOpen, setIsCreateGuildWarModalOpen] = useState(false);
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
@@ -2420,29 +2418,6 @@ export default function App() {
     [handleUpdatePersonnelPool]
   );
 
-  // Color Customizer Handlers
-  const handleUpdateColor = (className: RaidClass, hex: string) => {
-    setCustomColors((prev) => ({
-      ...prev,
-      [className]: hex,
-    }));
-  };
-
-  const handleResetColor = (className: RaidClass) => {
-    setCustomColors((prev) => {
-      const updated = { ...prev };
-      delete updated[className];
-      return updated;
-    });
-  };
-
-  const handleResetAllColors = () => {
-    setCustomColors({});
-  };
-
-  const handleApplyPreset = (preset: CustomClassColors) => {
-    setCustomColors(preset);
-  };
 
   const handleImportSuccess = (imported: {
     title?: string;
@@ -2483,7 +2458,6 @@ export default function App() {
   };
 
   const fullRaidTitle = `${activeBoard.titlePrefix} - ${activeBoard.scheduleTime} ${activeBoard.bossName}`;
-  const customizedCount = Object.keys(customColors).length;
 
   return (
     <div
@@ -2569,9 +2543,9 @@ export default function App() {
                   title="Nhấn để xem trạng thái đồng bộ thời gian thực"
                   className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold cursor-pointer transition-all border shrink-0 bg-[#F0FDFA] hover:bg-[#CCFBF1] dark:bg-[#153B52] dark:hover:bg-[#1E4D6B] border-[#7DD3FC] dark:border-[#1E4D6B]"
                 >
-                  <span className={`w-1.5 h-1.5 rounded-full ${isCloudSyncing ? 'bg-amber-400 animate-ping' : 'bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]'}`} />
+                  <Cloud className={`w-3.5 h-3.5 ${isCloudSyncing ? 'text-amber-500 animate-spin' : 'text-[#0284C7] dark:text-[#38BDF8]'}`} />
                   <span className="text-[#0369A1] dark:text-[#7DD3FC]">
-                    {isCloudSyncing ? 'Đang đồng bộ...' : '🟢 Đồng bộ trực tiếp'}
+                    {isCloudSyncing ? 'Đang đồng bộ...' : 'Đồng bộ trực tiếp'}
                   </span>
                 </button>
               </div>
@@ -2610,23 +2584,6 @@ export default function App() {
               <span className="hidden lg:inline ml-1.5 text-xs">
                 {isDarkMode ? 'Sáng' : 'Tối'}
               </span>
-            </button>
-
-            {/* Color Customizer Button */}
-            <button
-              type="button"
-              id="btn-open-color-customizer"
-              onClick={() => setIsColorModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 dark:hover:bg-purple-900/50 text-purple-700 dark:text-purple-300 border border-purple-200 dark:border-purple-800/60 rounded-xl text-xs font-bold transition-all shadow-2xs relative min-h-[38px]"
-              title="Đổi màu sắc môn phái bất kỳ"
-            >
-              <Palette className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 dark:text-purple-400" />
-              <span className="hidden sm:inline">Đổi màu</span>
-              {customizedCount > 0 && (
-                <span className="px-1.5 py-0.2 bg-purple-600 dark:bg-purple-500 text-white text-[10px] rounded-full font-bold">
-                  {customizedCount}
-                </span>
-              )}
             </button>
 
             {/* Google Sheets Action Button */}
@@ -3250,7 +3207,6 @@ export default function App() {
                       customColors={customColors}
                       onUpdateTitle={handleUpdateTitle}
                       onUpdateMembers={handleUpdateMembers}
-                      onOpenColorCustomizer={() => setIsColorModalOpen(true)}
                       tableRef={tableRef}
                       selectedClassFilter={selectedClassFilter}
                       currentBoard={activeBoard}
@@ -3268,7 +3224,7 @@ export default function App() {
 
                 {/* 3. Right Column: Draggable Personnel Pool Sidebar (Kho nhân sự to rộng cân đối) */}
                 {isPersonnelSidebarOpen && (
-                  <aside aria-label="Kho nhân sự và Đi Bụi" className="flex-1 min-w-[340px] w-full sticky top-20 z-10 space-y-4 max-h-[calc(100vh-6rem)] overflow-y-auto pr-1">
+                  <aside aria-label="Kho nhân sự" className="flex-1 min-w-[340px] w-full sticky top-20 z-10 space-y-4 max-h-[calc(100vh-6rem)] overflow-y-auto pr-1">
                     <PersonnelStorage
                       personnelPool={currentPersonnelPool}
                       onUpdatePersonnelPool={handleUpdatePersonnelPool}
@@ -3280,7 +3236,6 @@ export default function App() {
                       onRemoveFromRaid={handleRemoveFromRaid}
                       onSyncFromActiveRaid={handleSyncFromActiveRaid}
                       customColors={customColors}
-                      onOpenColorCustomizer={() => setIsColorModalOpen(true)}
                       isCompact={true}
                       isRaidUpdate={activePoolView === 'raid_update'}
                       onOpenCopyModal={() => setIsCopyModalOpen(true)}
@@ -3297,22 +3252,6 @@ export default function App() {
                       onClearSubPool={handleClearCurrentSubPool}
                       onSyncFromGuildWar={handleSyncGuildWarToMaster}
                       subPoolMembershipMap={subPoolMembershipMap}
-                    />
-
-                    {/* Kho Đi Bụi - Vị trí phía dưới Kho Nhân Sự */}
-                    <DiBuiStorage
-                      diBuiPool={diBuiPersonnelPool}
-                      onUpdateDiBuiPool={handleUpdateDiBuiPersonnelPool}
-                      onRestoreToActivePool={handleRestoreFromDiBui}
-                      customColors={customColors}
-                      isCompact={true}
-                      activePoolName={
-                        activePoolView === 'raid_update'
-                          ? 'Kho Raid Update'
-                          : activePoolView === 'guild_war'
-                          ? 'Kho Bang Chiến'
-                          : 'Kho Raid'
-                      }
                     />
                   </aside>
                 )}
@@ -3333,7 +3272,6 @@ export default function App() {
                   onRemoveFromRaid={handleRemoveFromRaid}
                   onSyncFromActiveRaid={handleSyncFromActiveRaid}
                   customColors={customColors}
-                  onOpenColorCustomizer={() => setIsColorModalOpen(true)}
                   isCompact={false}
                   isRaidUpdate={activePoolView === 'raid_update'}
                   onOpenCopyModal={() => setIsCopyModalOpen(true)}
@@ -3452,63 +3390,44 @@ export default function App() {
           </>
         )}
 
-        {/* Classes Quick Legend */}
-        <div className="mt-8 bg-white dark:bg-slate-900 rounded-xl p-4 border border-slate-200 dark:border-slate-800 shadow-2xs transition-colors">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Info className="w-4 h-4 text-slate-500 dark:text-slate-400" />
-              <h3 className="font-bold text-slate-800 dark:text-slate-200 text-xs uppercase tracking-wider">
-                Danh Sách {CLASS_LIST.length} Môn Phái & Mã Màu Hiện Tại
-              </h3>
-            </div>
-            <button
-              type="button"
-              onClick={() => setIsColorModalOpen(true)}
-              className="text-purple-600 dark:text-purple-400 hover:text-purple-800 dark:hover:text-purple-300 text-xs font-bold flex items-center gap-1"
-            >
-              <Palette className="w-3.5 h-3.5" />
-              <span>Tùy chỉnh màu phái</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 lg:grid-cols-11 gap-2">
-            {CLASS_LIST.map((cls) => {
-              const meta = getEffectiveClassMeta(cls, customColors);
-              return (
-                <button
-                  key={cls}
-                  type="button"
-                  onClick={() => setIsColorModalOpen(true)}
-                  className="flex flex-col items-center justify-center p-2 rounded-lg border border-slate-100 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-800/60 hover:bg-slate-100 dark:hover:bg-slate-750 hover:border-slate-300 dark:hover:border-slate-700 transition-all text-center group"
-                  title="Click để đổi màu môn phái này"
-                >
-                  <span
-                    className="w-4 h-4 rounded-full shrink-0 border border-black/20 group-hover:scale-110 transition-transform mb-1"
-                    style={{ backgroundColor: meta.bgColor }}
-                  />
-                  <div className="font-bold text-[11px] text-slate-800 dark:text-slate-200 truncate w-full">
-                    {cls}
-                  </div>
-                  <div className="text-[10px] text-slate-500 dark:text-slate-400 truncate w-full">
-                    {meta.shortName}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
+        {/* Kho Đi Bụi - Thay thế vị trí Danh Sách Chỉnh Màu Môn Phái */}
+        <section aria-label="Kho Đi Bụi" className="mt-8">
+          <DiBuiStorage
+            diBuiPool={diBuiPersonnelPool}
+            onUpdateDiBuiPool={handleUpdateDiBuiPersonnelPool}
+            onRestoreToActivePool={handleRestoreFromDiBui}
+            customColors={customColors}
+            isCompact={false}
+            activePoolName={
+              activePoolView === 'raid_update'
+                ? 'Kho Raid Update'
+                : activePoolView === 'guild_war'
+                ? 'Kho Bang Chiến'
+                : 'Kho Raid'
+            }
+          />
+        </section>
       </main>
 
-      {/* Color Customizer Modal */}
-      <ColorCustomizerModal
-        isOpen={isColorModalOpen}
-        onClose={() => setIsColorModalOpen(false)}
-        customColors={customColors}
-        onUpdateColor={handleUpdateColor}
-        onResetColor={handleResetColor}
-        onResetAllColors={handleResetAllColors}
-        onApplyPreset={handleApplyPreset}
-      />
+      {/* Footer chứng nhận bản quyền */}
+      <footer className="mt-12 py-6 border-t border-slate-200 dark:border-slate-800/80 bg-white/70 dark:bg-slate-950/70 backdrop-blur-md text-center transition-colors">
+        <div className="max-w-[1600px] mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-700 dark:text-slate-200">
+              Bang Niên Du
+            </span>
+            <span className="text-slate-300 dark:text-slate-700">•</span>
+            <span>Hệ Thống Sắp Xếp Nhân Sự & Đội Hình Nghịch Thủy Hàn</span>
+          </div>
+          <div className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-3.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-2xs">
+            <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span>Trang web thuộc bản quyền bởi <strong className="text-[#0284C7] dark:text-[#38BDF8] font-black">Vy Lì</strong></span>
+          </div>
+          <div className="text-[11px] text-slate-400 dark:text-slate-500">
+            © {new Date().getFullYear()} Vy Lì. All rights reserved.
+          </div>
+        </div>
+      </footer>
 
       {/* Google Sheets Modal */}
       <GoogleSheetsModal

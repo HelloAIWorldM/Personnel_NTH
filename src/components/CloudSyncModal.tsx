@@ -102,7 +102,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                Database duy nhất của Bang NTH – Tự động đồng bộ ngay lập tức
+                Database duy nhất của Bang Niên Du – Tự động đồng bộ ngay lập tức
               </p>
             </div>
           </div>
@@ -129,7 +129,7 @@ export const CloudSyncModal: React.FC<CloudSyncModalProps> = ({
                 />
                 <div>
                   <div className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <span>Máy chủ: Bang NTH (Duy Nhất)</span>
+                    <span>Máy chủ: Bang Niên Du</span>
                   </div>
                   <div className="text-[11px] text-slate-400">
                     Trạng thái:{' '}
