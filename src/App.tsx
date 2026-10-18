@@ -584,8 +584,9 @@ export default function App() {
     }
   }, [isDarkMode]);
 
-  // Initialize auth listener
+  // Initialize auth listener (Chỉ chạy khi đã vượt qua Cổng Discord)
   useEffect(() => {
+    if (!discordUser) return;
     const unsubscribe = initAuth(
       (user) => {
         setCurrentUser(user);
@@ -595,7 +596,7 @@ export default function App() {
       }
     );
     return () => unsubscribe();
-  }, []);
+  }, [discordUser]);
 
   const [isStorageHydrated, setIsStorageHydrated] = useState(false);
 
@@ -861,75 +862,6 @@ export default function App() {
           if (hasRestoredAny) {
             showToast('Đã tự động bảo toàn & phục hồi dữ liệu an toàn từ IndexedDB!');
           }
-        }
-
-        // 4. Khôi phục từ Firestore Cloud database duy nhất (GLOBAL_GUILD_ID)
-        try {
-          const cloudRes = await pullFromCloud(GLOBAL_GUILD_ID);
-          if (cloudRes.success && cloudRes.data && isMounted) {
-            const cd = cloudRes.data;
-            const cloudTotal =
-              (cd.masterPersonnelPool?.length || 0) +
-              (cd.personnelPool?.length || 0) +
-              (cd.boards?.length || 0) +
-              (cd.guildWarBoards?.length || 0) +
-              (cd.updateBoards?.length || 0);
-
-            if (cloudTotal > 0) {
-              applyCloudDataToState(cd);
-              console.info('[CloudSync] Đã nạp thành công dữ liệu từ Cloud Master:', cd.updatedAt);
-            } else {
-              // Cloud chưa có dữ liệu nhưng máy local đang có dữ liệu -> Đẩy dữ liệu khởi tạo lên Cloud
-              const localHasData =
-                boards.length > 0 ||
-                personnelPool.length > 0 ||
-                guildWarBoards.length > 0 ||
-                masterPersonnelPool.length > 0;
-              if (localHasData) {
-                console.info('[CloudSync] Khởi tạo dữ liệu Cloud Master từ máy cục bộ...');
-                pushToCloud({
-                  boards,
-                  personnelPool,
-                  guildWarBoards,
-                  activeBoardId,
-                  activeGuildWarBoardId,
-                  customColors,
-                  updateBoards,
-                  updatePersonnelPool,
-                  activeUpdateBoardId,
-                  diBuiPersonnelPool,
-                  masterPersonnelPool,
-                  guildWarPersonnelPool,
-                }, GLOBAL_GUILD_ID);
-              }
-            }
-          } else if (isMounted) {
-            // Trường hợp document chưa tồn tại trên Firestore
-            const localHasData =
-              boards.length > 0 ||
-              personnelPool.length > 0 ||
-              guildWarBoards.length > 0 ||
-              masterPersonnelPool.length > 0;
-            if (localHasData) {
-              console.info('[CloudSync] Đẩy dữ liệu ban đầu lên Cloud Master...');
-              pushToCloud({
-                boards,
-                personnelPool,
-                guildWarBoards,
-                activeBoardId,
-                activeGuildWarBoardId,
-                customColors,
-                updateBoards,
-                updatePersonnelPool,
-                activeUpdateBoardId,
-                diBuiPersonnelPool,
-                masterPersonnelPool,
-                guildWarPersonnelPool,
-              }, GLOBAL_GUILD_ID);
-            }
-          }
-        } catch (cloudErr) {
-          console.warn('[CloudSync] Initial check error:', cloudErr);
         }
       } catch (err) {
         console.warn('[Storage] Error during initial recovery:', err);
