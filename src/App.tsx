@@ -83,10 +83,11 @@ import { DonateModal } from './components/DonateModal';
 import { ImportRaidImageModal } from './components/ImportRaidImageModal';
 import { DiscordAuthGateModal } from './components/DiscordAuthGateModal';
 import { DiscordUserProfileModal } from './components/DiscordUserProfileModal';
+import { clearStoredDiscordUser } from './services/discordNotifyService';
 import {
-  getStoredDiscordUser,
-  clearStoredDiscordUser,
-} from './services/discordNotifyService';
+  loadVerifiedDiscordSession,
+  purgeSecureDiscordSession,
+} from './services/wasmSecurity';
 import { checkAndRunAutoDailyBackup } from './services/backupService';
 import {
   pushToCloud,
@@ -293,11 +294,55 @@ export default function App() {
     }, 3500);
   };
 
-  // Discord Authentication State (Phương án 2: Cổng Đăng Nhập Discord Bắt Buộc)
-  const [discordUser, setDiscordUser] = useState<DiscordUser | null>(() => getStoredDiscordUser());
+  // Discord Authentication & WebAssembly Security Verification
+  const [discordUser, setDiscordUser] = useState<DiscordUser | null>(null);
+  const [isWasmVerifying, setIsWasmVerifying] = useState<boolean>(() => {
+    // Nếu trang đang nhận token từ callback OAuth2 hash, không cần hiển thị loading màn hình
+    if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
+      return false;
+    }
+    return true;
+  });
+
+  // Xác thực WebAssembly session cryptographic envelope khi nạp ứng dụng
+  useEffect(() => {
+    let isMounted = true;
+
+    async function verifyAuthSession() {
+      // Nếu có access_token trong hash, để DiscordAuthGateModal tự xử lý
+      if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
+        if (isMounted) setIsWasmVerifying(false);
+        return;
+      }
+
+      try {
+        const verifiedUser = await loadVerifiedDiscordSession();
+        if (isMounted) {
+          setDiscordUser(verifiedUser);
+        }
+      } catch (err) {
+        console.error('[WebAssembly Security] Lỗi xác thực phiên:', err);
+        if (isMounted) {
+          setDiscordUser(null);
+        }
+      } finally {
+        if (isMounted) {
+          setIsWasmVerifying(false);
+        }
+      }
+    }
+
+    verifyAuthSession();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
   const [isDiscordProfileModalOpen, setIsDiscordProfileModalOpen] = useState(false);
 
   const handleDiscordLogout = () => {
+    purgeSecureDiscordSession();
     clearStoredDiscordUser();
     setDiscordUser(null);
     showToast('Đã đăng xuất tài khoản Discord. Vui lòng đăng nhập lại để tiếp tục.');
@@ -884,7 +929,7 @@ export default function App() {
 
   // Lắng nghe cập nhật thời gian thực từ Cloud Firestore (Real-time synchronization)
   useEffect(() => {
-    if (!isStorageHydrated) return;
+    if (!isStorageHydrated || !discordUser) return;
 
     const unsubscribe = subscribeToCloud((incomingData, isLocalWrite) => {
       // Bỏ qua nếu snapshot này xuất phát từ chính lần ghi cục bộ đang pending của máy này
@@ -902,11 +947,11 @@ export default function App() {
     return () => {
       unsubscribe();
     };
-  }, [isStorageHydrated, applyCloudDataToState]);
+  }, [isStorageHydrated, discordUser, applyCloudDataToState]);
 
   // Tự động kiểm tra và tạo bản sao lưu ngày mới (Daily Backup) khi mở web hoặc khi có dữ liệu mới
   useEffect(() => {
-    if (!isStorageHydrated) return;
+    if (!isStorageHydrated || !discordUser) return;
     const timer = setTimeout(() => {
       checkAndRunAutoDailyBackup({
         boards,
@@ -932,6 +977,7 @@ export default function App() {
     return () => clearTimeout(timer);
   }, [
     isStorageHydrated,
+    discordUser,
     boards,
     masterPersonnelPool,
     personnelPool,
@@ -1287,7 +1333,7 @@ export default function App() {
 
   // Debounced Auto-sync to Firebase Firestore Cloud (Thời gian thực)
   useEffect(() => {
-    if (!isStorageHydrated) return;
+    if (!isStorageHydrated || !discordUser) return;
     if (isRemoteIncomingRef.current) return;
 
     const hasData =
@@ -1343,6 +1389,7 @@ export default function App() {
     masterPersonnelPool,
     guildWarPersonnelPool,
     isStorageHydrated,
+    discordUser,
   ]);
 
   const handlePushToCloudManual = async () => {
@@ -2517,6 +2564,52 @@ export default function App() {
   };
 
   const fullRaidTitle = `${activeBoard.titlePrefix} - ${activeBoard.scheduleTime} ${activeBoard.bossName}`;
+
+  // --- BẢO MẬT KHỞI TẠO WEBASSEMBLY ENGINE ---
+  if (isWasmVerifying) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 gap-3 select-none">
+        <div className="w-10 h-10 border-4 border-[#5865F2] border-t-transparent rounded-full animate-spin shadow-lg shadow-[#5865F2]/20" />
+        <span className="text-sm font-semibold tracking-wide text-slate-200">
+          Đang khởi tạo WebAssembly Security Engine...
+        </span>
+      </div>
+    );
+  }
+
+  // --- BẢO VỆ CHẶN TRUY CẬP TRÁI PHÉP & CHỐNG F12 DOM BYPASS ---
+  // Nếu chưa đăng nhập Discord, CHỈ mount Cổng Đăng Nhập.
+  // Tuyệt đối KHÔNG mount bất kỳ bảng Raid, Bang Chiến hay dữ liệu nhân sự nào vào DOM.
+  if (!discordUser) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center relative overflow-hidden select-none">
+        <DiscordAuthGateModal
+          isOpen={true}
+          onLoginSuccess={(user) => {
+            setDiscordUser(user);
+          }}
+          onShowToast={showToast}
+        />
+
+        {toastMessage &&
+          typeof document !== 'undefined' &&
+          createPortal(
+            <div className="fixed bottom-5 right-5 z-[100] bg-slate-900 text-white px-4 py-2.5 rounded-xl shadow-lg text-xs font-bold flex items-center gap-2 border border-slate-700 animate-in slide-in-from-bottom-2">
+              <span>{toastMessage}</span>
+              <button
+                type="button"
+                onClick={() => setToastMessage(null)}
+                className="text-slate-400 hover:text-white ml-2"
+                title="Đóng thông báo"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>,
+            document.body
+          )}
+      </div>
+    );
+  }
 
   return (
     <div
@@ -3711,14 +3804,6 @@ export default function App() {
         onSelectTheme={handleSelectTheme}
       />
 
-      {/* Cổng Đăng Nhập Discord Bắt Buộc (Phương án 2) */}
-      <DiscordAuthGateModal
-        isOpen={!discordUser}
-        onLoginSuccess={(user) => {
-          setDiscordUser(user);
-        }}
-        onShowToast={showToast}
-      />
 
       {/* Modal Thông Tin Người Dùng Discord */}
       <DiscordUserProfileModal

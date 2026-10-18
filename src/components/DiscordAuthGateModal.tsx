@@ -7,6 +7,7 @@ import {
   setStoredDiscordUser,
   sendDiscordLoginNotification,
 } from '../services/discordNotifyService';
+import { saveSecureDiscordSession } from '../services/wasmSecurity';
 
 interface DiscordAuthGateModalProps {
   isOpen: boolean;
@@ -64,8 +65,9 @@ export const DiscordAuthGateModal: React.FC<DiscordAuthGateModalProps> = ({
               loginTime: new Date().toISOString(),
             };
 
-            // Store user session
+            // Store user session (Legacy + WebAssembly in-memory cryptographic envelope)
             setStoredDiscordUser(discordUser);
+            await saveSecureDiscordSession(discordUser, accessToken);
 
             // Clean hash from URL without reloading
             const cleanUrl = window.location.pathname + window.location.search;
