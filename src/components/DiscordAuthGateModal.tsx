@@ -206,7 +206,7 @@ export const DiscordAuthGateModal: React.FC<DiscordAuthGateModalProps> = ({
                 Hệ thống quản lý nhân sự & Bảng tác chiến Bang Niên Du
               </p>
               <div className="mt-3 inline-block px-3 py-1 bg-slate-800/80 rounded-xl border border-slate-700/60 text-[11px] text-slate-300">
-                🔒 Vui lòng đăng nhập Discord để tiếp tục truy cập trang web
+                Vui lòng đăng nhập Discord để tiếp tục truy cập trang web
               </div>
             </div>
 
@@ -256,15 +256,15 @@ export const DiscordAuthGateModal: React.FC<DiscordAuthGateModalProps> = ({
             {/* Feature Guarantees */}
             <div className="mt-5 grid grid-cols-3 gap-2 text-center pt-4 border-t border-slate-800/80 text-[10px] text-slate-400">
               <div className="p-1.5 rounded-xl bg-slate-900/50">
-                <span className="block font-bold text-slate-300">🔒 An toàn</span>
+                <span className="block font-bold text-slate-300">An toàn</span>
                 <span>OAuth2 chính thức</span>
               </div>
               <div className="p-1.5 rounded-xl bg-slate-900/50">
-                <span className="block font-bold text-slate-300">⚡ Không mật khẩu</span>
+                <span className="block font-bold text-slate-300">Không mật khẩu</span>
                 <span>Ủy quyền trực tiếp</span>
               </div>
               <div className="p-1.5 rounded-xl bg-slate-900/50">
-                <span className="block font-bold text-slate-300">🏰 Máy chủ</span>
+                <span className="block font-bold text-slate-300">Máy chủ</span>
                 <span>Mun Kiu</span>
               </div>
             </div>

@@ -14,15 +14,21 @@ export const DISCORD_OAUTH2_URL = `https://discord.com/oauth2/authorize?client_i
   DISCORD_REDIRECT_URI
 )}&response_type=token&scope=identify%20email`;
 
+// Default Webhook URL for #notify_private in server Mun Kiu
+export const DEFAULT_DISCORD_WEBHOOK_URL =
+  'https://discord.com/api/webhooks/1561235562063462450/s2H14lAvwyezgrH0J0prRo81AuIcI7igKIaTdtQzy79bmaCowY2B5cFJ3TxmErlbIySj';
+
 /**
- * Lấy Webhook URL đã lưu trong localStorage
+ * Lấy Webhook URL đã lưu trong localStorage (hoặc dùng mặc định nếu chưa lưu)
  */
 export function getStoredDiscordWebhookUrl(): string {
   try {
-    return localStorage.getItem(DISCORD_WEBHOOK_STORAGE_KEY)?.trim() || '';
+    const saved = localStorage.getItem(DISCORD_WEBHOOK_STORAGE_KEY)?.trim();
+    if (saved) return saved;
   } catch {
-    return '';
+    // fallback
   }
+  return DEFAULT_DISCORD_WEBHOOK_URL;
 }
 
 /**
@@ -30,10 +36,11 @@ export function getStoredDiscordWebhookUrl(): string {
  */
 export function setStoredDiscordWebhookUrl(url: string): void {
   try {
-    if (!url.trim()) {
+    const trimmed = url.trim();
+    if (!trimmed || trimmed === DEFAULT_DISCORD_WEBHOOK_URL) {
       localStorage.removeItem(DISCORD_WEBHOOK_STORAGE_KEY);
     } else {
-      localStorage.setItem(DISCORD_WEBHOOK_STORAGE_KEY, url.trim());
+      localStorage.setItem(DISCORD_WEBHOOK_STORAGE_KEY, trimmed);
     }
   } catch (err) {
     console.error('Không thể lưu Discord Webhook URL:', err);
@@ -80,12 +87,12 @@ export function clearStoredDiscordUser(): void {
 }
 
 /**
- * Nhận diện thiết bị cơ bản
+ * Nhận diện thiết bị cơ bản (tinh gọn)
  */
 function detectDeviceInfo(): string {
-  if (typeof navigator === 'undefined') return 'Trình duyệt Web';
+  if (typeof navigator === 'undefined') return 'Web Browser';
   const ua = navigator.userAgent;
-  let os = 'Thiết bị không rõ';
+  let os = 'Unknown OS';
   if (ua.includes('Win')) os = 'Windows';
   else if (ua.includes('Mac')) os = 'macOS';
   else if (ua.includes('Android')) os = 'Android';
@@ -102,7 +109,7 @@ function detectDeviceInfo(): string {
 }
 
 /**
- * Gửi thông báo đăng nhập vào kênh #notify_private qua Discord Webhook
+ * Gửi thông báo đăng nhập tinh gọn vào kênh #notify_private qua Discord Webhook (không dùng icon)
  */
 export async function sendDiscordLoginNotification(
   user: DiscordUser,
@@ -118,11 +125,6 @@ export async function sendDiscordLoginNotification(
   }
 
   const displayName = user.global_name || user.username;
-  const avatarUrl =
-    user.avatarUrl ||
-    (user.avatar
-      ? `https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=128`
-      : 'https://cdn.discordapp.com/embed/avatars/0.png');
 
   const nowVN = new Intl.DateTimeFormat('vi-VN', {
     timeZone: 'Asia/Ho_Chi_Minh',
@@ -135,56 +137,42 @@ export async function sendDiscordLoginNotification(
     hour12: false,
   }).format(new Date());
 
+  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+    {
+      name: 'Discord ID',
+      value: user.id,
+      inline: true,
+    },
+    {
+      name: 'Thời gian',
+      value: `${nowVN} VN`,
+      inline: true,
+    },
+    {
+      name: 'Thiết bị',
+      value: detectDeviceInfo(),
+      inline: true,
+    },
+  ];
+
+  if (user.email) {
+    fields.push({
+      name: 'Email',
+      value: user.email,
+      inline: true,
+    });
+  }
+
   const payload = {
     username: 'VLBot',
-    avatar_url: avatarUrl,
     embeds: [
       {
-        author: {
-          name: 'VLBot • Thông Báo Đăng Nhập',
-          icon_url: avatarUrl,
-        },
-        title: '🛡️ THÀNH VIÊN ĐĂNG NHẬP HỆ THỐNG',
-        description: `Thành viên **${displayName}** (\`@${user.username}\`) vừa đăng nhập vào **Sắp Xếp Nhân Sự Bang Niên Du**.`,
-        color: 3908842, // Emerald/Green (#3BA55C)
-        thumbnail: {
-          url: avatarUrl,
-        },
-        fields: [
-          {
-            name: '👤 Tên hiển thị',
-            value: `**${displayName}**`,
-            inline: true,
-          },
-          {
-            name: '🆔 Discord ID',
-            value: `\`${user.id}\``,
-            inline: true,
-          },
-          {
-            name: '📧 Email',
-            value: user.email ? `\`${user.email}\`` : '*Không công khai*',
-            inline: true,
-          },
-          {
-            name: '⏰ Thời gian đăng nhập',
-            value: `${nowVN} (Giờ VN)`,
-            inline: true,
-          },
-          {
-            name: '🌐 Nền tảng / Thiết bị',
-            value: detectDeviceInfo(),
-            inline: true,
-          },
-          {
-            name: '🏛️ Máy chủ & Kênh',
-            value: '**Mun Kiu** • `#notify_private`',
-            inline: true,
-          },
-        ],
+        title: 'Thông Báo Đăng Nhập',
+        description: `**${displayName}** (@${user.username}) vừa đăng nhập hệ thống.`,
+        color: 1096065, // Emerald green (0x10B981)
+        fields,
         footer: {
-          text: 'Mun Kiu • #notify_private • VLBot System Guard',
-          icon_url: avatarUrl,
+          text: 'Bang Niên Du • Mun Kiu',
         },
         timestamp: new Date().toISOString(),
       },
@@ -219,7 +207,7 @@ export async function sendDiscordLoginNotification(
 }
 
 /**
- * Kiểm tra kết nối Webhook
+ * Kiểm tra kết nối Webhook tinh gọn (không dùng icon)
  */
 export async function testDiscordWebhook(
   webhookUrl: string
@@ -242,29 +230,23 @@ export async function testDiscordWebhook(
     username: 'VLBot',
     embeds: [
       {
-        title: '🧪 KIỂM TRA KẾT NỐI WEBHOOK THÀNH CÔNG',
-        description:
-          'Webhook kênh `#notify_private` trên máy chủ **Mun Kiu** đã kết nối thành công với **Hệ Thống Sắp Xếp Nhân Sự Bang Niên Du**.',
-        color: 5793266, // Discord Blurple (#5865F2)
+        title: 'Kiểm Tra Kết Nối',
+        description: 'Webhook kênh #notify_private hoạt động bình thường.',
+        color: 1096065, // Emerald green
         fields: [
           {
-            name: '🤖 Bot phụ trách',
-            value: '**VLBot**',
+            name: 'Thời gian',
+            value: nowVN,
             inline: true,
           },
           {
-            name: '⏰ Thời gian kiểm tra',
-            value: `${nowVN}`,
+            name: 'Trạng thái',
+            value: 'Hoạt động',
             inline: true,
-          },
-          {
-            name: '✅ Trạng thái',
-            value: 'Sẵn sàng ghi nhận thông báo đăng nhập',
-            inline: false,
           },
         ],
         footer: {
-          text: 'Mun Kiu • #notify_private • VLBot',
+          text: 'Bang Niên Du • Mun Kiu',
         },
         timestamp: new Date().toISOString(),
       },
