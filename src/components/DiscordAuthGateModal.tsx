@@ -93,18 +93,74 @@ export const DiscordAuthGateModal: React.FC<DiscordAuthGateModalProps> = ({
     }
 
     // 2. Check for query code (?code=...) from response_type=code
-    // Because static SPA cannot exchange code with client_secret without backend CORS,
-    // automatically redirect to response_type=token so Discord returns token immediately!
     const searchParams = new URLSearchParams(window.location.search);
     if (searchParams.has('code')) {
+      const code = searchParams.get('code');
       // Remove ?code from search to prevent reload loop
       searchParams.delete('code');
       const newSearch = searchParams.toString();
       const cleanUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '') + window.location.hash;
       window.history.replaceState(null, '', cleanUrl);
 
-      // Redirect seamlessly to the token grant URL
-      window.location.href = DISCORD_OAUTH2_URL;
+      if (code) {
+        setIsAuthenticating(true);
+        setAuthError(null);
+
+        // Gọi Backend Cloud Functions để trao đổi code lấy user & Firebase Custom Token
+        const apiUrl = import.meta.env.VITE_BACKEND_API_URL || '';
+fetch(`${apiUrl}/api/auth/discord/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            code,
+            redirectUri: window.location.origin + window.location.pathname,
+          }),
+        })
+          .then(async (res) => {
+            if (!res.ok) {
+              const err = await res.text();
+              throw new Error(`Lỗi trao đổi mã xác thực (${res.status}): ${err}`);
+            }
+            return res.json();
+          })
+          .then(async (data) => {
+            if (!data.success || !data.user) {
+              throw new Error(data.error || 'Xác thực không thành công.');
+            }
+
+            // Lưu session người dùng qua WebAssembly In-memory Cryptographic Envelope
+            await saveSecureDiscordSession(data.user, data.accessToken || '');
+
+            // Nếu Backend đã cấp Firebase Custom Token, đăng nhập vào Firebase Auth
+            if (data.firebaseCustomToken) {
+              try {
+                const { signInWithCustomToken } = await import('firebase/auth');
+                const { auth } = await import('../services/firebase');
+                await signInWithCustomToken(auth, data.firebaseCustomToken);
+              } catch (fbAuthErr) {
+                console.warn('Firebase Custom Token login warning:', fbAuthErr);
+              }
+            }
+
+            try {
+              await sendDiscordLoginNotification(data.user);
+            } catch (notifyErr) {
+              console.warn('Lỗi gửi thông báo Webhook:', notifyErr);
+            }
+
+            onShowToast(`Chào mừng ${data.user.global_name || data.user.username} đã đăng nhập thành công!`);
+            onLoginSuccess(data.user);
+          })
+          .catch((err) => {
+            console.warn('Backend exchange chưa khả dụng, fallback sang Token Grant:', err);
+            // Fallback an toàn sang token URL nếu backend chưa deploy
+            window.location.href = DISCORD_OAUTH2_URL;
+          })
+          .finally(() => {
+            setIsAuthenticating(false);
+          });
+        return;
+      }
     }
   }, [onLoginSuccess, onShowToast]);
 

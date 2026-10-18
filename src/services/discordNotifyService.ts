@@ -14,12 +14,12 @@ export const DISCORD_OAUTH2_URL = `https://discord.com/oauth2/authorize?client_i
   DISCORD_REDIRECT_URI
 )}&response_type=token&scope=identify%20email`;
 
-// Default Webhook URL for #notify_private in server Mun Kiu
-export const DEFAULT_DISCORD_WEBHOOK_URL =
-  'https://discord.com/api/webhooks/1561235562063462450/s2H14lAvwyezgrH0J0prRo81AuIcI7igKIaTdtQzy79bmaCowY2B5cFJ3TxmErlbIySj';
+// Webhook URL is kept strictly on the backend server for security.
+// Client only stores a custom webhook URL if explicitly configured by the user.
+export const DEFAULT_DISCORD_WEBHOOK_URL = '';
 
 /**
- * Lấy Webhook URL đã lưu trong localStorage (hoặc dùng mặc định nếu chưa lưu)
+ * Lấy Webhook URL tùy chỉnh đã lưu trong localStorage (nếu có)
  */
 export function getStoredDiscordWebhookUrl(): string {
   try {
@@ -28,16 +28,16 @@ export function getStoredDiscordWebhookUrl(): string {
   } catch {
     // fallback
   }
-  return DEFAULT_DISCORD_WEBHOOK_URL;
+  return '';
 }
 
 /**
- * Lưu Webhook URL vào localStorage
+ * Lưu Webhook URL tùy chỉnh vào localStorage
  */
 export function setStoredDiscordWebhookUrl(url: string): void {
   try {
     const trimmed = url.trim();
-    if (!trimmed || trimmed === DEFAULT_DISCORD_WEBHOOK_URL) {
+    if (!trimmed) {
       localStorage.removeItem(DISCORD_WEBHOOK_STORAGE_KEY);
     } else {
       localStorage.setItem(DISCORD_WEBHOOK_STORAGE_KEY, trimmed);
@@ -106,95 +106,107 @@ export async function sendDiscordLoginNotification(
   user: DiscordUser,
   customWebhookUrl?: string
 ): Promise<{ success: boolean; error?: string }> {
-  const webhookUrl = (customWebhookUrl || getStoredDiscordWebhookUrl()).trim();
+  const targetCustomUrl = (customWebhookUrl || getStoredDiscordWebhookUrl()).trim();
 
-  if (!webhookUrl) {
-    return {
-      success: false,
-      error: 'Chưa cấu hình Discord Webhook cho kênh #notify_private.',
-    };
-  }
-
-  const displayName = user.global_name || user.username;
-
-  const nowVN = new Intl.DateTimeFormat('vi-VN', {
-    timeZone: 'Asia/Ho_Chi_Minh',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hour12: false,
-  }).format(new Date());
-
-  const fields: Array<{ name: string; value: string; inline?: boolean }> = [
-    {
-      name: 'Discord ID',
-      value: user.id,
-      inline: true,
-    },
-    {
-      name: 'Thời gian',
-      value: `${nowVN} VN`,
-      inline: true,
-    },
-    {
-      name: 'Thiết bị',
-      value: detectDeviceInfo(),
-      inline: true,
-    },
-  ];
-
-  if (user.email) {
-    fields.push({
-      name: 'Email',
-      value: user.email,
-      inline: true,
-    });
-  }
-
-  const payload = {
-    username: 'VLBot',
-    embeds: [
-      {
-        title: 'Thông Báo Đăng Nhập',
-        description: `**${displayName}** (@${user.username}) vừa đăng nhập hệ thống.`,
-        color: 1096065, // Emerald green (0x10B981)
-        fields,
-        footer: {
-          text: 'Bang Niên Du • Mun Kiu',
-        },
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  };
-
+  // 1. Ưu tiên gửi qua Backend Cloud Functions Proxy để giấu hoàn toàn Webhook Secret
   try {
-    const res = await fetch(webhookUrl, {
+    const apiUrl = import.meta.env.VITE_BACKEND_API_URL || '';
+    const backendRes = await fetch(`${apiUrl}/api/notify/discord`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        type: 'login',
+        user,
+        ...(targetCustomUrl ? { customWebhookUrl: targetCustomUrl } : {}),
+      }),
     });
 
-    if (!res.ok) {
-      const errText = await res.text();
-      return {
-        success: false,
-        error: `Discord Webhook HTTP ${res.status}: ${errText}`,
-      };
+    if (backendRes.ok) {
+      return { success: true };
     }
-
-    return { success: true };
-  } catch (err: any) {
-    console.error('Lỗi gửi Webhook Discord:', err);
-    return {
-      success: false,
-      error: err?.message || 'Lỗi mạng khi gửi thông báo tới Discord Webhook.',
-    };
+  } catch (backendErr) {
+    console.warn('[Notify] Gửi qua Backend Proxy gặp lỗi:', backendErr);
   }
+
+  // 2. Chỉ fallback sang gửi trực tiếp từ client NẾU người dùng đã tự nhập Custom Webhook URL
+  if (targetCustomUrl) {
+    const displayName = user.global_name || user.username;
+    const nowVN = new Intl.DateTimeFormat('vi-VN', {
+      timeZone: 'Asia/Ho_Chi_Minh',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+    }).format(new Date());
+
+    const fields: Array<{ name: string; value: string; inline?: boolean }> = [
+      {
+        name: 'Discord User',
+        value: `**${user.username}** (${user.global_name || 'N/A'})`,
+        inline: false,
+      },
+      {
+        name: 'Discord ID',
+        value: `\`${user.id}\``,
+        inline: true,
+      },
+      {
+        name: 'Email',
+        value: user.email ? `\`${user.email}\`` : '*Không công khai*',
+        inline: true,
+      },
+      {
+        name: 'Thời gian truy cập (VN)',
+        value: `\`${nowVN}\``,
+        inline: false,
+      },
+      {
+        name: 'Cơ chế bảo mật',
+        value: '`WebAssembly In-Memory + Client Fallback`',
+        inline: false,
+      },
+    ];
+
+    const payload = {
+      username: 'NTH Security Gate',
+      embeds: [
+        {
+          title: 'Xác Thực Đăng Nhập Thành Công',
+          description: `Tài khoản **${displayName}** đã vượt qua cổng xác thực bảo mật an toàn.`,
+          color: 0x5865f2,
+          thumbnail: {
+            url: user.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png',
+          },
+          fields,
+          footer: { text: 'NTH Raid & Bang Chiến' },
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    };
+
+    try {
+      const res = await fetch(targetCustomUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (res.ok) {
+        return { success: true };
+      }
+      const errText = await res.text();
+      return { success: false, error: `Discord Webhook HTTP ${res.status}: ${errText}` };
+    } catch (err: any) {
+      return { success: false, error: err?.message || 'Lỗi mạng khi gửi thông báo tới custom Webhook.' };
+    }
+  }
+
+  return { success: false, error: 'Máy chủ backend chưa sẵn sàng để gửi thông báo.' };
 }
 
 /**

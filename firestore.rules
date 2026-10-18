@@ -29,8 +29,8 @@ rules_version = '2';
  * ===============================================================
  * Security Architecture & Invariants:
  * 1. Default Deny: All paths are locked down by default at the root.
- * 2. Room-based Collaboration: Reading & updating is allowed by valid guild room ID ({guildId})
- *    without requiring mandatory Google Auth, supporting seamless guild member collaboration.
+ * 2. Authenticated Guild Access: Reading, creating, and updating strictly require an authenticated
+ *    Firebase Auth session (`request.auth != null`) alongside a valid guild room ID ({guildId}).
  * 3. Validator Function Pattern: Domain validators enforced to eliminate Update Bypass vulnerabilities.
  * 4. Strict Type Safety: Every field is explicitly type-checked (list, string, map, timestamp/number).
  * 5. Resource Exhaustion & DoS Prevention: Strict bounds on array lengths, string lengths, and map size.
@@ -139,13 +139,13 @@ service cloud.firestore {
     // GUILD ROOMS COLLECTION: /guilds/{guildId}
     // =========================================================================
     match /guilds/{guildId} {
-      // Room-based collaboration: allow reading by valid room code
-      allow read: if isValidGuildId(guildId);
+      // Authenticated room access: require authenticated Firebase Auth user and valid room code
+      allow read: if request.auth != null && isValidGuildId(guildId);
 
-      // Create and Update must satisfy the exact same domain validator
+      // Create and Update must be authenticated and satisfy the exact same domain validator
       // to eliminate the Update Bypass vulnerability
-      allow create: if isValidGuildDoc(request.resource.data, guildId);
-      allow update: if isValidGuildDoc(request.resource.data, guildId);
+      allow create: if request.auth != null && isValidGuildDoc(request.resource.data, guildId);
+      allow update: if request.auth != null && isValidGuildDoc(request.resource.data, guildId);
 
       // Hard-deny deletion to prevent malicious or accidental room destruction
       allow delete: if false;

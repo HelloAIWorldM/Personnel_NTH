@@ -1,0 +1,11 @@
+~*
+*~
+*.log
+.DS_Store
+node_modules
+lib
+.env
+.env.local
+.runtimeconfig.json
+
+.vercel
