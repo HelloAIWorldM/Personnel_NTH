@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Copy, Check, LogOut, ShieldCheck, Send, CheckCircle2, AlertCircle } from 'lucide-react';
+import { X, Copy, Check, LogOut, ShieldCheck } from 'lucide-react';
 import { DiscordUser } from '../types';
-import { testDiscordWebhook, getStoredDiscordWebhookUrl } from '../services/discordNotifyService';
 
 interface DiscordUserProfileModalProps {
   isOpen: boolean;
@@ -20,8 +19,6 @@ export const DiscordUserProfileModal: React.FC<DiscordUserProfileModalProps> = (
   onShowToast,
 }) => {
   const [copiedId, setCopiedId] = useState(false);
-  const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; msg: string } | null>(null);
 
   if (!isOpen || !user) return null;
 
@@ -30,26 +27,6 @@ export const DiscordUserProfileModal: React.FC<DiscordUserProfileModalProps> = (
     setCopiedId(true);
     onShowToast('Đã sao chép Discord ID vào bộ nhớ tạm!');
     setTimeout(() => setCopiedId(false), 2000);
-  };
-
-  const handleTestNotify = async () => {
-    setIsTesting(true);
-    setTestResult(null);
-    const webhookUrl = getStoredDiscordWebhookUrl();
-    const res = await testDiscordWebhook(webhookUrl);
-    setIsTesting(false);
-    if (res.success) {
-      setTestResult({
-        success: true,
-        msg: 'Đã gửi thông báo kiểm tra tới kênh #notify_private thành công!',
-      });
-      onShowToast('Đã gửi thông báo kiểm tra thành công!');
-    } else {
-      setTestResult({
-        success: false,
-        msg: res.error || 'Gửi thất bại. Hãy kiểm tra lại kết nối mạng.',
-      });
-    }
   };
 
   const formattedLoginTime = user.loginTime
@@ -183,58 +160,7 @@ export const DiscordUserProfileModal: React.FC<DiscordUserProfileModalProps> = (
                     Mun Kiu
                   </span>
                 </div>
-
-                {/* Kênh thông báo */}
-                <div className="p-3 flex items-center justify-between bg-white dark:bg-slate-900/60">
-                  <span className="font-medium text-slate-500 dark:text-slate-400">Kênh ghi nhận</span>
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#5865F2]/10 text-[#5865F2] font-semibold border border-[#5865F2]/20">
-                      #notify_private
-                    </span>
-                    <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold">
-                      (VLBot)
-                    </span>
-                  </div>
-                </div>
               </div>
-
-              {/* Test Notification Action */}
-              <div className="p-3 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-slate-200 dark:border-slate-800/80 flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-slate-800 dark:text-slate-200 text-[11px]">
-                    Kiểm tra thông báo bot VLBot
-                  </p>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                    Gửi tin nhắn mẫu vào kênh #notify_private
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled={isTesting}
-                  onClick={handleTestNotify}
-                  className="px-2.5 py-1.5 bg-slate-200 dark:bg-slate-800 hover:bg-slate-300 dark:hover:bg-slate-700 disabled:opacity-50 text-slate-800 dark:text-slate-200 rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1.5 cursor-pointer"
-                >
-                  <Send className="w-3 h-3 text-[#5865F2]" />
-                  <span>{isTesting ? 'Đang gửi...' : 'Gửi thử'}</span>
-                </button>
-              </div>
-
-              {testResult && (
-                <div
-                  className={`p-2.5 rounded-xl text-[11px] flex items-start gap-1.5 ${
-                    testResult.success
-                      ? 'bg-emerald-50 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800'
-                      : 'bg-red-50 dark:bg-red-950/60 text-red-800 dark:text-red-300 border border-red-300 dark:border-red-800'
-                  }`}
-                >
-                  {testResult.success ? (
-                    <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-500" />
-                  ) : (
-                    <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-red-500" />
-                  )}
-                  <span>{testResult.msg}</span>
-                </div>
-              )}
             </div>
 
             {/* Footer Actions */}
