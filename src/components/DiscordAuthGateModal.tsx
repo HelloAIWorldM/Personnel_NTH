@@ -198,37 +198,16 @@ export const DiscordAuthGateModal: React.FC<DiscordAuthGateModalProps> = ({
               )}
             </div>
 
-            {/* Notification / Bot Info Box */}
-            <div className="mt-5 p-3.5 bg-slate-900/80 border border-slate-800 rounded-2xl text-left space-y-1.5">
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-200">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                <span>Tự động thông báo qua bot VLBot:</span>
+            {/* Feature Guarantees - Balanced 2-column layout */}
+            <div className="mt-6 pt-5 grid grid-cols-2 gap-3 text-center border-t border-slate-800/80">
+              <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/60">
+                <span className="block font-bold text-slate-200 text-xs">An toàn</span>
+                <span className="text-[11px] text-slate-400">OAuth2 chính thức</span>
               </div>
-              <p className="text-[11px] text-slate-400 leading-relaxed">
-                Khi đăng nhập thành công, bot <strong className="text-emerald-400">VLBot</strong> sẽ tự động gửi thông báo xác nhận thành viên vào kênh <code className="px-1.5 py-0.5 bg-slate-800 text-sky-400 rounded text-[10px]">#notify_private</code> trên máy chủ <strong className="text-amber-300">Mun Kiu</strong>.
-              </p>
-            </div>
-
-            {/* Feature Guarantees */}
-            <div className="mt-5 grid grid-cols-3 gap-2 text-center pt-4 border-t border-slate-800/80 text-[10px] text-slate-400">
-              <div className="p-1.5 rounded-xl bg-slate-900/50">
-                <span className="block font-bold text-slate-300">An toàn</span>
-                <span>OAuth2 chính thức</span>
+              <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800/60">
+                <span className="block font-bold text-slate-200 text-xs">Không mật khẩu</span>
+                <span className="text-[11px] text-slate-400">Ủy quyền trực tiếp</span>
               </div>
-              <div className="p-1.5 rounded-xl bg-slate-900/50">
-                <span className="block font-bold text-slate-300">Không mật khẩu</span>
-                <span>Ủy quyền trực tiếp</span>
-              </div>
-              <div className="p-1.5 rounded-xl bg-slate-900/50">
-                <span className="block font-bold text-slate-300">Máy chủ</span>
-                <span>Mun Kiu</span>
-              </div>
-            </div>
-
-            {/* Application Details */}
-            <div className="mt-4 pt-3 flex items-center justify-between text-[11px] text-slate-500">
-              <span>Client ID: 1559521882431299594</span>
-              <span>Máy chủ Mun Kiu</span>
             </div>
           </div>
         </div>,
