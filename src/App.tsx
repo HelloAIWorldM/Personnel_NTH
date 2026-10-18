@@ -82,7 +82,7 @@ import { BackupRestoreModal } from './components/BackupRestoreModal';
 import { DonateModal } from './components/DonateModal';
 import { ImportRaidImageModal } from './components/ImportRaidImageModal';
 import { DiscordAuthGateModal } from './components/DiscordAuthGateModal';
-import { DiscordWebhookSettingsModal } from './components/DiscordWebhookSettingsModal';
+import { DiscordUserProfileModal } from './components/DiscordUserProfileModal';
 import {
   getStoredDiscordUser,
   clearStoredDiscordUser,
@@ -295,7 +295,7 @@ export default function App() {
 
   // Discord Authentication State (Phương án 2: Cổng Đăng Nhập Discord Bắt Buộc)
   const [discordUser, setDiscordUser] = useState<DiscordUser | null>(() => getStoredDiscordUser());
-  const [isDiscordWebhookModalOpen, setIsDiscordWebhookModalOpen] = useState(false);
+  const [isDiscordProfileModalOpen, setIsDiscordProfileModalOpen] = useState(false);
 
   const handleDiscordLogout = () => {
     clearStoredDiscordUser();
@@ -2718,9 +2718,9 @@ export default function App() {
               <div className="flex items-center gap-1 sm:gap-1.5 pl-1.5 border-l border-slate-300 dark:border-slate-700">
                 <button
                   type="button"
-                  onClick={() => setIsDiscordWebhookModalOpen(true)}
+                  onClick={() => setIsDiscordProfileModalOpen(true)}
                   className="flex items-center gap-1.5 py-1 px-1.5 sm:px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-[#162230] dark:hover:bg-[#1D2D40] border border-slate-300 dark:border-[#1F3347] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer group"
-                  title={`Đã đăng nhập Discord: ${discordUser.global_name || discordUser.username} (${discordUser.id}) • Nhấp để xem/cài đặt thông báo #notify_private`}
+                  title={`Đã đăng nhập Discord: ${discordUser.global_name || discordUser.username} (${discordUser.id}) • Nhấp để xem thông tin người dùng`}
                 >
                   <img
                     src={discordUser.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png'}
@@ -3720,10 +3720,12 @@ export default function App() {
         onShowToast={showToast}
       />
 
-      {/* Modal Cài Đặt Webhook Thông Báo #notify_private */}
-      <DiscordWebhookSettingsModal
-        isOpen={isDiscordWebhookModalOpen}
-        onClose={() => setIsDiscordWebhookModalOpen(false)}
+      {/* Modal Thông Tin Người Dùng Discord */}
+      <DiscordUserProfileModal
+        isOpen={isDiscordProfileModalOpen}
+        onClose={() => setIsDiscordProfileModalOpen(false)}
+        user={discordUser}
+        onLogout={handleDiscordLogout}
         onShowToast={showToast}
       />
 

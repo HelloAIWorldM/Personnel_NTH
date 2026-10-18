@@ -1,14 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Shield, Sparkles, AlertCircle, Loader2, ArrowRight, Settings, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Shield, Sparkles, AlertCircle, Loader2, ArrowRight } from 'lucide-react';
 import { DiscordUser } from '../types';
 import {
   DISCORD_OAUTH2_URL,
   setStoredDiscordUser,
   sendDiscordLoginNotification,
-  getStoredDiscordWebhookUrl,
-  setStoredDiscordWebhookUrl,
-  testDiscordWebhook,
 } from '../services/discordNotifyService';
 
 interface DiscordAuthGateModalProps {
@@ -24,10 +21,6 @@ export const DiscordAuthGateModal: React.FC<DiscordAuthGateModalProps> = ({
 }) => {
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [showWebhookSetup, setShowWebhookSetup] = useState(false);
-  const [webhookInput, setWebhookInput] = useState(() => getStoredDiscordWebhookUrl());
-  const [isTestingWebhook, setIsTestingWebhook] = useState(false);
-  const [webhookTestResult, setWebhookTestResult] = useState<{ success: boolean; msg: string } | null>(null);
 
   // Handle incoming OAuth2 callback (hash or code)
   useEffect(() => {
@@ -114,43 +107,6 @@ export const DiscordAuthGateModal: React.FC<DiscordAuthGateModalProps> = ({
       window.location.href = DISCORD_OAUTH2_URL;
     }
   }, [onLoginSuccess, onShowToast]);
-
-  const handleTestWebhook = async () => {
-    if (!webhookInput.trim()) {
-      setWebhookTestResult({ success: false, msg: 'Vui lòng dán link Webhook của kênh #notify_private.' });
-      return;
-    }
-    setIsTestingWebhook(true);
-    setWebhookTestResult(null);
-    try {
-      const res = await testDiscordWebhook(webhookInput.trim());
-      if (res.success) {
-        setStoredDiscordWebhookUrl(webhookInput.trim());
-        setWebhookTestResult({
-          success: true,
-          msg: 'Đã gửi tin nhắn kiểm tra tới #notify_private thành công! Hãy mở Discord để kiểm tra.',
-        });
-      } else {
-        setWebhookTestResult({
-          success: false,
-          msg: res.error || 'Gửi thất bại. Hãy kiểm tra lại link Webhook.',
-        });
-      }
-    } catch (err: any) {
-      setWebhookTestResult({
-        success: false,
-        msg: err?.message || 'Lỗi mạng khi gọi Discord Webhook.',
-      });
-    } finally {
-      setIsTestingWebhook(false);
-    }
-  };
-
-  const handleSaveWebhook = () => {
-    setStoredDiscordWebhookUrl(webhookInput.trim());
-    onShowToast('Đã lưu cấu hình Webhook thông báo!');
-    setShowWebhookSetup(false);
-  };
 
   if (!isOpen) return null;
 
@@ -269,87 +225,11 @@ export const DiscordAuthGateModal: React.FC<DiscordAuthGateModalProps> = ({
               </div>
             </div>
 
-            {/* Webhook Configuration Toggle */}
+            {/* Application Details */}
             <div className="mt-4 pt-3 flex items-center justify-between text-[11px] text-slate-500">
               <span>Client ID: 1559521882431299594</span>
-              <button
-                type="button"
-                onClick={() => setShowWebhookSetup(!showWebhookSetup)}
-                className="hover:text-slate-300 inline-flex items-center gap-1 transition-colors underline cursor-pointer"
-              >
-                <Settings className="w-3 h-3" />
-                <span>{showWebhookSetup ? 'Đóng cấu hình Webhook' : 'Cấu hình Webhook #notify_private'}</span>
-              </button>
+              <span>Máy chủ Mun Kiu</span>
             </div>
-
-            {/* Inline Webhook Setup Drawer */}
-            {showWebhookSetup && (
-              <div className="mt-4 p-4 bg-slate-900/90 border border-slate-700/80 rounded-2xl text-left space-y-3 animate-in slide-in-from-top-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                    <span>Cấu hình Discord Webhook (#notify_private)</span>
-                  </h4>
-                  <a
-                    href="https://support.discord.com/hc/vi/articles/228383668-Gi%E1%BB%9Bi-thi%E1%BB%87u-v%E1%BB%81-Webhooks"
-                    target="_blank"
-                    rel="noreferrer"
-                    className="text-[10px] text-sky-400 hover:underline flex items-center gap-0.5"
-                  >
-                    <span>Hướng dẫn</span>
-                    <ExternalLink className="w-2.5 h-2.5" />
-                  </a>
-                </div>
-
-                <p className="text-[11px] text-slate-300">
-                  Dán URL Webhook của kênh <strong className="text-sky-300">#notify_private</strong> máy chủ Mun Kiu để VLBot thông báo:
-                </p>
-
-                <div className="space-y-2">
-                  <input
-                    type="text"
-                    value={webhookInput}
-                    onChange={(e) => setWebhookInput(e.target.value)}
-                    placeholder="https://discord.com/api/webhooks/..."
-                    className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-hidden focus:border-[#5865F2]"
-                  />
-
-                  {webhookTestResult && (
-                    <div
-                      className={`p-2.5 rounded-xl text-[11px] flex items-start gap-1.5 ${
-                        webhookTestResult.success
-                          ? 'bg-emerald-950/60 text-emerald-300 border border-emerald-600/40'
-                          : 'bg-red-950/60 text-red-300 border border-red-600/40'
-                      }`}
-                    >
-                      {webhookTestResult.success ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 shrink-0 mt-0.5 text-emerald-400" />
-                      ) : (
-                        <AlertCircle className="w-3.5 h-3.5 shrink-0 mt-0.5 text-red-400" />
-                      )}
-                      <span>{webhookTestResult.msg}</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center justify-end gap-2 pt-1">
-                    <button
-                      type="button"
-                      disabled={isTestingWebhook}
-                      onClick={handleTestWebhook}
-                      className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 disabled:opacity-50 text-slate-200 rounded-xl text-[11px] font-bold transition-colors cursor-pointer"
-                    >
-                      {isTestingWebhook ? 'Đang gửi thử...' : 'Kiểm tra kết nối'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={handleSaveWebhook}
-                      className="px-3 py-1.5 bg-[#5865F2] hover:bg-[#4752C4] text-white rounded-xl text-[11px] font-bold transition-colors cursor-pointer shadow-xs"
-                    >
-                      Lưu Webhook
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>,
         document.body
