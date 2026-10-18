@@ -169,42 +169,41 @@ export async function saveSecureDiscordSession(
 
     localStorage.setItem(SECURE_SESSION_STORAGE_KEY, JSON.stringify(sessionObj));
 
-    // Đổi mới fallback cũ để tương thích nhưng kèm cờ
-    localStorage.setItem(LEGACY_DISCORD_USER_KEY, JSON.stringify(user));
+    // Xóa triệt để mọi key plain-text cũ để ngăn chặn việc kẻ xấu sửa bằng F12
+    localStorage.removeItem('guild_nien_du_discord_user');
   } catch (err) {
     console.error('Lỗi khi lưu phiên bảo mật WebAssembly:', err);
   }
 }
 
 /**
- * Kiểm tra và giải mã phiên làm việc Discord bằng WebAssembly
- * Nếu bị can thiệp F12 hoặc token giả, trả về null ngay lập tức
+ * Kiểm tra và giải mã phiên làm việc Discord bằng WebAssembly & Xác thực Token trực tiếp từ Discord API
+ * Nếu bị can thiệp F12, sửa localStorage hay dùng token giả -> HỦY PHIÊN NGAY LẬP TỨC
  */
 export async function loadVerifiedDiscordSession(): Promise<DiscordUser | null> {
   try {
     if (typeof localStorage === 'undefined') return null;
 
+    // 0. Luôn dọn dẹp key giả mạo nếu có kẻ xấu cố tình inject vào localStorage
+    localStorage.removeItem('guild_nien_du_discord_user');
+
     const rawSession = localStorage.getItem(SECURE_SESSION_STORAGE_KEY);
     if (!rawSession) {
-      // Kiểm tra xem có session cũ không
-      const legacyRaw = localStorage.getItem(LEGACY_DISCORD_USER_KEY);
-      if (!legacyRaw) return null;
-      try {
-        const parsed = JSON.parse(legacyRaw);
-        if (parsed && parsed.id && parsed.username) {
-          return parsed as DiscordUser;
-        }
-      } catch {
-        return null;
-      }
+      // TUYỆT ĐỐI KHÔNG FALLBACK: Bắt buộc phải có phong bì mã hóa WebAssembly
       return null;
     }
 
     const session: StoredSecureSession = JSON.parse(rawSession);
 
+    if (!session || !session.token || !session.encryptedData || !session.hash) {
+      console.warn('[WASM Security] Cấu trúc phiên không hợp lệ.');
+      purgeSecureDiscordSession();
+      return null;
+    }
+
     // 1. Kiểm tra thời hạn hết hạn (Expiration)
     if (Date.now() > session.expiresAt) {
-      console.warn('Phiên đăng nhập Discord đã hết hạn.');
+      console.warn('[WASM Security] Phiên đăng nhập Discord đã hết hạn.');
       purgeSecureDiscordSession();
       return null;
     }
@@ -214,7 +213,7 @@ export async function loadVerifiedDiscordSession(): Promise<DiscordUser | null> 
     const exports = instance.exports as any;
     const isValidTokenLen = exports.verify_session(session.token.length, session.timestamp);
     if (!isValidTokenLen) {
-      console.warn('Token Discord không đạt chuẩn kiểm định WebAssembly.');
+      console.warn('[WASM Security] Token Discord không đạt chuẩn kiểm định WebAssembly.');
       purgeSecureDiscordSession();
       return null;
     }
@@ -227,13 +226,43 @@ export async function loadVerifiedDiscordSession(): Promise<DiscordUser | null> 
     );
 
     const user: DiscordUser = JSON.parse(decryptedJson);
+    if (!user || !user.id || !user.username) {
+      console.warn('[WASM Security] Dữ liệu người dùng sau giải mã WebAssembly không hợp lệ.');
+      purgeSecureDiscordSession();
+      return null;
+    }
 
     // 4. Kiểm tra chữ ký bảo mật SHA-256
     const expectedHash = await computeSessionHash(user.id, session.token, session.timestamp);
     if (session.hash !== expectedHash) {
-      console.warn('Cảnh báo: Chữ ký phiên bảo mật không khớp. Phát hiện can thiệp dữ liệu!');
+      console.warn('[WASM Security] Cảnh báo: Chữ ký phiên bảo mật không khớp. Phát hiện can thiệp dữ liệu!');
       purgeSecureDiscordSession();
       return null;
+    }
+
+    // 5. Xác thực token thực tế với Discord API (@me endpoint)
+    // Ngăn chặn hoàn toàn việc ai đó tạo token rác hoặc sửa ID người dùng
+    try {
+      const discordRes = await fetch('https://discord.com/api/users/@me', {
+        headers: {
+          Authorization: `Bearer ${session.token}`,
+        },
+      });
+
+      if (!discordRes.ok) {
+        console.warn(`[WASM Security] Token bị Discord API từ chối (Mã lỗi ${discordRes.status}). Buộc đăng nhập lại.`);
+        purgeSecureDiscordSession();
+        return null;
+      }
+
+      const discordData = await discordRes.json();
+      if (!discordData || discordData.id !== user.id) {
+        console.warn('[WASM Security] ID người dùng không trùng khớp với Token Discord chính chủ!');
+        purgeSecureDiscordSession();
+        return null;
+      }
+    } catch (apiErr) {
+      console.warn('[WASM Security] Không thể kết nối Discord API để re-verify (sẽ dùng chữ ký WebAssembly):', apiErr);
     }
 
     return user;
@@ -250,7 +279,7 @@ export async function loadVerifiedDiscordSession(): Promise<DiscordUser | null> 
 export function purgeSecureDiscordSession(): void {
   try {
     localStorage.removeItem(SECURE_SESSION_STORAGE_KEY);
-    localStorage.removeItem(LEGACY_DISCORD_USER_KEY);
+    localStorage.removeItem('guild_nien_du_discord_user');
   } catch (err) {
     console.error('Lỗi xóa session:', err);
   }

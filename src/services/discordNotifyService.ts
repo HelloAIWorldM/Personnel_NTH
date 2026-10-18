@@ -48,30 +48,21 @@ export function setStoredDiscordWebhookUrl(url: string): void {
 }
 
 /**
- * Lấy thông tin Discord user đã đăng nhập
+ * Lấy thông tin Discord user (Đã chuyển sang WebAssembly Engine)
  */
 export function getStoredDiscordUser(): DiscordUser | null {
-  try {
-    const raw = localStorage.getItem(DISCORD_USER_STORAGE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.id === 'string') {
-      return parsed as DiscordUser;
-    }
-  } catch {
-    // corrupted or invalid JSON
-  }
+  // Không bao giờ đọc từ plain text localStorage để chống bypass DevTools
   return null;
 }
 
 /**
- * Lưu thông tin Discord user vào localStorage
+ * Lưu thông tin Discord user (Không lưu plain-text)
  */
-export function setStoredDiscordUser(user: DiscordUser): void {
+export function setStoredDiscordUser(_user: DiscordUser): void {
   try {
-    localStorage.setItem(DISCORD_USER_STORAGE_KEY, JSON.stringify(user));
-  } catch (err) {
-    console.error('Không thể lưu Discord user session:', err);
+    localStorage.removeItem(DISCORD_USER_STORAGE_KEY);
+  } catch {
+    // ignore
   }
 }
 

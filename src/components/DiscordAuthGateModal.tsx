@@ -4,7 +4,6 @@ import { Shield, Sparkles, AlertCircle, Loader2, ArrowRight } from 'lucide-react
 import { DiscordUser } from '../types';
 import {
   DISCORD_OAUTH2_URL,
-  setStoredDiscordUser,
   sendDiscordLoginNotification,
 } from '../services/discordNotifyService';
 import { saveSecureDiscordSession } from '../services/wasmSecurity';
@@ -65,8 +64,7 @@ export const DiscordAuthGateModal: React.FC<DiscordAuthGateModalProps> = ({
               loginTime: new Date().toISOString(),
             };
 
-            // Store user session (Legacy + WebAssembly in-memory cryptographic envelope)
-            setStoredDiscordUser(discordUser);
+            // Store user session exclusively via WebAssembly in-memory cryptographic envelope
             await saveSecureDiscordSession(discordUser, accessToken);
 
             // Clean hash from URL without reloading

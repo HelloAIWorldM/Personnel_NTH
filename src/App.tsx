@@ -308,6 +308,11 @@ export default function App() {
   useEffect(() => {
     let isMounted = true;
 
+    // Dọn dẹp triệt để bất kỳ key plain-text nào nếu bị inject từ DevTools
+    try {
+      localStorage.removeItem('guild_nien_du_discord_user');
+    } catch {}
+
     async function verifyAuthSession() {
       // Nếu có access_token trong hash, để DiscordAuthGateModal tự xử lý
       if (typeof window !== 'undefined' && window.location.hash.includes('access_token=')) {
@@ -334,8 +339,21 @@ export default function App() {
 
     verifyAuthSession();
 
+    // Giám sát can thiệp localStorage thời gian thực (chống inject lệnh F12)
+    const handleStorageTamper = (e: StorageEvent) => {
+      if (e.key === 'guild_nien_du_discord_user' || e.key === 'guild_nien_du_auth_session_v2') {
+        try {
+          localStorage.removeItem('guild_nien_du_discord_user');
+        } catch {}
+        verifyAuthSession();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageTamper);
+
     return () => {
       isMounted = false;
+      window.removeEventListener('storage', handleStorageTamper);
     };
   }, []);
 
