@@ -39,7 +39,14 @@ import { FrogPondBackground } from './components/FrogPondBackground';
 import { FrogLogo } from './components/FrogLogo';
 import { ThemeModal, AppThemeKey } from './components/ThemeModal';
 import { FeedbackChatbox } from './components/FeedbackChatbox';
-import { GoogleSheetsModal } from './components/GoogleSheetsModal';
+import { DiscordAuthGateModal } from './components/DiscordAuthGateModal';
+import { DiscordLogModal } from './components/DiscordLogModal';
+import {
+  DiscordUser,
+  getDiscordUserSession,
+  clearDiscordUserSession,
+  recordDiscordLoginLog,
+} from './services/discordLogService';
 import { ExportModal } from './components/ExportModal';
 import { CreateBoardModal } from './components/CreateBoardModal';
 import { AllBoardsOverview } from './components/AllBoardsOverview';
@@ -47,7 +54,6 @@ import { CopyPersonnelToUpdateModal } from './components/CopyPersonnelToUpdateMo
 import { VerticalBoardList } from './components/VerticalBoardList';
 import { DiBuiStorage } from './components/DiBuiStorage';
 import {
-  FileSpreadsheet,
   Share2,
   Users,
   Info,
@@ -209,7 +215,10 @@ export default function App() {
   }, [isBoardNavOpen]);
 
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [isSheetsModalOpen, setIsSheetsModalOpen] = useState(false);
+  const [discordUser, setDiscordUser] = useState<DiscordUser | null>(() => {
+    return getDiscordUserSession();
+  });
+  const [isDiscordLogModalOpen, setIsDiscordLogModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isCreateBoardModalOpen, setIsCreateBoardModalOpen] = useState(false);
   const [isCreateGuildWarModalOpen, setIsCreateGuildWarModalOpen] = useState(false);
@@ -287,6 +296,15 @@ export default function App() {
       setToastMessage((curr) => (curr === msg ? null : curr));
     }, 3500);
   };
+
+  const handleDiscordLogout = useCallback(async () => {
+    if (discordUser) {
+      await recordDiscordLoginLog(discordUser, 'LOGOUT', 'SUCCESS', 'Đăng xuất khỏi hệ thống');
+    }
+    clearDiscordUserSession();
+    setDiscordUser(null);
+    showToast('Đã đăng xuất khỏi tài khoản Discord!');
+  }, [discordUser]);
 
   const tableRef = useRef<HTMLDivElement | null>(null);
 
@@ -2630,18 +2648,29 @@ export default function App() {
               </span>
             </button>
 
-            {/* Google Sheets Action Button */}
+            {/* Discord Account & Activity Log Button */}
             <button
               type="button"
-              id="btn-open-sheets-modal"
-              onClick={() => setIsSheetsModalOpen(true)}
-              className="flex items-center gap-1 sm:gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-[#F0FDFA] dark:bg-[#0D2838] hover:bg-[#CCFBF1] dark:hover:bg-[#153B52] text-[#0284C7] dark:text-[#7DD3FC] border border-[#7DD3FC] dark:border-[#163E56] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
+              id="btn-open-discord-log-modal"
+              onClick={() => setIsDiscordLogModalOpen(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 sm:px-3 sm:py-2 bg-indigo-50/90 hover:bg-indigo-100 dark:bg-[#151B33] dark:hover:bg-[#1E274A] text-[#5865F2] dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800/80 rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer"
+              title="Quản lý nhật ký đăng nhập Discord (Log_Discord.xlsx)"
             >
-              <FileSpreadsheet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#0284C7] dark:text-[#38BDF8]" />
-              <span className="hidden sm:inline">Sheets</span>
-              {currentUser && (
-                <span className="w-2 h-2 rounded-full bg-[#00B4D8] inline-block ml-0.5" />
+              {discordUser?.avatar ? (
+                <img
+                  src={discordUser.avatar}
+                  alt={discordUser.displayName}
+                  className="w-4 h-4 rounded-full border border-[#5865F2] shrink-0"
+                />
+              ) : (
+                <svg className="w-4 h-4 fill-current text-[#5865F2] shrink-0" viewBox="0 0 127.14 96.36">
+                  <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.37,72.37,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.79,32.65-1.71,56.6.54,80.21h0A105.73,105.73,0,0,0,32.71,96.36,77.7,77.7,0,0,0,39.6,85.25a68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1A105.25,105.25,0,0,0,126.6,80.22h0C129.24,52.84,122.09,29.11,107.7,8.07ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,45.91,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,45.91,96.12,53,91.08,65.69,84.69,65.69Z" />
+                </svg>
               )}
+              <span className="hidden sm:inline font-bold">
+                {discordUser ? discordUser.displayName : 'Discord'}
+              </span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block ml-0.5" title="Đã kết nối Discord" />
             </button>
 
             {/* Donate / Cà phê Button */}
@@ -3450,37 +3479,66 @@ export default function App() {
         </section>
       </main>
 
-      {/* Footer chứng nhận bản quyền */}
-      <footer className="mt-12 py-6 border-t border-slate-200 dark:border-slate-800/80 bg-white/70 dark:bg-slate-950/70 backdrop-blur-md text-center transition-colors">
-        <div className="max-w-[1600px] mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
-          <div className="flex items-center gap-2">
-            <span className="font-bold text-slate-700 dark:text-slate-200">
-              Bang Niên Du
+      {/* Footer chứng nhận bản quyền & thông tin hệ thống */}
+      <footer className="mt-12 py-8 border-t border-slate-200 dark:border-slate-800/80 bg-gradient-to-b from-white/70 via-white/90 to-white dark:from-slate-950/50 dark:via-slate-950/80 dark:to-slate-950 backdrop-blur-md transition-colors">
+        <div className="max-w-5xl mx-auto px-4 flex flex-col items-center justify-center gap-3 text-center">
+          {/* Badge bản quyền chính tâm */}
+          <div className="inline-flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-100 bg-white/90 dark:bg-slate-900/90 px-4 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-2xs">
+            <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span className="text-xs sm:text-sm">
+              Trang web thuộc bản quyền & phát triển bởi{' '}
+              <strong className="text-[#0284C7] dark:text-[#38BDF8] font-black">Vy Lì</strong>
             </span>
             <span className="text-slate-300 dark:text-slate-700">•</span>
-            <span>Hệ Thống Sắp Xếp Nhân Sự & Đội Hình Nghịch Thủy Hàn</span>
+            <span className="text-amber-600 dark:text-amber-400 font-black text-xs sm:text-sm">
+              Bang Niên Du
+            </span>
           </div>
-          <div className="flex items-center gap-2 font-semibold text-slate-800 dark:text-slate-200 bg-slate-100 dark:bg-slate-900 px-3.5 py-1.5 rounded-full border border-slate-200 dark:border-slate-800 shadow-2xs">
-            <ShieldCheck className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span>Trang web thuộc bản quyền bởi <strong className="text-[#0284C7] dark:text-[#38BDF8] font-black">Vy Lì</strong></span>
-          </div>
-          <div className="text-[11px] text-slate-400 dark:text-slate-500">
-            © {new Date().getFullYear()} Vy Lì. All rights reserved.
+
+          {/* Mô tả phụ đề hệ thống */}
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+            Hệ Thống Sắp Xếp Nhân Sự & Đội Hình Nghịch Thủy Hàn • Đồng Bộ Trực Tiếp Thời Gian Thực
+          </p>
+
+          {/* Dòng metadata & liên kết nhật ký Discord */}
+          <div className="flex flex-wrap items-center justify-center gap-2 text-[11px] text-slate-400 dark:text-slate-500 pt-0.5">
+            <span>© {new Date().getFullYear()} Vy Lì. All rights reserved.</span>
+            <span>•</span>
+            {discordUser ? (
+              <button
+                type="button"
+                onClick={() => setIsDiscordLogModalOpen(true)}
+                className="inline-flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400 hover:underline font-bold cursor-pointer"
+                title="Mở nhật ký đăng nhập Discord"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                <span>Discord: {discordUser.displayName}</span>
+                <span className="text-[10px] bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.2 rounded border border-indigo-200 dark:border-indigo-800 font-mono">
+                  Log_Discord.xlsx
+                </span>
+              </button>
+            ) : (
+              <span>Chưa đăng nhập Discord</span>
+            )}
           </div>
         </div>
       </footer>
 
-      {/* Google Sheets Modal */}
-      <GoogleSheetsModal
-        isOpen={isSheetsModalOpen}
-        onClose={() => setIsSheetsModalOpen(false)}
-        currentUser={currentUser}
-        onUserChanged={setCurrentUser}
-        raidTitle={fullRaidTitle}
-        members={activeBoard.members}
-        customColors={customColors}
-        onImportSuccess={handleImportSuccess}
-        onOpenCloneFromImage={() => setIsImportImageModalOpen(true)}
+      {/* Discord Login Gate (Hiển thị bắt buộc khi vào web chưa đăng nhập) */}
+      <DiscordAuthGateModal
+        isOpen={!discordUser}
+        onLoginSuccess={(user) => {
+          setDiscordUser(user);
+          showToast(`Chào mừng ${user.displayName} đã đăng nhập hệ thống!`);
+        }}
+      />
+
+      {/* Discord Log Modal (Xem lịch sử và xuất file Log_Discord.xlsx) */}
+      <DiscordLogModal
+        isOpen={isDiscordLogModalOpen}
+        onClose={() => setIsDiscordLogModalOpen(false)}
+        currentUser={discordUser}
+        onLogout={handleDiscordLogout}
       />
 
       {/* Export / Share Modal */}
