@@ -21,6 +21,7 @@ import {
   GuildMember,
   AppMode,
   PersonnelSubPool,
+  DiscordUser,
 } from './types';
 import { createEmptyGuildWarBoard } from './constants/guildWarDefaults';
 import { CreateGuildWarModal } from './components/GuildWar/CreateGuildWarModal';
@@ -74,11 +75,18 @@ import {
   AlertTriangle,
   Database,
   X,
+  LogOut,
 } from 'lucide-react';
 import { CloudSyncModal } from './components/CloudSyncModal';
 import { BackupRestoreModal } from './components/BackupRestoreModal';
 import { DonateModal } from './components/DonateModal';
 import { ImportRaidImageModal } from './components/ImportRaidImageModal';
+import { DiscordAuthGateModal } from './components/DiscordAuthGateModal';
+import { DiscordWebhookSettingsModal } from './components/DiscordWebhookSettingsModal';
+import {
+  getStoredDiscordUser,
+  clearStoredDiscordUser,
+} from './services/discordNotifyService';
 import { checkAndRunAutoDailyBackup } from './services/backupService';
 import {
   pushToCloud,
@@ -283,6 +291,16 @@ export default function App() {
     setTimeout(() => {
       setToastMessage((curr) => (curr === msg ? null : curr));
     }, 3500);
+  };
+
+  // Discord Authentication State (Phương án 2: Cổng Đăng Nhập Discord Bắt Buộc)
+  const [discordUser, setDiscordUser] = useState<DiscordUser | null>(() => getStoredDiscordUser());
+  const [isDiscordWebhookModalOpen, setIsDiscordWebhookModalOpen] = useState(false);
+
+  const handleDiscordLogout = () => {
+    clearStoredDiscordUser();
+    setDiscordUser(null);
+    showToast('Đã đăng xuất tài khoản Discord. Vui lòng đăng nhập lại để tiếp tục.');
   };
 
   const tableRef = useRef<HTMLDivElement | null>(null);
@@ -2694,6 +2712,37 @@ export default function App() {
               <span className="hidden sm:inline">Xuất ảnh</span>
               <span className="sm:hidden text-[11px]">Xuất</span>
             </button>
+
+            {/* Discord User Badge & Menu */}
+            {discordUser && (
+              <div className="flex items-center gap-1 sm:gap-1.5 pl-1.5 border-l border-slate-300 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setIsDiscordWebhookModalOpen(true)}
+                  className="flex items-center gap-1.5 py-1 px-1.5 sm:px-2.5 bg-slate-100 hover:bg-slate-200 dark:bg-[#162230] dark:hover:bg-[#1D2D40] border border-slate-300 dark:border-[#1F3347] rounded-xl text-xs font-bold transition-all shadow-2xs min-h-[38px] cursor-pointer group"
+                  title={`Đã đăng nhập Discord: ${discordUser.global_name || discordUser.username} (${discordUser.id}) • Nhấp để xem/cài đặt thông báo #notify_private`}
+                >
+                  <img
+                    src={discordUser.avatarUrl || 'https://cdn.discordapp.com/embed/avatars/0.png'}
+                    alt="Discord Avatar"
+                    className="w-5 h-5 sm:w-6 sm:h-6 rounded-full border border-[#5865F2] shrink-0 object-cover"
+                  />
+                  <span className="hidden xl:inline max-w-[90px] truncate text-slate-800 dark:text-slate-200 text-xs font-bold">
+                    {discordUser.global_name || discordUser.username}
+                  </span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block shrink-0" />
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDiscordLogout}
+                  className="flex items-center justify-center p-2 text-slate-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 border border-slate-300 dark:border-[#1F3347] rounded-xl text-xs font-bold transition-colors min-h-[38px] min-w-[38px] cursor-pointer"
+                  title="Đăng xuất tài khoản Discord"
+                >
+                  <LogOut className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -3660,6 +3709,22 @@ export default function App() {
         onClose={() => setIsThemeModalOpen(false)}
         currentTheme={appTheme}
         onSelectTheme={handleSelectTheme}
+      />
+
+      {/* Cổng Đăng Nhập Discord Bắt Buộc (Phương án 2) */}
+      <DiscordAuthGateModal
+        isOpen={!discordUser}
+        onLoginSuccess={(user) => {
+          setDiscordUser(user);
+        }}
+        onShowToast={showToast}
+      />
+
+      {/* Modal Cài Đặt Webhook Thông Báo #notify_private */}
+      <DiscordWebhookSettingsModal
+        isOpen={isDiscordWebhookModalOpen}
+        onClose={() => setIsDiscordWebhookModalOpen(false)}
+        onShowToast={showToast}
       />
 
       {/* Direct Feedback to Gmail Chatbox */}

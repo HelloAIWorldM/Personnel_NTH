@@ -126,3 +126,13 @@ export interface GuildWarBoard {
   createdAt: number;
   partyNotes?: Record<string, string>; // key: "${teamId}-${partyNum}" or team note "${teamId}", value: note text
 }
+
+export interface DiscordUser {
+  id: string;
+  username: string;
+  global_name?: string | null;
+  avatar?: string | null;
+  avatarUrl?: string;
+  email?: string | null;
+  loginTime?: string;
+}
