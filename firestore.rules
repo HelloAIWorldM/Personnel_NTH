@@ -26,37 +26,17 @@ rules_version = '2';
  *   - masterPersonnelPool: list (optional, max 1000 items) - Master personnel pool
  *   - guildWarPersonnelPool: list (optional, max 1000 items) - Guild war personnel pool
  *
- * Collection: /discord_logs/{logId}
- * Document ID: string (1-128 chars)
- * Fields:
- *   - timestamp: string (required, max 100 chars) - Human-readable time e.g., '18/10/2026 10:45:00'
- *   - isoTime: string (required, max 100 chars) - ISO 8601 timestamp string
- *   - discordId: string (required, max 128 chars) - Discord user ID / snowflake
- *   - username: string (required, max 100 chars) - Discord username tag
- *   - displayName: string (required, max 100 chars) - Discord server display nickname
- *   - action: string (required, in ['LOGIN', 'LOGOUT', 'RESUME']) - Auth action
- *   - status: string (required, in ['SUCCESS', 'FAILED']) - Auth outcome status
- *   - deviceInfo: string (required, max 200 chars) - Device and browser metadata
- *   - authMethod: string (required, in ['oauth2', 'manual']) - Authentication provider method
- *   - email: string (optional, max 150 chars) - User email if provided by OAuth2
- *   - ipOrNetwork: string (optional, max 100 chars) - Network / IP info
- *   - note: string (optional, max 500 chars) - Operational note or reason
- *   - stt: int | float (optional) - Sequence order number
- *   - createdAt: timestamp | int (optional, >= 0) - Document creation timestamp
- *
  * ===============================================================
  * Security Architecture & Invariants:
  * 1. Default Deny: All paths are locked down by default at the root.
  * 2. Room-based Collaboration: Reading & updating is allowed by valid guild room ID ({guildId})
  *    without requiring mandatory Google Auth, supporting seamless guild member collaboration.
- * 3. Discord Login Audit Logs: Read allowed for transparency / log inspection; create strictly
- *    validated via `isValidDiscordLogDoc`; update & delete hard-denied (immutable audit trail).
- * 4. Validator Function Pattern: Domain validators enforced to eliminate Update Bypass vulnerabilities.
- * 5. Strict Type Safety: Every field is explicitly type-checked (list, string, map, timestamp/number).
- * 6. Resource Exhaustion & DoS Prevention: Strict bounds on array lengths, string lengths, and map size.
- * 7. Schema Whitelisting: Strict key enforcement using `hasAll` for required keys and `hasOnly`
+ * 3. Validator Function Pattern: Domain validators enforced to eliminate Update Bypass vulnerabilities.
+ * 4. Strict Type Safety: Every field is explicitly type-checked (list, string, map, timestamp/number).
+ * 5. Resource Exhaustion & DoS Prevention: Strict bounds on array lengths, string lengths, and map size.
+ * 6. Schema Whitelisting: Strict key enforcement using `hasAll` for required keys and `hasOnly`
  *    to prevent property injection or arbitrary data pollution.
- * 8. Deletion & Modification Protection: Deleting guild rooms and modifying audit logs are hard-denied.
+ * 7. Deletion Protection: Deleting guild rooms is hard-denied.
  * ===============================================================
  */
 
@@ -156,56 +136,6 @@ service cloud.firestore {
     }
 
     // =========================================================================
-    // HELPER FUNCTIONS & DOMAIN VALIDATORS - DISCORD LOGS
-    // =========================================================================
-
-    // Master Domain Validator for Discord Activity Logs (/discord_logs/{logId})
-    function isValidDiscordLogDoc(data, logId) {
-      return logId is string && logId.size() >= 1 && logId.size() <= 128
-        && data.keys().hasAll([
-          'timestamp',
-          'isoTime',
-          'discordId',
-          'username',
-          'displayName',
-          'action',
-          'status',
-          'deviceInfo',
-          'authMethod'
-        ])
-        && data.keys().hasOnly([
-          'timestamp',
-          'isoTime',
-          'discordId',
-          'username',
-          'displayName',
-          'action',
-          'status',
-          'deviceInfo',
-          'authMethod',
-          'email',
-          'ipOrNetwork',
-          'note',
-          'stt',
-          'createdAt'
-        ])
-        && data.timestamp is string && data.timestamp.size() <= 100
-        && data.isoTime is string && data.isoTime.size() <= 100
-        && data.discordId is string && data.discordId.size() <= 128
-        && data.username is string && data.username.size() <= 100
-        && data.displayName is string && data.displayName.size() <= 100
-        && data.action is string && data.action in ['LOGIN', 'LOGOUT', 'RESUME']
-        && data.status is string && data.status in ['SUCCESS', 'FAILED']
-        && data.deviceInfo is string && data.deviceInfo.size() <= 200
-        && data.authMethod is string && data.authMethod in ['oauth2', 'manual']
-        && (!('email' in data) || (data.email is string && data.email.size() <= 150))
-        && (!('ipOrNetwork' in data) || (data.ipOrNetwork is string && data.ipOrNetwork.size() <= 100))
-        && (!('note' in data) || (data.note is string && data.note.size() <= 500))
-        && (!('stt' in data) || (data.stt is int || data.stt is float))
-        && (!('createdAt' in data) || (data.createdAt is timestamp || (data.createdAt is int && data.createdAt >= 0)));
-    }
-
-    // =========================================================================
     // GUILD ROOMS COLLECTION: /guilds/{guildId}
     // =========================================================================
     match /guilds/{guildId} {
@@ -218,21 +148,6 @@ service cloud.firestore {
       allow update: if isValidGuildDoc(request.resource.data, guildId);
 
       // Hard-deny deletion to prevent malicious or accidental room destruction
-      allow delete: if false;
-    }
-
-    // =========================================================================
-    // DISCORD ACTIVITY LOGS COLLECTION: /discord_logs/{logId}
-    // =========================================================================
-    match /discord_logs/{logId} {
-      // Allow read so guild officers and users can inspect authentication history
-      allow read: if true;
-
-      // Create allowed strictly if document matches domain validator
-      allow create: if isValidDiscordLogDoc(request.resource.data, logId);
-
-      // Logs are immutable audit trails - updates and deletions are hard-denied
-      allow update: if false;
       allow delete: if false;
     }
   }
