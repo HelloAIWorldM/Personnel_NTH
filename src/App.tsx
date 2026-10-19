@@ -149,8 +149,9 @@ export default function App() {
     showToast('Đã đăng xuất tài khoản an toàn.');
   }, [showToast]);
 
-  // 0. Giao diện 404 Not Found Page khi truy cập đường dẫn /404
-  if (currentPath === '/404' || currentPath === '/404/') {
+  // 0. Giao diện 404 Not Found Page khi truy cập đường dẫn không tồn tại
+  const isNotFound = currentPath !== '/' && currentPath !== '' && currentPath !== '/index.html';
+  if (isNotFound) {
     return (
       <NotFoundPage
         brandName="Vy Lì - Niên Du Guild"
