@@ -71,6 +71,17 @@ export const DiscordAuthGateModal: React.FC<DiscordAuthGateModalProps> = ({
             const cleanUrl = window.location.pathname + window.location.search;
             window.history.replaceState(null, '', cleanUrl);
 
+            // Đảm bảo phiên Firebase Auth hoạt động để thỏa mãn firestore.rules (request.auth != null)
+            try {
+              const { auth } = await import('../services/firebase');
+              if (!auth.currentUser) {
+                const { signInAnonymously } = await import('firebase/auth');
+                await signInAnonymously(auth);
+              }
+            } catch (fbAuthErr) {
+              console.warn('[Firebase Auth] Error ensuring session:', fbAuthErr);
+            }
+
             // Send notification to #notify_private via VLBot webhook
             try {
               await sendDiscordLoginNotification(discordUser);
@@ -140,6 +151,14 @@ fetch(`${apiUrl}/api/auth/discord/token`, {
               } catch (fbAuthErr) {
                 console.warn('Firebase Custom Token login warning:', fbAuthErr);
               }
+            } else {
+              try {
+                const { auth } = await import('../services/firebase');
+                if (!auth.currentUser) {
+                  const { signInAnonymously } = await import('firebase/auth');
+                  await signInAnonymously(auth);
+                }
+              } catch {}
             }
 
             try {

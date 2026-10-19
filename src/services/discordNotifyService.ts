@@ -19,12 +19,28 @@ export const DISCORD_OAUTH2_URL = `https://discord.com/oauth2/authorize?client_i
 export const DEFAULT_DISCORD_WEBHOOK_URL = '';
 
 /**
+ * Kiểm tra xem URL có đúng định dạng Discord Webhook chính thức hay không
+ */
+export function isValidDiscordWebhookUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname.toLowerCase();
+    if (host !== 'discord.com' && host !== 'discordapp.com') return false;
+    if (!parsed.pathname.startsWith('/api/webhooks/')) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Lấy Webhook URL tùy chỉnh đã lưu trong localStorage (nếu có)
  */
 export function getStoredDiscordWebhookUrl(): string {
   try {
     const saved = localStorage.getItem(DISCORD_WEBHOOK_STORAGE_KEY)?.trim();
-    if (saved) return saved;
+    if (saved && isValidDiscordWebhookUrl(saved)) return saved;
   } catch {
     // fallback
   }
@@ -32,14 +48,14 @@ export function getStoredDiscordWebhookUrl(): string {
 }
 
 /**
- * Lưu Webhook URL tùy chỉnh vào localStorage
+ * Lưu Webhook URL tùy chỉnh vào localStorage (Chỉ lưu nếu hợp lệ)
  */
 export function setStoredDiscordWebhookUrl(url: string): void {
   try {
     const trimmed = url.trim();
     if (!trimmed) {
       localStorage.removeItem(DISCORD_WEBHOOK_STORAGE_KEY);
-    } else {
+    } else if (isValidDiscordWebhookUrl(trimmed)) {
       localStorage.setItem(DISCORD_WEBHOOK_STORAGE_KEY, trimmed);
     }
   } catch (err) {
@@ -130,8 +146,8 @@ export async function sendDiscordLoginNotification(
     console.warn('[Notify] Gửi qua Backend Proxy gặp lỗi:', backendErr);
   }
 
-  // 2. Chỉ fallback sang gửi trực tiếp từ client NẾU người dùng đã tự nhập Custom Webhook URL
-  if (targetCustomUrl) {
+  // 2. Chỉ fallback sang gửi trực tiếp từ client NẾU người dùng đã tự nhập Custom Webhook URL hợp lệ
+  if (targetCustomUrl && isValidDiscordWebhookUrl(targetCustomUrl)) {
     const displayName = user.global_name || user.username;
     const nowVN = new Intl.DateTimeFormat('vi-VN', {
       timeZone: 'Asia/Ho_Chi_Minh',
@@ -215,8 +231,12 @@ export async function sendDiscordLoginNotification(
 export async function testDiscordWebhook(
   webhookUrl: string
 ): Promise<{ success: boolean; error?: string }> {
-  if (!webhookUrl.trim()) {
-    return { success: false, error: 'Vui lòng nhập URL Webhook.' };
+  const trimmed = webhookUrl.trim();
+  if (!trimmed || !isValidDiscordWebhookUrl(trimmed)) {
+    return {
+      success: false,
+      error: 'URL Webhook không hợp lệ. Chỉ chấp nhận URL HTTPS Discord Webhook chính thức (discord.com/api/webhooks/...).',
+    };
   }
 
   const nowVN = new Intl.DateTimeFormat('vi-VN', {

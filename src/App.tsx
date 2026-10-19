@@ -13,6 +13,7 @@ import {
   startAntiDebugging,
   stopAntiDebugging,
 } from './utils/antiTamper';
+import { NotFoundPage } from './components/NotFoundPage';
 
 // Code Splitting: The main application (tables, personnel, boards) is lazy-loaded ONLY after authentication.
 // This prevents the application code and data structures from existing in the initial bundle.
@@ -37,7 +38,22 @@ export default function App() {
     }
     return true;
   });
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const [currentPath, setCurrentPath] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return window.location.pathname;
+    }
+    return '/';
+  });
+
+  useEffect(() => {
+    const handlePopState = () => {
+      if (typeof window !== 'undefined') {
+        setCurrentPath(window.location.pathname);
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const showToast = useCallback((msg: string) => {
     setToastMessage(msg);
@@ -54,7 +70,20 @@ export default function App() {
 
     try {
       const verifiedUser = await loadVerifiedDiscordSession();
-      setDiscordUser(verifiedUser);
+      if (verifiedUser) {
+        // Đảm bảo Firebase Auth session luôn active cho user đã xác thực
+        try {
+          if (!auth.currentUser) {
+            const { signInAnonymously } = await import('firebase/auth');
+            await signInAnonymously(auth);
+          }
+        } catch (fbErr) {
+          console.warn('[Firebase Auth] Error ensuring session on load:', fbErr);
+        }
+        setDiscordUser(verifiedUser);
+      } else {
+        setDiscordUser(null);
+      }
     } catch (err) {
       console.error('[WebAssembly Security] Lỗi xác thực phiên:', err);
       setDiscordUser(null);
@@ -118,6 +147,19 @@ export default function App() {
     setDiscordUser(null);
     showToast('Đã đăng xuất tài khoản an toàn.');
   }, [showToast]);
+
+  // 0. Giao diện 404 Not Found Page khi truy cập đường dẫn /404
+  if (currentPath === '/404' || currentPath === '/404/') {
+    return (
+      <NotFoundPage
+        brandName="TrungQuanDev"
+        onGoHome={() => {
+          window.history.pushState(null, '', '/');
+          setCurrentPath('/');
+        }}
+      />
+    );
+  }
 
   // 1. Màn hình chờ kiểm tra chữ ký WebAssembly
   if (isWasmVerifying) {

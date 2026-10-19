@@ -79,17 +79,39 @@ router.get('/:guildId', async (req: Request, res: Response): Promise<void> => {
 
 /**
  * POST /api/guild/:guildId/snapshot
- * Lưu bản sao lưu (backup snapshot) cho phòng
+ * Lưu bản sao lưu (backup snapshot) cho phòng (Yêu cầu xác thực tài khoản)
  */
 router.post('/:guildId/snapshot', async (req: Request, res: Response): Promise<void> => {
   try {
+    const authenticated = await isAuthenticated(req);
+    if (!authenticated) {
+      res.status(401).json({
+        error: 'Unauthorized: Yêu cầu xác thực tài khoản để tạo bản sao lưu.',
+      });
+      return;
+    }
+
     const { guildId } = req.params;
     const { snapshotData, createdBy } = req.body;
 
-    if (!guildId || !snapshotData) {
-      res.status(400).json({ error: 'Thiếu dữ liệu snapshot hoặc guildId' });
+    if (!guildId || !/^[a-zA-Z0-9_.-]+$/.test(guildId) || guildId.length > 128) {
+      res.status(400).json({ error: 'Mã phòng guildId không hợp lệ (tối đa 128 ký tự an toàn)' });
       return;
     }
+
+    if (!snapshotData || typeof snapshotData !== 'object' || Array.isArray(snapshotData)) {
+      res.status(400).json({ error: 'Thiếu dữ liệu snapshot hoặc định dạng dữ liệu không hợp lệ' });
+      return;
+    }
+
+    // Giới hạn kích thước payload snapshot để chống DoS / Storage Exhaustion (2MB max)
+    const jsonSize = JSON.stringify(snapshotData).length;
+    if (jsonSize > 2 * 1024 * 1024) {
+      res.status(413).json({ error: 'Kích thước dữ liệu snapshot vượt quá giới hạn cho phép (2MB)' });
+      return;
+    }
+
+    const safeCreatedBy = typeof createdBy === 'string' ? createdBy.slice(0, 100) : 'authenticated_user';
 
     const backupRef = db
       .collection('guilds')
@@ -99,7 +121,7 @@ router.post('/:guildId/snapshot', async (req: Request, res: Response): Promise<v
 
     await backupRef.set({
       createdAt: Date.now(),
-      createdBy: createdBy || 'system',
+      createdBy: safeCreatedBy,
       data: snapshotData,
     });
 

@@ -33,6 +33,25 @@ router.post('/discord/token', async (req: Request, res: Response): Promise<void>
 
     const targetRedirectUri = redirectUri || DEFAULT_REDIRECT_URI;
 
+    // Validate redirectUri against known valid domains to prevent OAuth redirect URI poisoning
+    const ALLOWED_REDIRECT_URIS = [
+      'https://sapxepnhansunth.web.app/',
+      'https://sapxepnhansunth.web.app',
+      'https://sapxepnhansunth.firebaseapp.com/',
+      'https://sapxepnhansunth.firebaseapp.com',
+      'http://localhost:3000/',
+      'http://localhost:3000',
+      'http://localhost:5173/',
+      'http://localhost:5173',
+      'http://127.0.0.1:3000/',
+      'http://127.0.0.1:3000',
+    ];
+
+    if (!ALLOWED_REDIRECT_URIS.includes(targetRedirectUri)) {
+      res.status(400).json({ error: 'redirectUri không hợp lệ hoặc không thuộc danh sách được ủy quyền' });
+      return;
+    }
+
     // 1. Trao đổi Authorization Code với Discord API
     const params = new URLSearchParams({
       client_id: DISCORD_CLIENT_ID,

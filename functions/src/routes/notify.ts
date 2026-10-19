@@ -2,14 +2,12 @@ import { Router, Request, Response } from 'express';
 
 const router = Router();
 
-const DEFAULT_WEBHOOK_URL =
-  process.env.DISCORD_WEBHOOK_URL ||
-  'https://discord.com/api/webhooks/1561235562063462450/s2H14lAvwyezgrH0J0prRo81AuIcI7igKIaTdtQzy79bmaCowY2B5cFJ3TxmErlbIySj';
+const DEFAULT_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || '';
 
 // Rate limiter in-memory: ip -> timestamps
 const rateLimitMap = new Map<string, number[]>();
 
-function isRateLimited(ip: string, maxRequests = 5, windowMs = 60000): boolean {
+function isRateLimited(ip: string, maxRequests = 6, windowMs = 60000): boolean {
   const now = Date.now();
   const timestamps = (rateLimitMap.get(ip) || []).filter((t) => now - t < windowMs);
   if (timestamps.length >= maxRequests) {
@@ -21,13 +19,29 @@ function isRateLimited(ip: string, maxRequests = 5, windowMs = 60000): boolean {
 }
 
 /**
+ * Strict validator for Discord Webhook URLs to completely prevent SSRF
+ */
+function isValidDiscordWebhookUrl(urlStr: string): boolean {
+  try {
+    const parsed = new URL(urlStr);
+    if (parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname.toLowerCase();
+    if (host !== 'discord.com' && host !== 'discordapp.com') return false;
+    if (!parsed.pathname.startsWith('/api/webhooks/')) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * POST /api/notify/discord
  * Gửi thông báo an toàn qua Discord Webhook từ phía Server
  * Giúp giấu hoàn toàn Webhook Token bí mật khỏi trình duyệt Client
  */
 router.post('/discord', async (req: Request, res: Response): Promise<void> => {
   try {
-    const clientIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0] || req.ip || 'unknown';
+    const clientIp = req.ip || 'unknown';
 
     if (isRateLimited(clientIp, 6, 60000)) {
       res.status(429).json({ error: 'Too many requests. Vui lòng thử lại sau.' });
@@ -36,9 +50,19 @@ router.post('/discord', async (req: Request, res: Response): Promise<void> => {
 
     const { type, user, customWebhookUrl } = req.body;
 
-    const webhookUrl = customWebhookUrl || DEFAULT_WEBHOOK_URL;
+    let webhookUrl = DEFAULT_WEBHOOK_URL;
+    if (customWebhookUrl) {
+      if (typeof customWebhookUrl !== 'string' || !isValidDiscordWebhookUrl(customWebhookUrl)) {
+        res.status(400).json({
+          error: 'URL Webhook không hợp lệ. Chỉ chấp nhận URL HTTPS Discord Webhook chính thức.',
+        });
+        return;
+      }
+      webhookUrl = customWebhookUrl.trim();
+    }
+
     if (!webhookUrl) {
-      res.status(500).json({ error: 'Discord webhook URL is not configured' });
+      res.status(500).json({ error: 'Discord webhook URL is not configured on server' });
       return;
     }
 

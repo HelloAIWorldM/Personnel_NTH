@@ -149,6 +149,16 @@ service cloud.firestore {
 
       // Hard-deny deletion to prevent malicious or accidental room destruction
       allow delete: if false;
+
+      // =======================================================================
+      // SNAPSHOTS SUBCOLLECTION: /guilds/{guildId}/snapshots/{snapshotId}
+      // =======================================================================
+      match /snapshots/{snapshotId} {
+        // Authenticated members can read snapshots for their guild room
+        allow read: if request.auth != null && isValidGuildId(guildId);
+        // Client-direct writes are denied; snapshots must be generated via Backend API
+        allow write: if false;
+      }
     }
   }
 }

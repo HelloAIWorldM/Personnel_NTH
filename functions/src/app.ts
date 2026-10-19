@@ -5,24 +5,30 @@ import notifyRoutes from './routes/notify';
 import guildRoutes from './routes/guild';
 
 const app: Express = express();
+app.set('trust proxy', 1);
 
-// 1. CORS Middleware
+// 1. Strict CORS Middleware
 const allowedOrigins = [
   'https://sapxepnhansunth.web.app',
   'https://sapxepnhansunth.firebaseapp.com',
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'http://127.0.0.1:3000',
+  ...(process.env.NODE_ENV !== 'production'
+    ? [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:5173',
+      ]
+    : []),
 ];
 
 app.use(
   cors({
     origin: (origin, callback) => {
-      // Cho phép requests không có origin (ví dụ mobile, Postman, curl) hoặc nằm trong whitelist
-      if (!origin || allowedOrigins.includes(origin) || origin.endsWith('.web.app') || origin.endsWith('.firebaseapp.com')) {
+      // Cho phép requests không có origin (ví dụ server-to-server, curl nội bộ) hoặc nằm trong whitelist
+      if (!origin || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(null, true); // Dev & Production linh hoạt
+        callback(new Error(`Origin ${origin} is not allowed by CORS policy.`));
       }
     },
     credentials: true,
@@ -32,14 +38,15 @@ app.use(
 );
 
 // 2. Parse JSON & URL-encoded payloads
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '5mb' }));
+app.use(express.urlencoded({ extended: true, limit: '5mb' }));
 
 // 3. Security & Anti-Sniffing headers
 app.use((_req: Request, res: Response, next: NextFunction) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
+  res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   next();
 });
 
