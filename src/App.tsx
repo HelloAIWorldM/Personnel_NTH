@@ -38,6 +38,7 @@ export default function App() {
     }
     return true;
   });
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [currentPath, setCurrentPath] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       return window.location.pathname;
