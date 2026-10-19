@@ -317,35 +317,66 @@ export function countGuildWarMembers(guildWarBoards: GuildWarBoard[]): number {
   }, 0);
 }
 
+// Cache In-Memory cho Snapshots để không phải parse chuỗi JSON 1MB mỗi lần kiểm tra
+let cachedSnapshots: AutoSnapshot[] | null = null;
+let snapshotDebounceTimer: any = null;
+let pendingSnapshotParams: {
+  boards: RaidBoard[];
+  personnelPool: PersonnelMember[];
+  customColors?: CustomClassColors;
+  guildWarBoards?: GuildWarBoard[];
+  diBuiPersonnelPool?: PersonnelMember[];
+  masterPersonnelPool?: PersonnelMember[];
+  guildWarPersonnelPool?: PersonnelMember[];
+} | null = null;
+
 /**
  * Lấy danh sách các bản tự động sao lưu (Auto-snapshots)
+ * Tận dụng In-Memory Cache giúp giảm 100% thời gian JSON.parse khi đã nạp
  */
 export function getAutoSnapshots(): AutoSnapshot[] {
+  if (cachedSnapshots !== null) {
+    return cachedSnapshots;
+  }
   try {
     const raw = localStorage.getItem(STORAGE_KEY_SNAPSHOTS);
-    if (!raw) return [];
+    if (!raw) {
+      cachedSnapshots = [];
+      return cachedSnapshots;
+    }
     const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
+    cachedSnapshots = Array.isArray(parsed) ? parsed : [];
+    return cachedSnapshots;
   } catch (e) {
     console.warn('[AutoSnapshot] Error reading snapshots:', e);
-    return [];
+    cachedSnapshots = [];
+    return cachedSnapshots;
   }
 }
 
 /**
- * Tự động tạo snapshot nếu dữ liệu có giá trị (có thành viên hoặc kho có người)
- * Giữ tối đa 10 bản ghi gần nhất.
+ * Hàm thực thi tạo snapshot thực tế
  */
-export function saveAutoSnapshot(
-  boards: RaidBoard[],
-  personnelPool: PersonnelMember[],
-  customColors?: CustomClassColors,
-  guildWarBoards?: GuildWarBoard[],
-  diBuiPersonnelPool?: PersonnelMember[],
-  masterPersonnelPool?: PersonnelMember[],
-  guildWarPersonnelPool?: PersonnelMember[]
-): void {
+function executeCreateSnapshot(params: {
+  boards: RaidBoard[];
+  personnelPool: PersonnelMember[];
+  customColors?: CustomClassColors;
+  guildWarBoards?: GuildWarBoard[];
+  diBuiPersonnelPool?: PersonnelMember[];
+  masterPersonnelPool?: PersonnelMember[];
+  guildWarPersonnelPool?: PersonnelMember[];
+}): void {
   try {
+    const {
+      boards,
+      personnelPool,
+      customColors,
+      guildWarBoards,
+      diBuiPersonnelPool,
+      masterPersonnelPool,
+      guildWarPersonnelPool,
+    } = params;
+
     const totalMembers = countMembersWithData(boards);
     const totalGwMembers = guildWarBoards ? countGuildWarMembers(guildWarBoards) : 0;
     const personnelCount = Array.isArray(personnelPool) ? personnelPool.length : 0;
@@ -361,7 +392,7 @@ export function saveAutoSnapshot(
     const lastSnap = snapshots[0];
     const now = Date.now();
 
-    // Nếu snapshot gần nhất cách chưa đầy 60 giây và số lượng thành viên không đổi thì bỏ qua để tránh rác storage
+    // Nếu snapshot gần nhất cách chưa đầy 60 giây và số lượng thành viên không đổi thì bỏ qua
     if (
       lastSnap &&
       now - lastSnap.timestamp < 60000 &&
@@ -389,15 +420,92 @@ export function saveAutoSnapshot(
 
     // Giới hạn 10 snapshots gần nhất để tiết kiệm dung lượng
     const updatedSnapshots = [newSnapshot, ...snapshots.slice(0, 9)];
+    cachedSnapshots = updatedSnapshots;
     const serialized = JSON.stringify(updatedSnapshots);
 
     // Ghi an toàn vào localStorage (tự động dọn bớt nếu đầy bộ nhớ)
     safeLocalStorageSet(STORAGE_KEY_SNAPSHOTS, serialized);
 
-    // Luôn lưu đầy đủ vào IndexedDB (không lo bị giới hạn dung lượng)
+    // Luôn lưu đầy đủ vào IndexedDB
     saveToIndexedDB('snapshots', updatedSnapshots);
   } catch (err) {
     console.warn('[AutoSnapshot] Warning:', err);
+  }
+}
+
+/**
+ * Tự động tạo snapshot nếu dữ liệu có giá trị (có thành viên hoặc kho có người)
+ * TỐI ƯU HÓA:
+ * - Debounce 400ms gom các thao tác liên tục
+ * - Chạy trong requestIdleCallback (hoặc setTimeout 0) để không bao giờ làm khựng Main UI Thread
+ * - Hỗ trợ cờ immediate = true cho các trường hợp flush khi tắt tab
+ */
+export function saveAutoSnapshot(
+  boards: RaidBoard[],
+  personnelPool: PersonnelMember[],
+  customColors?: CustomClassColors,
+  guildWarBoards?: GuildWarBoard[],
+  diBuiPersonnelPool?: PersonnelMember[],
+  masterPersonnelPool?: PersonnelMember[],
+  guildWarPersonnelPool?: PersonnelMember[],
+  immediate: boolean = false
+): void {
+  pendingSnapshotParams = {
+    boards,
+    personnelPool,
+    customColors,
+    guildWarBoards,
+    diBuiPersonnelPool,
+    masterPersonnelPool,
+    guildWarPersonnelPool,
+  };
+
+  if (snapshotDebounceTimer) {
+    clearTimeout(snapshotDebounceTimer);
+    snapshotDebounceTimer = null;
+  }
+
+  if (immediate) {
+    if (pendingSnapshotParams) {
+      executeCreateSnapshot(pendingSnapshotParams);
+      pendingSnapshotParams = null;
+    }
+    return;
+  }
+
+  snapshotDebounceTimer = setTimeout(() => {
+    snapshotDebounceTimer = null;
+    const paramsToRun = pendingSnapshotParams;
+    pendingSnapshotParams = null;
+    if (!paramsToRun) return;
+
+    // Chạy khi Main Thread rảnh rỗi (idle) để UI hoàn toàn mượt 60fps
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(
+        () => {
+          executeCreateSnapshot(paramsToRun);
+        },
+        { timeout: 1000 }
+      );
+    } else {
+      setTimeout(() => {
+        executeCreateSnapshot(paramsToRun);
+      }, 0);
+    }
+  }, 400);
+}
+
+/**
+ * Flush khẩn cấp bản snapshot đang chờ (khi tắt tab / reload)
+ */
+export function flushPendingSnapshotSync(): void {
+  if (snapshotDebounceTimer) {
+    clearTimeout(snapshotDebounceTimer);
+    snapshotDebounceTimer = null;
+  }
+  if (pendingSnapshotParams) {
+    executeCreateSnapshot(pendingSnapshotParams);
+    pendingSnapshotParams = null;
   }
 }
 
@@ -1305,7 +1413,7 @@ export function flushAllStorageSync(params: {
       safeLocalStorageSet(STORAGE_KEY_APP_MODE, params.appMode);
     }
 
-    // Tự động tạo snapshot nhanh
+    // Tự động tạo snapshot ngay lập tức khi chuẩn bị đóng tab
     saveAutoSnapshot(
       params.boards,
       params.personnelPool,
@@ -1313,7 +1421,8 @@ export function flushAllStorageSync(params: {
       params.guildWarBoards,
       params.diBuiPersonnelPool,
       params.masterPersonnelPool,
-      params.guildWarPersonnelPool
+      params.guildWarPersonnelPool,
+      true
     );
 
     // Lưu vào IndexedDB ngầm

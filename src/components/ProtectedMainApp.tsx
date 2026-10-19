@@ -1919,22 +1919,12 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
     showToast(`Đã nhân bản thành "${newBoard.title}"`);
   };
 
-  // Board Mutators
+  // Board Mutators - Pure State Updater giúp giao diện phản hồi tức thì
   const updateActiveBoard = (updates: Partial<RaidBoard>) => {
     if (isRaidUpdate) {
-      setUpdateBoards((prev) => {
-        const next = prev.map((b) => (b.id === activeBoard.id ? { ...b, ...updates } : b));
-        safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(next));
-        saveToIndexedDB('updateBoards', next);
-        return next;
-      });
+      setUpdateBoards((prev) => prev.map((b) => (b.id === activeBoard.id ? { ...b, ...updates } : b)));
     } else {
-      setBoards((prev) => {
-        const next = prev.map((b) => (b.id === activeBoard.id ? { ...b, ...updates } : b));
-        safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(next));
-        saveToIndexedDB('boards', next);
-        return next;
-      });
+      setBoards((prev) => prev.map((b) => (b.id === activeBoard.id ? { ...b, ...updates } : b)));
     }
   };
 
@@ -2167,20 +2157,10 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
     const targetBoard = isUpdateTarget ? activeUpdateBoard : activeRaidBoard;
     const targetUpdateFn = isUpdateTarget
       ? (updates: Partial<RaidBoard>) => {
-          setUpdateBoards((prev) => {
-            const next = prev.map((b) => (b.id === targetBoard.id ? { ...b, ...updates } : b));
-            safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(next));
-            saveToIndexedDB('updateBoards', next);
-            return next;
-          });
+          setUpdateBoards((prev) => prev.map((b) => (b.id === targetBoard.id ? { ...b, ...updates } : b)));
         }
       : (updates: Partial<RaidBoard>) => {
-          setBoards((prev) => {
-            const next = prev.map((b) => (b.id === targetBoard.id ? { ...b, ...updates } : b));
-            safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(next));
-            saveToIndexedDB('boards', next);
-            return next;
-          });
+          setBoards((prev) => prev.map((b) => (b.id === targetBoard.id ? { ...b, ...updates } : b)));
         };
 
     const currentMembers = [...targetBoard.members];
@@ -2260,20 +2240,10 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
     const targetBoard = isUpdateTarget ? activeUpdateBoard : activeRaidBoard;
     const targetUpdateFn = isUpdateTarget
       ? (updates: Partial<RaidBoard>) => {
-          setUpdateBoards((prev) => {
-            const next = prev.map((b) => (b.id === targetBoard.id ? { ...b, ...updates } : b));
-            safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(next));
-            saveToIndexedDB('updateBoards', next);
-            return next;
-          });
+          setUpdateBoards((prev) => prev.map((b) => (b.id === targetBoard.id ? { ...b, ...updates } : b)));
         }
       : (updates: Partial<RaidBoard>) => {
-          setBoards((prev) => {
-            const next = prev.map((b) => (b.id === targetBoard.id ? { ...b, ...updates } : b));
-            safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(next));
-            saveToIndexedDB('boards', next);
-            return next;
-          });
+          setBoards((prev) => prev.map((b) => (b.id === targetBoard.id ? { ...b, ...updates } : b)));
         };
 
     // Clear ingame and loggedBy in the slot

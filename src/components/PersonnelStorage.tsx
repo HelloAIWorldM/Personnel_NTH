@@ -263,30 +263,61 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
     return map;
   }, [allBoards, activeBoardId, activeBoardTitle, activeRaidMembers, poolType]);
 
-  // Helper to check assignment status across pools for a personnel member
+  // Precompute assignment status across pools for all personnel members in O(N) single pass
+  const assignmentStatsMap = useMemo(() => {
+    const map = new Map<string, {
+      assignments: PersonnelAssignment[];
+      hasRaid: boolean;
+      hasUpdate: boolean;
+      hasGw: boolean;
+      isAssignedInAll3: boolean;
+      isAssignedAny: boolean;
+      isConsideredAssigned: boolean;
+      assignedPoolCount: number;
+    }>();
+
+    personnelPool.forEach((person) => {
+      const norm = normalizeName(person.ingame);
+      if (!norm) return;
+      const assignments = assignmentsByIngame.get(norm) || [];
+      const hasRaid = assignments.some((a) => a.poolType === 'raid');
+      const hasUpdate = assignments.some((a) => a.poolType === 'raid_update');
+      const hasGw = assignments.some((a) => a.poolType === 'guild_war');
+      const isAssignedInAll3 = hasRaid && hasUpdate && hasGw;
+      const isAssignedAny = assignments.length > 0;
+      const isConsideredAssigned = isMasterPool ? isAssignedInAll3 : isAssignedAny;
+      const assignedPoolCount = (hasRaid ? 1 : 0) + (hasUpdate ? 1 : 0) + (hasGw ? 1 : 0);
+
+      map.set(norm, {
+        assignments,
+        hasRaid,
+        hasUpdate,
+        hasGw,
+        isAssignedInAll3,
+        isAssignedAny,
+        isConsideredAssigned,
+        assignedPoolCount,
+      });
+    });
+
+    return map;
+  }, [personnelPool, assignmentsByIngame, isMasterPool]);
+
+  const defaultStats = useMemo(() => ({
+    assignments: [] as PersonnelAssignment[],
+    hasRaid: false,
+    hasUpdate: false,
+    hasGw: false,
+    isAssignedInAll3: false,
+    isAssignedAny: false,
+    isConsideredAssigned: false,
+    assignedPoolCount: 0,
+  }), []);
+
+  // Helper tra cứu siêu tốc O(1) từ assignmentStatsMap
   const getAssignmentStats = (ingame: string) => {
     const norm = normalizeName(ingame);
-    const assignments = assignmentsByIngame.get(norm) || [];
-    const hasRaid = assignments.some((a) => a.poolType === 'raid');
-    const hasUpdate = assignments.some((a) => a.poolType === 'raid_update');
-    const hasGw = assignments.some((a) => a.poolType === 'guild_war');
-    const isAssignedInAll3 = hasRaid && hasUpdate && hasGw;
-    const isAssignedAny = assignments.length > 0;
-    // In Master Pool: only considered assigned when assigned to boards in ALL 3 pools (Kho Raid, Kho Update, Kho Bang Chiến)
-    // In Sub-pools: considered assigned when assigned to boards in that sub-pool
-    const isConsideredAssigned = isMasterPool ? isAssignedInAll3 : isAssignedAny;
-    const assignedPoolCount = (hasRaid ? 1 : 0) + (hasUpdate ? 1 : 0) + (hasGw ? 1 : 0);
-
-    return {
-      assignments,
-      hasRaid,
-      hasUpdate,
-      hasGw,
-      isAssignedInAll3,
-      isAssignedAny,
-      isConsideredAssigned,
-      assignedPoolCount,
-    };
+    return assignmentStatsMap.get(norm) || defaultStats;
   };
 
   // Filtered and sorted list
@@ -332,15 +363,17 @@ export const PersonnelStorage: React.FC<PersonnelStorageProps> = ({
       });
     }
     return list;
-  }, [personnelPool, searchQuery, selectedClassFilter, statusFilter, assignmentsByIngame, sortOrder, isMasterPool]);
+  }, [personnelPool, searchQuery, selectedClassFilter, statusFilter, assignmentStatsMap, sortOrder]);
 
   // Counts - Preserved accurately across all boards
   const totalCount = personnelPool.length;
   const assignedCount = useMemo(() => {
-    return personnelPool.filter((p) => {
-      return getAssignmentStats(p.ingame).isConsideredAssigned;
-    }).length;
-  }, [personnelPool, assignmentsByIngame, isMasterPool]);
+    let count = 0;
+    for (const stats of assignmentStatsMap.values()) {
+      if (stats.isConsideredAssigned) count++;
+    }
+    return count;
+  }, [assignmentStatsMap]);
   const unassignedCount = totalCount - assignedCount;
   const unassignedInActiveCount = useMemo(() => {
     return personnelPool.filter((p) => {
