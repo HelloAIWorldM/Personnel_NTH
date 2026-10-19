@@ -132,4 +132,66 @@ router.post('/:guildId/snapshot', async (req: Request, res: Response): Promise<v
   }
 });
 
+/**
+ * GET /api/guild/:guildId/permissions
+ * Kiểm tra quyền hạn của người dùng (Admin vs Member) dựa trên Discord ID
+ */
+router.get('/:guildId/permissions', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      res.status(401).json({ authenticated: false, role: 'guest', canEdit: false });
+      return;
+    }
+    const token = authHeader.split(' ')[1];
+
+    let userId = '';
+    let username = '';
+
+    // 1. Thử xác thực với Discord API
+    try {
+      const discordRes = await fetch('https://discord.com/api/users/@me', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (discordRes.ok) {
+        const u = (await discordRes.json()) as any;
+        userId = u.id;
+        username = u.username;
+      }
+    } catch {}
+
+    // 2. Fallback Firebase ID Token
+    if (!userId) {
+      try {
+        const decoded = await auth.verifyIdToken(token);
+        userId = decoded.uid;
+        username = decoded.name || decoded.email || decoded.uid;
+      } catch {}
+    }
+
+    if (!userId) {
+      res.status(401).json({ authenticated: false, role: 'guest', canEdit: false });
+      return;
+    }
+
+    // Kiểm tra danh sách Admin / Ban Quản Trị từ biến môi trường
+    const envAdmins = process.env.ADMIN_DISCORD_IDS
+      ? process.env.ADMIN_DISCORD_IDS.split(',').map((s) => s.trim())
+      : [];
+    const isSpecialAdmin = envAdmins.length > 0 ? envAdmins.includes(userId) : true;
+
+    res.json({
+      authenticated: true,
+      user: { id: userId, username },
+      role: isSpecialAdmin ? 'admin' : 'member',
+      canEdit: isSpecialAdmin,
+      message: isSpecialAdmin
+        ? 'Quyền Quản trị viên (Toàn quyền chỉnh sửa đội hình)'
+        : 'Quyền Thành viên Bang (Chế độ xem)',
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: 'Lỗi kiểm tra quyền hạn', details: error?.message });
+  }
+});
+
 export default router;

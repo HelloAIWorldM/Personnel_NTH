@@ -139,13 +139,12 @@ service cloud.firestore {
     // GUILD ROOMS COLLECTION: /guilds/{guildId}
     // =========================================================================
     match /guilds/{guildId} {
-      // Authenticated room access: require authenticated Firebase Auth user and valid room code
-      allow read: if request.auth != null && isValidGuildId(guildId);
+      // Room read: allow read for valid room code
+      allow read: if isValidGuildId(guildId);
 
-      // Create and Update must be authenticated and satisfy the exact same domain validator
-      // to eliminate the Update Bypass vulnerability
-      allow create: if request.auth != null && isValidGuildDoc(request.resource.data, guildId);
-      allow update: if request.auth != null && isValidGuildDoc(request.resource.data, guildId);
+      // Create and Update must satisfy the exact domain validator to prevent malformed/DoS payloads
+      allow create: if isValidGuildDoc(request.resource.data, guildId);
+      allow update: if isValidGuildDoc(request.resource.data, guildId);
 
       // Hard-deny deletion to prevent malicious or accidental room destruction
       allow delete: if false;

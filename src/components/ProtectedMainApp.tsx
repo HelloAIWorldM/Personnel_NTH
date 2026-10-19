@@ -263,6 +263,7 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const isRemoteIncomingRef = useRef(false);
   const lastLocalEditTimeRef = useRef(0);
+  const hasInitialCloudLoadedRef = useRef(false);
 
   // App Mode: 'RAID' (Bảng Raid), 'RAID_UPDATE' (Bảng Raid Update), or 'GUILD_WAR' (Bảng Bang Chiến)
   const [appMode, setAppMode] = useState<AppMode>(() => {
@@ -575,6 +576,7 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
   // Helper áp dụng dữ liệu từ Cloud Firestore vào toàn bộ state và storage an toàn
   const applyCloudDataToState = useCallback((cd: CloudGuildData) => {
     isRemoteIncomingRef.current = true;
+    hasInitialCloudLoadedRef.current = true;
     try {
       if (cd.boards && cd.boards.length > 0) {
         setBoards(cd.boards);
@@ -834,6 +836,18 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
           if (hasRestoredAny) {
             showToast('Đã tự động bảo toàn & phục hồi dữ liệu an toàn từ IndexedDB!');
           }
+        }
+
+        // Tự động kéo dữ liệu mới nhất từ Cloud Firestore khi mở trang
+        try {
+          const cloudRes = await pullFromCloud(GLOBAL_GUILD_ID);
+          if (cloudRes.success && cloudRes.data && isMounted) {
+            console.info('[CloudSync] Khởi tạo phòng thành công từ Cloud Firestore:', cloudRes.data.updatedAt);
+            applyCloudDataToState(cloudRes.data);
+            hasInitialCloudLoadedRef.current = true;
+          }
+        } catch (cloudErr) {
+          console.warn('[CloudSync] Lỗi kéo dữ liệu khởi tạo:', cloudErr);
         }
       } catch (err) {
         console.warn('[Storage] Error during initial recovery:', err);
@@ -1257,6 +1271,7 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
   useEffect(() => {
     if (!isStorageHydrated || !discordUser) return;
     if (isRemoteIncomingRef.current) return;
+    if (!hasInitialCloudLoadedRef.current) return;
 
     const hasData =
       boards.length > 0 ||
