@@ -81,13 +81,26 @@ app.use((req: Request, res: Response) => {
   });
 });
 
-// 7. Global Error Handler
+// 7. Global Error Handler - Production-safe with environment-aware stack traces
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Unhandled Server Error:', err);
-  res.status(err.status || 500).json({
-    error: 'Internal Server Error',
-    message: err?.message || 'Something went wrong',
-  });
+  const statusCode = Number(err.statusCode || err.status) || 500;
+  const isDev = process.env.NODE_ENV !== 'production';
+
+  // Luôn in chi tiết lỗi trên máy chủ để developer kiểm tra logs
+  console.error('[API Server Error]:', err);
+
+  // Chuẩn hóa phản hồi an toàn trả về cho client:
+  // Ở Production: tuyệt đối ẩn stack trace để bảo vệ cấu trúc server (Information Disclosure)
+  // Ở Dev: giữ stack trace để debug nhanh
+  const responseError = {
+    statusCode,
+    error: statusCode >= 500 ? 'Internal Server Error' : (err.name || 'Bad Request'),
+    message: err.message || (statusCode >= 500 ? 'Đã có lỗi xảy ra trên hệ thống' : 'Yêu cầu không hợp lệ'),
+    timestamp: new Date().toISOString(),
+    ...(isDev && { stack: err.stack }),
+  };
+
+  res.status(statusCode).json(responseError);
 });
 
 export default app;

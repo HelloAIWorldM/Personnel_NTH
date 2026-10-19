@@ -7,7 +7,7 @@
     "dev": "vite --host 0.0.0.0 --port 3000",
     "build": "vite build",
     "preview": "vite preview",
-    "clean": "rm -rf dist server.js",
+    "clean": "node -e \"try { require('fs').rmSync('dist', { recursive: true, force: true }); } catch {}\"",
     "lint": "tsc --noEmit",
     "build:functions": "npm --prefix functions run build",
     "deploy:functions": "firebase deploy --only functions"
