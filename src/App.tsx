@@ -152,7 +152,7 @@ export default function App() {
   if (currentPath === '/404' || currentPath === '/404/') {
     return (
       <NotFoundPage
-        brandName="PhatDev"
+        brandName="Vy Lì - Niên Du Guild"
         onGoHome={() => {
           window.history.pushState(null, '', '/');
           setCurrentPath('/');

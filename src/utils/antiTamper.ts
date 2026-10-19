@@ -13,26 +13,20 @@ export function disableReactDevTools(): void {
   try {
     const hook = (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__;
     if (typeof hook === 'object' && hook !== null) {
-      for (const prop in hook) {
-        if (typeof hook[prop] === 'function') {
-          hook[prop] = () => {};
-        }
+      if (typeof hook.inject === 'function') hook.inject = () => {};
+      if (typeof hook.onCommitFiberRoot === 'function') hook.onCommitFiberRoot = () => {};
+      if (typeof hook.onCommitFiberUnmount === 'function') hook.onCommitFiberUnmount = () => {};
+      if (hook.renderers && typeof hook.renderers.set === 'function') {
+        hook.renderers = new Map();
       }
-      try {
-        Object.freeze(hook);
-      } catch {}
     } else {
-      // Đăng ký hook giả mạo trước khi extension kịp gắn vào
-      Object.defineProperty(window, '__REACT_DEVTOOLS_GLOBAL_HOOK__', {
-        configurable: false,
-        enumerable: false,
-        get: () => ({
-          supportsFiber: true,
-          inject: () => {},
-          onCommitFiberRoot: () => {},
-          onCommitFiberUnmount: () => {},
-        }),
-      });
+      (window as any).__REACT_DEVTOOLS_GLOBAL_HOOK__ = {
+        supportsFiber: true,
+        renderers: new Map(),
+        inject: () => {},
+        onCommitFiberRoot: () => {},
+        onCommitFiberUnmount: () => {},
+      };
     }
   } catch {
     // ignore
