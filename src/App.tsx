@@ -152,7 +152,7 @@ export default function App() {
   if (currentPath === '/404' || currentPath === '/404/') {
     return (
       <NotFoundPage
-        brandName="TrungQuanDev"
+        brandName="PhatDev"
         onGoHome={() => {
           window.history.pushState(null, '', '/');
           setCurrentPath('/');

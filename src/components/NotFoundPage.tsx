@@ -17,7 +17,7 @@ interface Star {
 }
 
 export const NotFoundPage: React.FC<NotFoundPageProps> = ({
-  brandName = 'TrungQuanDev',
+  brandName = 'PhatDev',
   onGoHome,
 }) => {
   // Generate random starry background
