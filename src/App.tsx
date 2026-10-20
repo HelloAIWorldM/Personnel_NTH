@@ -8,11 +8,6 @@ import {
 import { clearStoredDiscordUser } from './services/discordNotifyService';
 import { auth } from './services/firebase';
 import { signOut } from 'firebase/auth';
-import {
-  setupDevToolsKeyBlocker,
-  startAntiDebugging,
-  stopAntiDebugging,
-} from './utils/antiTamper';
 import { NotFoundPage } from './components/NotFoundPage';
 
 // Code Splitting: The main application (tables, personnel, boards) is lazy-loaded ONLY after authentication.
@@ -24,7 +19,7 @@ function WasmLoadingSpinner() {
     <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center text-slate-300 gap-3 select-none">
       <div className="w-10 h-10 border-4 border-[#5865F2] border-t-transparent rounded-full animate-spin shadow-lg shadow-[#5865F2]/20" />
       <span className="text-sm font-semibold tracking-wide text-slate-200">
-        Đang khởi tạo WebAssembly Security Engine...
+        Đang tải hệ thống...
       </span>
     </div>
   );
@@ -123,21 +118,6 @@ export default function App() {
       window.removeEventListener('storage', handleStorageTamper);
     };
   }, [verifyAuthSession]);
-
-  useEffect(() => {
-    // Kích hoạt chặn phím F12, Ctrl+Shift+I và bẫy debugger khi ở Cổng Đăng Nhập
-    if (!discordUser) {
-      const cleanupKeys = setupDevToolsKeyBlocker(() => !discordUser);
-      startAntiDebugging(true);
-
-      return () => {
-        cleanupKeys();
-        stopAntiDebugging();
-      };
-    } else {
-      stopAntiDebugging();
-    }
-  }, [discordUser]);
 
   const handleLogout = useCallback(async () => {
     try {

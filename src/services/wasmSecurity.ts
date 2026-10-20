@@ -343,6 +343,20 @@ export async function loadVerifiedDiscordSession(): Promise<DiscordUser | null> 
 }
 
 /**
+ * Lấy Access Token của Discord từ phiên đăng nhập an toàn để gửi lên Backend Vercel
+ */
+export function getStoredDiscordToken(): string | null {
+  try {
+    const rawSession = localStorage.getItem(SECURE_SESSION_STORAGE_KEY);
+    if (!rawSession) return null;
+    const session = JSON.parse(rawSession);
+    return session?.token || null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Xóa sạch toàn bộ phiên đăng nhập
  */
 export function purgeSecureDiscordSession(): void {

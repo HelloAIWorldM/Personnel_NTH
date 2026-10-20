@@ -1,11 +1,15 @@
 import { doc, getDoc, setDoc, onSnapshot } from 'firebase/firestore';
 import { db } from './firebase';
+import { getStoredDiscordToken } from './wasmSecurity';
 import {
   RaidBoard,
   PersonnelMember,
   GuildWarBoard,
   CustomClassColors,
 } from '../types';
+
+export const BACKEND_API_BASE =
+  import.meta.env.VITE_BACKEND_API_URL || 'https://functions-tau-umber.vercel.app';
 
 export const GLOBAL_GUILD_ID = 'Guild_NienDu';
 export const DEFAULT_GUILD_ID = GLOBAL_GUILD_ID;
@@ -231,6 +235,27 @@ export async function pushToCloud(
     const cleaned = cleanForFirestore(rawData);
     const docData: CloudGuildData = JSON.parse(JSON.stringify(cleaned));
 
+    // 1. Thử gửi qua Backend Vercel API Gateway (Mô hình VPS Server)
+    const token = getStoredDiscordToken();
+    if (token) {
+      try {
+        const apiRes = await fetch(`${BACKEND_API_BASE}/api/guild/${targetId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(docData),
+        });
+        if (apiRes.ok) {
+          return { success: true };
+        }
+      } catch (backendErr) {
+        console.warn('[CloudSync] Backend API push error, fallback to direct Firestore:', backendErr);
+      }
+    }
+
+    // 2. Fallback trực tiếp qua Firestore Client SDK
     await setDoc(docRef, docData, { merge: true });
 
     // Đồng bộ song song sang phòng dự phòng BACKUP_MIRROR_GUILD_ID để đảm bảo không bao giờ mất dữ liệu
@@ -249,15 +274,37 @@ export async function pushToCloud(
 }
 
 /**
- * Tải dữ liệu từ Firestore database duy nhất
+ * Tải dữ liệu từ Backend Vercel API Gateway (hoặc Fallback Firestore database)
  */
 export async function pullFromCloud(guildId: string = GLOBAL_GUILD_ID): Promise<{
   success: boolean;
   data?: CloudGuildData;
   error?: string;
 }> {
+  const targetId = sanitizeGuildId(guildId);
+  const token = getStoredDiscordToken();
+
+  // 1. Ưu tiên tải dữ liệu qua Backend Vercel API Gateway (Mô hình VPS Server)
+  if (token) {
+    try {
+      const apiRes = await fetch(`${BACKEND_API_BASE}/api/guild/${targetId}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+      if (apiRes.ok) {
+        const json = (await apiRes.json()) as any;
+        if (json.success && json.data) {
+          return { success: true, data: json.data as CloudGuildData };
+        }
+      }
+    } catch (apiErr) {
+      console.warn('[CloudSync] Backend API pull error, fallback to Firestore SDK:', apiErr);
+    }
+  }
+
+  // 2. Fallback tải trực tiếp từ Firestore Client SDK
   try {
-    const targetId = sanitizeGuildId(guildId);
     const docRef = doc(db, 'guilds', targetId);
     const snap = await getDoc(docRef);
 

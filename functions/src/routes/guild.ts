@@ -78,6 +78,56 @@ router.get('/:guildId', async (req: Request, res: Response): Promise<void> => {
 });
 
 /**
+ * POST /api/guild/:guildId
+ * Lưu / cập nhật dữ liệu phòng Raid & Bang Chiến qua Firebase Admin SDK
+ * Yêu cầu xác thực tài khoản Discord
+ */
+router.post('/:guildId', async (req: Request, res: Response): Promise<void> => {
+  try {
+    const authenticated = await isAuthenticated(req);
+    if (!authenticated) {
+      res.status(401).json({
+        error: 'Unauthorized: Yêu cầu xác thực tài khoản để lưu dữ liệu Bang.',
+      });
+      return;
+    }
+
+    const { guildId } = req.params;
+    if (!guildId || !/^[a-zA-Z0-9_.-]+$/.test(guildId) || guildId.length > 128) {
+      res.status(400).json({ error: 'Mã phòng guildId không hợp lệ' });
+      return;
+    }
+
+    const payload = req.body;
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+      res.status(400).json({ error: 'Payload không hợp lệ' });
+      return;
+    }
+
+    // Giới hạn kích thước payload (tối đa 5MB)
+    const payloadSize = JSON.stringify(payload).length;
+    if (payloadSize > 5 * 1024 * 1024) {
+      res.status(413).json({ error: 'Dữ liệu quá lớn (vượt quá 5MB)' });
+      return;
+    }
+
+    const docRef = db.collection('guilds').doc(guildId);
+    await docRef.set(
+      {
+        ...payload,
+        updatedAt: Date.now(),
+      },
+      { merge: true }
+    );
+
+    res.json({ success: true, message: 'Đã lưu dữ liệu phòng thành công' });
+  } catch (error: any) {
+    console.error('Lỗi lưu dữ liệu guild:', error);
+    res.status(500).json({ error: 'Lỗi server khi lưu dữ liệu phòng', details: error?.message });
+  }
+});
+
+/**
  * POST /api/guild/:guildId/snapshot
  * Lưu bản sao lưu (backup snapshot) cho phòng (Yêu cầu xác thực tài khoản)
  */
@@ -174,20 +224,13 @@ router.get('/:guildId/permissions', async (req: Request, res: Response): Promise
       return;
     }
 
-    // Kiểm tra danh sách Admin / Ban Quản Trị từ biến môi trường
-    const envAdmins = process.env.ADMIN_DISCORD_IDS
-      ? process.env.ADMIN_DISCORD_IDS.split(',').map((s) => s.trim())
-      : [];
-    const isSpecialAdmin = envAdmins.length > 0 ? envAdmins.includes(userId) : true;
-
+    // Admin và thành viên đều có quyền hạn bình đẳng như nhau (Toàn quyền xem & chỉnh sửa)
     res.json({
       authenticated: true,
       user: { id: userId, username },
-      role: isSpecialAdmin ? 'admin' : 'member',
-      canEdit: isSpecialAdmin,
-      message: isSpecialAdmin
-        ? 'Quyền Quản trị viên (Toàn quyền chỉnh sửa đội hình)'
-        : 'Quyền Thành viên Bang (Chế độ xem)',
+      role: 'member',
+      canEdit: true,
+      message: 'Thành viên Bang Niên Du (Toàn quyền chỉnh sửa & quản lý đội hình)',
     });
   } catch (error: any) {
     res.status(500).json({ error: 'Lỗi kiểm tra quyền hạn', details: error?.message });
