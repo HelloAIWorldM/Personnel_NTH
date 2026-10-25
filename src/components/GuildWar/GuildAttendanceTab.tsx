@@ -277,7 +277,11 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
         }
       });
 
-      const primaryClass = gMembers[0]?.className || 'Toái Mộng';
+      // Ưu tiên lấy phái của chính acc trùng tên người lái (nếu có), nếu không mới fallback về acc đầu tiên
+      const matchedSelf = gMembers.find(
+        (m) => normalizeName(m.ingame) === normalizeName(loggedByName)
+      );
+      const primaryClass = matchedSelf?.className || gMembers[0]?.className || 'Toái Mộng';
 
       groups.push({
         key,

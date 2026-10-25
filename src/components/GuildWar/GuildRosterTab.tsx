@@ -203,6 +203,18 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
     return sorted;
   }, [members, searchQuery, filterClass, filterRole, filterParticipation, filterTeam, sortField, sortAsc]);
 
+  // Map đếm số lượng acc do mỗi người cầm lái (loggedBy) quản lý
+  const loggedByCountMap = useMemo(() => {
+    const map = new Map<string, number>();
+    members.forEach((m) => {
+      const raw = (m.loggedBy && m.loggedBy.trim()) || m.ingame.trim();
+      const key = normalizeName(raw);
+      if (!key) return;
+      map.set(key, (map.get(key) || 0) + 1);
+    });
+    return map;
+  }, [members]);
+
   const handleStartEdit = (m: GuildMember) => {
     setEditingId(m.id);
     setEditIngame(m.ingame);
@@ -952,14 +964,46 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                           <span className="text-slate-800 dark:text-slate-200 font-bold text-xs">
                             {member.loggedBy || member.discord || member.ingame || '—'}
                           </span>
-                          {member.loggedBy && member.loggedBy.trim() !== member.ingame.trim() && (
-                            <span
-                              title={`Tài khoản này do "${member.loggedBy}" cầm lái (Cặp linh hoạt / Acc phụ)`}
-                              className="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
-                            >
-                              Cặp linh hoạt
-                            </span>
-                          )}
+                          {(() => {
+                            if (!member.loggedBy) return null;
+                            const rawLogged = member.loggedBy.trim();
+                            if (!rawLogged) return null;
+
+                            const count = loggedByCountMap.get(normalizeName(rawLogged)) || 1;
+                            const isMultiAcc = count > 1;
+
+                            // Kiểm tra viết tắt / tên gọi khác của chính mình (vd: CUV là viết tắt của Cửu U Vương)
+                            const words = member.ingame.trim().split(/\s+/);
+                            const initials = words.map((w) => w[0]).join('').toLowerCase();
+                            const isShortName =
+                              rawLogged.toLowerCase() === initials ||
+                              normalizeName(rawLogged) === normalizeName(member.ingame);
+
+                            if (isMultiAcc) {
+                              return (
+                                <span
+                                  title={`Người cầm lái "${rawLogged}" đang quản lý ${count} tài khoản (Cặp linh hoạt)`}
+                                  className="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                                >
+                                  Cặp linh hoạt ({count} acc)
+                                </span>
+                              );
+                            }
+
+                            // Nếu chỉ có 1 acc và tên không phải viết tắt thì là người khác lái hộ
+                            if (!isShortName) {
+                              return (
+                                <span
+                                  title={`Tài khoản này do "${rawLogged}" cầm lái hộ`}
+                                  className="px-1.5 py-0.2 rounded text-[9px] font-semibold bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border border-slate-200 dark:border-slate-700"
+                                >
+                                  Lái hộ
+                                </span>
+                              );
+                            }
+
+                            return null;
+                          })()}
                         </div>
                       </td>
                       <td className="py-2.5 px-3 text-center">
