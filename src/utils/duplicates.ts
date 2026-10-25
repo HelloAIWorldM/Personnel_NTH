@@ -430,6 +430,60 @@ export const findGuildWarDuplicates = (members: GuildMember[]): GuildWarDuplicat
   return Array.from(map.values()).filter((g) => g.count > 1);
 };
 
+export interface GuildWarLoggedByConflict {
+  key: string;
+  loggedByName: string;
+  count: number;
+  members: Array<{
+    id: string;
+    ingame: string;
+    className: string;
+    team: GuildTeam;
+    party?: number;
+    slot?: number;
+  }>;
+}
+
+/**
+ * Finds conflicts where the same physical player (Logged by) is placed into
+ * multiple battle slots simultaneously across the active teams (Cơ động, Mid, Đẩy trụ).
+ */
+export const findGuildWarLoggedByConflicts = (members: GuildMember[]): GuildWarLoggedByConflict[] => {
+  const map = new Map<string, GuildWarLoggedByConflict>();
+
+  members.forEach((m) => {
+    if (!m.team || m.team === 'Chưa xếp' || m.party === undefined || m.slot === undefined) return;
+
+    const effectiveLoggedBy = (m.loggedBy && m.loggedBy.trim()) || m.ingame.trim();
+    const key = normalizeName(effectiveLoggedBy);
+    if (!key) return;
+
+    const memberInfo = {
+      id: m.id,
+      ingame: m.ingame.trim(),
+      className: m.className,
+      team: m.team,
+      party: m.party,
+      slot: m.slot,
+    };
+
+    const existing = map.get(key);
+    if (existing) {
+      existing.count += 1;
+      existing.members.push(memberInfo);
+    } else {
+      map.set(key, {
+        key,
+        loggedByName: effectiveLoggedBy,
+        count: 1,
+        members: [memberInfo],
+      });
+    }
+  });
+
+  return Array.from(map.values()).filter((g) => g.count > 1);
+};
+
 export interface DuplicatePersonnelInfo {
   key: string;
   name: string;

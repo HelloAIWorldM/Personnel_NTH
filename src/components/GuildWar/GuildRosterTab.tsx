@@ -103,6 +103,39 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
   const [sortField, setSortField] = useState<'stt' | 'className' | 'ingame' | 'guildRole' | 'team'>('stt');
   const [sortAsc, setSortAsc] = useState(true);
 
+  // Danh sách các Logged by đã biết để gợi ý và tránh sai chính tả
+  const knownLoggedByList = useMemo(() => {
+    const set = new Set<string>();
+    members.forEach((m) => {
+      if (m.loggedBy && m.loggedBy.trim()) set.add(m.loggedBy.trim());
+      if (m.discord && m.discord.trim()) set.add(m.discord.trim());
+    });
+    personnelPool.forEach((p) => {
+      if (p.loggedBy && p.loggedBy.trim()) set.add(p.loggedBy.trim());
+    });
+    masterPersonnelPool.forEach((p) => {
+      if (p.loggedBy && p.loggedBy.trim()) set.add(p.loggedBy.trim());
+    });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'vi'));
+  }, [members, personnelPool, masterPersonnelPool]);
+
+  // Tự động nhận diện khi gõ Ingame
+  const handleNewIngameChange = (val: string) => {
+    setNewIngame(val);
+    const norm = normalizeName(val);
+    if (norm) {
+      const match = [...personnelPool, ...masterPersonnelPool].find(
+        (p) => normalizeName(p.ingame) === norm
+      );
+      if (match) {
+        if (match.className) setNewClass(match.className);
+        if (match.loggedBy) setNewLoggedBy(match.loggedBy);
+      } else if (!newLoggedBy || newLoggedBy === newIngame) {
+        setNewLoggedBy(val);
+      }
+    }
+  };
+
   const toggleSort = (field: 'stt' | 'className' | 'ingame' | 'guildRole' | 'team') => {
     if (sortField === field) {
       setSortAsc(!sortAsc);
@@ -288,7 +321,11 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
           );
           if (found) matchedClass = found;
         }
-        const loggedBy = parts[2] ? parts[2].trim() : ingame.trim();
+        const norm = normalizeName(ingame);
+        const poolMatch = [...personnelPool, ...masterPersonnelPool].find(
+          (p) => normalizeName(p.ingame) === norm
+        );
+        const loggedBy = parts[2] ? parts[2].trim() : (poolMatch?.loggedBy?.trim() || ingame.trim());
         onAddMember({
           stt: members.length + added + 1,
           ingame,
@@ -301,7 +338,6 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
           attendance: {},
         });
 
-        const norm = normalizeName(ingame);
         if (norm && !poolNormSet.has(norm)) {
           poolNormSet.add(norm);
           newPoolEntries.push({
@@ -488,12 +524,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                 type="text"
                 required
                 value={newIngame}
-                onChange={(e) => {
-                  setNewIngame(e.target.value);
-                  if (!newLoggedBy) {
-                    setNewLoggedBy(e.target.value);
-                  }
-                }}
+                onChange={(e) => handleNewIngameChange(e.target.value)}
                 placeholder="Ví dụ: Nhập tên ingame..."
                 className="w-full px-3 py-1.5 text-xs font-bold border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
@@ -584,9 +615,10 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
               </div>
               <input
                 type="text"
+                list="known-loggedby-options"
                 value={newLoggedBy}
                 onChange={(e) => setNewLoggedBy(e.target.value)}
-                placeholder="VD: Tên người log hoặc Ingame"
+                placeholder="VD: Chọn người log trong danh sách hoặc gõ mới..."
                 className="w-full px-3 py-1.5 text-xs font-bold border border-slate-300 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 focus:outline-none focus:ring-1 focus:ring-amber-500"
               />
             </div>
@@ -799,6 +831,7 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                         <td className="py-2 px-3">
                           <input
                             type="text"
+                            list="known-loggedby-options"
                             value={editLoggedBy}
                             onChange={(e) => setEditLoggedBy(e.target.value)}
                             placeholder="Người log"
@@ -915,9 +948,19 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
                         </select>
                       </td>
                       <td className="py-2.5 px-3">
-                        <span className="text-slate-700 dark:text-slate-300 font-medium text-xs">
-                          {member.loggedBy || member.discord || member.ingame || '—'}
-                        </span>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-slate-800 dark:text-slate-200 font-bold text-xs">
+                            {member.loggedBy || member.discord || member.ingame || '—'}
+                          </span>
+                          {member.loggedBy && member.loggedBy.trim() !== member.ingame.trim() && (
+                            <span
+                              title={`Tài khoản này do "${member.loggedBy}" cầm lái (Cặp linh hoạt / Acc phụ)`}
+                              className="px-1.5 py-0.2 rounded text-[9px] font-black bg-indigo-100 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                            >
+                              Cặp linh hoạt
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-2.5 px-3 text-center">
                         <div className="flex items-center justify-center gap-1">
@@ -960,6 +1003,13 @@ export const GuildRosterTab: React.FC<GuildRosterTabProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Datalist gợi ý Logged By đã chuẩn hóa */}
+      <datalist id="known-loggedby-options">
+        {knownLoggedByList.map((name) => (
+          <option key={name} value={name} />
+        ))}
+      </datalist>
 
       {/* Modal Chọn Nhân Sự Từ Tổng Kho / Kho BC */}
       <ImportFromMasterModal

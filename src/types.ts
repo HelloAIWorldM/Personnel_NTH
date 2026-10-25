@@ -104,6 +104,8 @@ export interface GuildMember {
   party?: number; // 1, 2, 3, 4 (PT-1, PT-2, PT-3, PT-4)
   slot?: number; // 1 to 6
   attendance: Record<string, boolean>; // key: sessionId (e.g. "s1"), value: boolean
+  isLocked?: boolean; // Fix cứng vị trí / slot quan trọng
+  isFlex?: boolean; // Slot / nhân sự linh hoạt có thể đổi class
   note?: string;
   updatedAt?: string;
 }

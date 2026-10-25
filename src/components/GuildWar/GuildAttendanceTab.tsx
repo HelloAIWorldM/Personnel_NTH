@@ -19,11 +19,15 @@ import {
   X,
   AlertTriangle,
   ArrowUpDown,
+  UserCheck,
+  Users,
+  Layers,
 } from 'lucide-react';
 import html2canvas from 'html2canvas-pro';
 import {
   findGuildWarDuplicates,
   GuildWarDuplicateGroup,
+  normalizeName,
 } from '../../utils/duplicates';
 
 interface GuildAttendanceTabProps {
@@ -39,6 +43,17 @@ interface GuildAttendanceTabProps {
   onUpdateBoardSettings: (updates: { minAttendanceRequired?: number; reportDate?: string }) => void;
 }
 
+export interface LoggedByGroup {
+  key: string;
+  loggedByName: string;
+  members: GuildMember[];
+  primaryClass: RaidClass;
+  attendance: Record<string, boolean>;
+  attendedMembersBySession: Record<string, GuildMember[]>;
+  attendanceCount: number;
+  isPassed: boolean;
+}
+
 export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
   members,
   sessions,
@@ -52,12 +67,13 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
   onUpdateBoardSettings,
 }) => {
   const tableRef = useRef<HTMLDivElement>(null);
+  const [attendanceMode, setAttendanceMode] = useState<'loggedBy' | 'ingame'>('loggedBy');
   const [newSessionName, setNewSessionName] = useState('');
   const [isAddingSession, setIsAddingSession] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
   const [editSessionLabel, setEditSessionLabel] = useState('');
-  const [sortField, setSortField] = useState<'stt' | 'className' | 'ingame'>('stt');
+  const [sortField, setSortField] = useState<'stt' | 'className' | 'name'>('stt');
   const [sortAsc, setSortAsc] = useState(true);
 
   // Toggle single member attendance for a session
@@ -70,16 +86,88 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
     onUpdateMember(member.id, { attendance: newAttendance });
   };
 
-  // Toggle all members for a session
-  const handleToggleAllForSession = (sessionId: string) => {
-    const allChecked = members.every((m) => !!m.attendance?.[sessionId]);
-    members.forEach((m) => {
-      const newAttendance = {
-        ...(m.attendance || {}),
-        [sessionId]: !allChecked,
-      };
-      onUpdateMember(m.id, { attendance: newAttendance });
+  // Toggle attendance for a LoggedBy group
+  const handleToggleGroupAttendance = (group: LoggedByGroup, sessionId: string) => {
+    const isCurrentlyChecked = !!group.attendance[sessionId];
+    if (isCurrentlyChecked) {
+      // Uncheck all accounts piloted by this person for this session
+      group.members.forEach((m) => {
+        if (m.attendance?.[sessionId]) {
+          onUpdateMember(m.id, {
+            attendance: {
+              ...(m.attendance || {}),
+              [sessionId]: false,
+            },
+          });
+        }
+      });
+    } else {
+      // Check the first/primary account for this person
+      const targetMember = group.members[0];
+      if (targetMember) {
+        onUpdateMember(targetMember.id, {
+          attendance: {
+            ...(targetMember.attendance || {}),
+            [sessionId]: true,
+          },
+        });
+      }
+    }
+  };
+
+  // Switch which specific character attended for a LoggedBy group in a given session
+  const handleCycleGroupCharacterAttendance = (
+    e: React.MouseEvent,
+    group: LoggedByGroup,
+    sessionId: string,
+    targetMemberId: string
+  ) => {
+    e.stopPropagation();
+    group.members.forEach((m) => {
+      const shouldCheck = m.id === targetMemberId;
+      onUpdateMember(m.id, {
+        attendance: {
+          ...(m.attendance || {}),
+          [sessionId]: shouldCheck,
+        },
+      });
     });
+  };
+
+  // Toggle all for a session (in active mode)
+  const handleToggleAllForSession = (sessionId: string) => {
+    if (attendanceMode === 'loggedBy') {
+      const allChecked = loggedByGroups.every((g) => !!g.attendance[sessionId]);
+      loggedByGroups.forEach((g) => {
+        if (allChecked) {
+          // Uncheck all
+          g.members.forEach((m) => {
+            if (m.attendance?.[sessionId]) {
+              onUpdateMember(m.id, {
+                attendance: { ...(m.attendance || {}), [sessionId]: false },
+              });
+            }
+          });
+        } else {
+          // Check primary member
+          const first = g.members[0];
+          if (first && !g.attendance[sessionId]) {
+            onUpdateMember(first.id, {
+              attendance: { ...(first.attendance || {}), [sessionId]: true },
+            });
+          }
+        }
+      });
+    } else {
+      const allChecked = members.every((m) => !!m.attendance?.[sessionId]);
+      members.forEach((m) => {
+        const newAttendance = {
+          ...(m.attendance || {}),
+          [sessionId]: !allChecked,
+        };
+        onUpdateMember(m.id, { attendance: newAttendance });
+      });
+    }
   };
 
   const handleCreateSession = (e: React.FormEvent) => {
@@ -115,7 +203,8 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
       });
       const dataUrl = canvas.toDataURL('image/png');
       const link = document.createElement('a');
-      link.download = `Bao_Cao_Diem_Danh_Bang_Chien_${Date.now()}.png`;
+      const modeSuffix = attendanceMode === 'loggedBy' ? 'Theo_Nguoi_Log' : 'Theo_Ingame';
+      link.download = `Bao_Cao_Diem_Danh_Bang_Chien_${modeSuffix}_${Date.now()}.png`;
       link.href = dataUrl;
       link.click();
     } catch (err) {
@@ -125,22 +214,13 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
     }
   };
 
-  // Calculate attendance count for a member
+  // Calculate attendance count for a single member
   const getMemberAttendanceCount = (member: GuildMember) => {
     let count = 0;
     sessions.forEach((s) => {
       if (member.attendance?.[s.id]) count++;
     });
     return count;
-  };
-
-  const toggleSort = (field: 'stt' | 'className' | 'ingame') => {
-    if (sortField === field) {
-      setSortAsc(!sortAsc);
-    } else {
-      setSortField(field);
-      setSortAsc(true);
-    }
   };
 
   const CLASS_PRIORITY_ORDER: RaidClass[] = [
@@ -163,6 +243,76 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
     return idx === -1 ? 999 : idx;
   };
 
+  // Build LoggedBy Groups (Gom nhóm theo người điều khiển thực tế)
+  const loggedByGroups = useMemo<LoggedByGroup[]>(() => {
+    const map = new Map<string, { loggedByName: string; members: GuildMember[] }>();
+
+    members.forEach((m) => {
+      const rawLogged = (m.loggedBy && m.loggedBy.trim()) || m.ingame.trim();
+      const key = normalizeName(rawLogged);
+      if (!key) return;
+      const existing = map.get(key);
+      if (existing) {
+        existing.members.push(m);
+      } else {
+        map.set(key, { loggedByName: rawLogged, members: [m] });
+      }
+    });
+
+    const groups: LoggedByGroup[] = [];
+    map.forEach(({ loggedByName, members: gMembers }, key) => {
+      const attendance: Record<string, boolean> = {};
+      const attendedMembersBySession: Record<string, GuildMember[]> = {};
+      let count = 0;
+
+      sessions.forEach((s) => {
+        const attending = gMembers.filter((m) => !!m.attendance?.[s.id]);
+        if (attending.length > 0) {
+          attendance[s.id] = true;
+          attendedMembersBySession[s.id] = attending;
+          count++;
+        } else {
+          attendance[s.id] = false;
+          attendedMembersBySession[s.id] = [];
+        }
+      });
+
+      const primaryClass = gMembers[0]?.className || 'Toái Mộng';
+
+      groups.push({
+        key,
+        loggedByName,
+        members: gMembers,
+        primaryClass,
+        attendance,
+        attendedMembersBySession,
+        attendanceCount: count,
+        isPassed: count >= minAttendanceRequired,
+      });
+    });
+
+    return groups;
+  }, [members, sessions, minAttendanceRequired]);
+
+  // Sort loggedBy groups
+  const sortedLoggedByGroups = useMemo(() => {
+    const sorted = [...loggedByGroups];
+    sorted.sort((a, b) => {
+      let diff = 0;
+      if (sortField === 'className') {
+        diff = getClassOrderIndex(a.primaryClass) - getClassOrderIndex(b.primaryClass);
+        if (diff === 0) diff = a.loggedByName.localeCompare(b.loggedByName, 'vi');
+      } else if (sortField === 'name') {
+        diff = a.loggedByName.localeCompare(b.loggedByName, 'vi');
+      } else {
+        diff = b.attendanceCount - a.attendanceCount || a.loggedByName.localeCompare(b.loggedByName, 'vi');
+      }
+      return sortAsc ? diff : -diff;
+    });
+    return sorted;
+  }, [loggedByGroups, sortField, sortAsc]);
+
+  // Sort raw members for Ingame view
   const sortedMembers = useMemo(() => {
     const sorted = [...members];
     sorted.sort((a, b) => {
@@ -170,7 +320,7 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
       if (sortField === 'className') {
         diff = getClassOrderIndex(a.className) - getClassOrderIndex(b.className);
         if (diff === 0) diff = a.ingame.localeCompare(b.ingame, 'vi');
-      } else if (sortField === 'ingame') {
+      } else if (sortField === 'name') {
         diff = a.ingame.localeCompare(b.ingame, 'vi');
       } else {
         diff = (a.stt || 0) - (b.stt || 0);
@@ -180,10 +330,23 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
     return sorted;
   }, [members, sortField, sortAsc]);
 
-  // Summary stats
-  const totalPassed = members.filter(
-    (m) => getMemberAttendanceCount(m) >= minAttendanceRequired
-  ).length;
+  const toggleSort = (field: 'stt' | 'className' | 'name') => {
+    if (sortField === field) {
+      setSortAsc(!sortAsc);
+    } else {
+      setSortField(field);
+      setSortAsc(true);
+    }
+  };
+
+  // Summary stats based on active mode
+  const totalPassed =
+    attendanceMode === 'loggedBy'
+      ? loggedByGroups.filter((g) => g.isPassed).length
+      : members.filter((m) => getMemberAttendanceCount(m) >= minAttendanceRequired).length;
+
+  const totalCount = attendanceMode === 'loggedBy' ? loggedByGroups.length : members.length;
+  const passRate = totalCount > 0 ? Math.round((totalPassed / totalCount) * 100) : 0;
 
   // Duplicate member detection for attendance list
   const duplicateGroups = useMemo(() => findGuildWarDuplicates(members), [members]);
@@ -208,6 +371,49 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
 
   return (
     <div className="space-y-4">
+      {/* View Mode Switcher: Logged By vs Ingame */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-2.5 shadow-2xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 dark:bg-slate-800/80 rounded-xl border border-slate-200 dark:border-slate-700">
+          <button
+            type="button"
+            onClick={() => setAttendanceMode('loggedBy')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+              attendanceMode === 'loggedBy'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>Gom theo Người Log (Logged by)</span>
+            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-400 text-slate-950 font-black uppercase">
+              Đề xuất
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setAttendanceMode('ingame')}
+            className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-black transition-all ${
+              attendanceMode === 'ingame'
+                ? 'bg-slate-700 text-white shadow-xs'
+                : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span>Theo Tên Nhân Vật (Ingame)</span>
+          </button>
+        </div>
+
+        <div className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 px-2">
+          <Sparkles className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+          <span>
+            {attendanceMode === 'loggedBy'
+              ? 'Tự động cộng dồn số buổi khi 1 người chơi đổi nhiều acc/class linh hoạt'
+              : 'Hiển thị và tích điểm riêng biệt cho từng tài khoản nhân vật'}
+          </span>
+        </div>
+      </div>
+
       {/* Settings & Action Toolbar */}
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 sm:p-4 shadow-2xs flex flex-col md:flex-row md:items-center justify-between gap-3">
         {/* Left: Summary and Threshold Config */}
@@ -235,7 +441,7 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
           <div className="flex items-center gap-2">
             <span className="text-slate-500 dark:text-slate-400">Kết quả:</span>
             <span className="px-2 py-0.5 rounded-md font-black bg-emerald-100 text-emerald-950 dark:bg-emerald-950/60 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-              {totalPassed} / {members.length} Đạt ({members.length > 0 ? Math.round((totalPassed / members.length) * 100) : 0}%)
+              {totalPassed} / {totalCount} Đạt ({passRate}%)
             </span>
           </div>
 
@@ -311,10 +517,8 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
         </form>
       )}
 
-
-
-      {/* Cảnh Báo Trùng Nhân Sự Điểm Danh */}
-      {duplicateGroups.length > 0 && (
+      {/* Cảnh Báo Trùng Nhân Sự Điểm Danh (chỉ khi xem theo Ingame) */}
+      {attendanceMode === 'ingame' && duplicateGroups.length > 0 && (
         <div className="bg-rose-50 dark:bg-rose-950/40 border-2 border-rose-300 dark:border-rose-800 rounded-2xl p-3 sm:p-4 text-xs shadow-xs animate-in fade-in">
           <div className="flex items-center gap-2 font-black text-rose-700 dark:text-rose-400 text-xs sm:text-sm mb-1.5">
             <AlertTriangle className="w-4 h-4 text-rose-600 dark:text-rose-400 animate-pulse shrink-0" />
@@ -328,7 +532,7 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
           <div className="flex flex-wrap gap-2">
             {duplicateGroups.map((group) => (
               <span
-                key={group.normalizedIngame}
+                key={group.key}
                 className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white dark:bg-slate-900 border border-rose-300 dark:border-rose-700 text-slate-800 dark:text-slate-200 text-xs font-bold"
               >
                 <span>{group.originalName}</span>
@@ -341,7 +545,7 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
         </div>
       )}
 
-      {/* The Printable / Exportable Attendance Table (Identical format to Image 2) */}
+      {/* The Printable / Exportable Attendance Table */}
       <div
         ref={tableRef}
         className="bg-white dark:bg-slate-900 border-2 border-slate-300 dark:border-slate-700 rounded-xl overflow-hidden shadow-md text-slate-900 dark:text-slate-100"
@@ -360,16 +564,18 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
                     {sortField === 'stt' && <ArrowUpDown className="w-3 h-3 text-amber-400" />}
                   </div>
                 </th>
+
                 <th
-                  onClick={() => toggleSort('ingame')}
-                  className="py-2.5 px-3 border-r border-slate-600 dark:border-slate-800 min-w-[150px] cursor-pointer hover:bg-slate-700/60 transition-colors"
-                  title="Nhấp để sắp xếp theo Tên Thành Viên"
+                  onClick={() => toggleSort('name')}
+                  className="py-2.5 px-3 border-r border-slate-600 dark:border-slate-800 min-w-[180px] cursor-pointer hover:bg-slate-700/60 transition-colors"
+                  title={attendanceMode === 'loggedBy' ? 'Nhấp để sắp xếp theo Người Log' : 'Nhấp để sắp xếp theo Tên Thành Viên'}
                 >
                   <div className="flex items-center gap-1">
-                    <span>Tên Thành Viên</span>
-                    {sortField === 'ingame' && <ArrowUpDown className="w-3 h-3 text-amber-400" />}
+                    <span>{attendanceMode === 'loggedBy' ? 'Người Log (Cầm Acc)' : 'Tên Thành Viên'}</span>
+                    {sortField === 'name' && <ArrowUpDown className="w-3 h-3 text-amber-400" />}
                   </div>
                 </th>
+
                 <th
                   onClick={() => toggleSort('className')}
                   className="py-2.5 px-3 border-r border-slate-600 dark:border-slate-800 min-w-[120px] text-center cursor-pointer hover:bg-slate-700/60 transition-colors"
@@ -385,7 +591,7 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
                 {sessions.map((session) => (
                   <th
                     key={session.id}
-                    className="py-2.5 px-2 border-r border-slate-600 dark:border-slate-800 text-center min-w-[70px] relative group"
+                    className="py-2.5 px-2 border-r border-slate-600 dark:border-slate-800 text-center min-w-[75px] relative group"
                   >
                     {editingSessionId === session.id ? (
                       <div className="flex items-center gap-1">
@@ -446,117 +652,275 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
               </tr>
             </thead>
             <tbody>
-              {sortedMembers.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={5 + sessions.length}
-                    className="py-8 text-center text-slate-400 font-bold"
-                  >
-                    Chưa có thành viên nào trong danh sách. Hãy thêm nhân sự ở tab Bảng Nhân Sự!
-                  </td>
-                </tr>
-              ) : (
-                sortedMembers.map((member, idx) => {
-                  const classMeta = getEffectiveClassMeta(member.className, customColors);
-                  const attendanceCount = getMemberAttendanceCount(member);
-                  const isPassed = attendanceCount >= minAttendanceRequired;
-                  const isDuplicate = duplicateMemberIdSet.has(member.id);
-                  const dupGroup = duplicateInfoMap.get(member.id);
-
-                  return (
-                    <tr
-                      key={member.id}
-                      className={`border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${
-                        isDuplicate
-                          ? 'bg-rose-50/80 dark:bg-rose-950/40'
-                          : idx % 2 === 1
-                          ? 'bg-slate-50/70 dark:bg-slate-800/40'
-                          : 'bg-white dark:bg-slate-900'
-                      }`}
+              {/* CHẾ ĐỘ 1: GOM THEO NGƯỜI LOG (LOGGED BY) */}
+              {attendanceMode === 'loggedBy' ? (
+                sortedLoggedByGroups.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5 + sessions.length}
+                      className="py-8 text-center text-slate-400 font-bold"
                     >
-                      {/* STT */}
-                      <td className="py-2 px-2 text-center font-bold text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800">
-                        {idx + 1}
-                      </td>
+                      Chưa có dữ liệu người chơi. Hãy thêm nhân sự ở tab Bảng Nhân Sự!
+                    </td>
+                  </tr>
+                ) : (
+                  sortedLoggedByGroups.map((group, idx) => {
+                    const classMeta = getEffectiveClassMeta(group.primaryClass, customColors);
+                    const isMultiAcc = group.members.length > 1;
 
-                      {/* Tên Thành Viên */}
-                      <td
-                        className={`py-2 px-3 font-black border-r border-slate-200 dark:border-slate-800 ${
-                          isDuplicate
-                            ? 'text-rose-600 dark:text-rose-400'
-                            : 'text-slate-900 dark:text-white'
+                    return (
+                      <tr
+                        key={group.key}
+                        className={`border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${
+                          idx % 2 === 1
+                            ? 'bg-slate-50/70 dark:bg-slate-800/40'
+                            : 'bg-white dark:bg-slate-900'
                         }`}
                       >
-                        <div className="flex items-center justify-between gap-1.5">
-                          <span>{member.ingame}</span>
-                          {isDuplicate && (
-                            <span
-                              title={`CẢNH BÁO: Nhân sự này bị trùng lặp ${dupGroup?.count} dòng trong danh sách điểm danh!`}
-                              className="text-rose-500 animate-pulse cursor-help shrink-0"
-                            >
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                            </span>
-                          )}
-                        </div>
-                      </td>
+                        {/* STT */}
+                        <td className="py-2 px-2 text-center font-bold text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800">
+                          {idx + 1}
+                        </td>
 
-                      {/* Lưu Phái (Màu badge y như hình 2) */}
-                      <td className="py-2 px-2 text-center border-r border-slate-200 dark:border-slate-800">
-                        <span
-                          className="inline-block px-2.5 py-0.5 rounded text-[11px] font-black shadow-2xs"
-                          style={{
-                            backgroundColor: classMeta.bgColor,
-                            color: classMeta.textColor,
-                          }}
-                        >
-                          {member.className}
-                        </span>
-                      </td>
-
-                      {/* Attendance checkboxes for each session */}
-                      {sessions.map((session) => {
-                        const checked = !!member.attendance?.[session.id];
-                        return (
-                          <td
-                            key={session.id}
-                            onClick={() => handleToggleAttendance(member, session.id)}
-                            className="py-2 px-2 text-center border-r border-slate-200 dark:border-slate-800 cursor-pointer select-none hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40"
-                          >
-                            <div className="flex items-center justify-center">
-                              {checked ? (
-                                <div className="w-4 h-4 rounded bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 flex items-center justify-center shadow-xs">
-                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                </div>
-                              ) : (
-                                <div className="w-4 h-4 rounded border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800" />
+                        {/* Tên Người Log + Badges các Acc Ingame */}
+                        <td className="py-2 px-3 border-r border-slate-200 dark:border-slate-800">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-1.5 font-black text-slate-900 dark:text-white">
+                              <span>{group.loggedByName}</span>
+                              {isMultiAcc && (
+                                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-100 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800">
+                                  <Layers className="w-2.5 h-2.5" />
+                                  <span>{group.members.length} acc</span>
+                                </span>
                               )}
                             </div>
-                          </td>
-                        );
-                      })}
 
-                      {/* Số Buổi Đi */}
-                      <td className="py-2 px-2 text-center font-black text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-800">
-                        {attendanceCount}
-                      </td>
+                            {/* Danh sách acc thuộc về người này */}
+                            <div className="flex flex-wrap gap-1">
+                              {group.members.map((m) => {
+                                const mMeta = getEffectiveClassMeta(m.className, customColors);
+                                return (
+                                  <span
+                                    key={m.id}
+                                    className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded text-[10px] font-semibold bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700"
+                                  >
+                                    <span
+                                      className="w-1.5 h-1.5 rounded-full shrink-0"
+                                      style={{ backgroundColor: mMeta.bgColor }}
+                                    />
+                                    <span>{m.ingame}</span>
+                                    <span className="text-[9px] text-slate-400">({m.className})</span>
+                                  </span>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        </td>
 
-                      {/* Trạng Thái (Đạt / Không Đạt) */}
-                      <td className="py-2 px-3 text-center font-black">
-                        {isPassed ? (
-                          <span className="text-emerald-600 dark:text-emerald-400 font-black">
-                            Đạt
+                        {/* Lưu Phái đại diện */}
+                        <td className="py-2 px-2 text-center border-r border-slate-200 dark:border-slate-800">
+                          <div className="flex flex-col items-center gap-1">
+                            <span
+                              className="inline-block px-2.5 py-0.5 rounded text-[11px] font-black shadow-2xs"
+                              style={{
+                                backgroundColor: classMeta.bgColor,
+                                color: classMeta.textColor,
+                              }}
+                            >
+                              {group.primaryClass}
+                            </span>
+                            {isMultiAcc && (
+                              <span className="text-[10px] text-slate-400">
+                                +{group.members.length - 1} acc khác
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Sessions Checkboxes */}
+                        {sessions.map((session) => {
+                          const isChecked = !!group.attendance[session.id];
+                          const attendingMembers = group.attendedMembersBySession[session.id] || [];
+
+                          return (
+                            <td
+                              key={session.id}
+                              onClick={() => handleToggleGroupAttendance(group, session.id)}
+                              className="py-2 px-1 text-center border-r border-slate-200 dark:border-slate-800 cursor-pointer select-none hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40 relative group/cell"
+                            >
+                              <div className="flex flex-col items-center justify-center gap-1">
+                                {isChecked ? (
+                                  <div className="w-4 h-4 rounded bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 flex items-center justify-center shadow-xs">
+                                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                  </div>
+                                ) : (
+                                  <div className="w-4 h-4 rounded border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800" />
+                                )}
+
+                                {/* Nếu người này đi acc cụ thể, hiển thị badge tên acc đó */}
+                                {isChecked && attendingMembers.length > 0 && (
+                                  <div className="flex flex-col gap-0.5 max-w-[85px]">
+                                    {attendingMembers.map((am) => (
+                                      <span
+                                        key={am.id}
+                                        className="truncate px-1 py-0.2 rounded text-[9px] font-bold bg-indigo-50 text-indigo-700 dark:bg-indigo-950/80 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800"
+                                        title={`Đã đi bằng acc: ${am.ingame} (${am.className})`}
+                                      >
+                                        {am.ingame}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
+
+                        {/* Số Buổi Đi */}
+                        <td className="py-2 px-2 text-center font-black text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-800">
+                          {group.attendanceCount}
+                        </td>
+
+                        {/* Trạng Thái (Đạt / Không Đạt) */}
+                        <td className="py-2 px-3 text-center font-black">
+                          {group.isPassed ? (
+                            <span className="text-emerald-600 dark:text-emerald-400 font-black">
+                              Đạt
+                            </span>
+                          ) : (
+                            <span className="text-rose-600 dark:text-rose-400 font-bold">
+                              Không Đạt
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )
+              ) : (
+                /* CHẾ ĐỘ 2: THEO NHÂN VẬT INGAME */
+                sortedMembers.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={5 + sessions.length}
+                      className="py-8 text-center text-slate-400 font-bold"
+                    >
+                      Chưa có thành viên nào trong danh sách. Hãy thêm nhân sự ở tab Bảng Nhân Sự!
+                    </td>
+                  </tr>
+                ) : (
+                  sortedMembers.map((member, idx) => {
+                    const classMeta = getEffectiveClassMeta(member.className, customColors);
+                    const attendanceCount = getMemberAttendanceCount(member);
+                    const isPassed = attendanceCount >= minAttendanceRequired;
+                    const isDuplicate = duplicateMemberIdSet.has(member.id);
+                    const dupGroup = duplicateInfoMap.get(member.id);
+                    const effectiveLogged = (member.loggedBy && member.loggedBy.trim()) || '';
+                    const hasDiffLoggedBy = effectiveLogged && effectiveLogged !== member.ingame;
+
+                    return (
+                      <tr
+                        key={member.id}
+                        className={`border-b border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors ${
+                          isDuplicate
+                            ? 'bg-rose-50/80 dark:bg-rose-950/40'
+                            : idx % 2 === 1
+                            ? 'bg-slate-50/70 dark:bg-slate-800/40'
+                            : 'bg-white dark:bg-slate-900'
+                        }`}
+                      >
+                        {/* STT */}
+                        <td className="py-2 px-2 text-center font-bold text-slate-500 dark:text-slate-400 border-r border-slate-200 dark:border-slate-800">
+                          {idx + 1}
+                        </td>
+
+                        {/* Tên Thành Viên + Sub-badge Logged By */}
+                        <td
+                          className={`py-2 px-3 font-black border-r border-slate-200 dark:border-slate-800 ${
+                            isDuplicate
+                              ? 'text-rose-600 dark:text-rose-400'
+                              : 'text-slate-900 dark:text-white'
+                          }`}
+                        >
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center justify-between gap-1.5">
+                              <span>{member.ingame}</span>
+                              {isDuplicate && (
+                                <span
+                                  title={`CẢNH BÁO: Nhân sự này bị trùng lặp ${dupGroup?.count} dòng trong danh sách điểm danh!`}
+                                  className="text-rose-500 animate-pulse cursor-help shrink-0"
+                                >
+                                  <AlertTriangle className="w-3.5 h-3.5" />
+                                </span>
+                              )}
+                            </div>
+                            {hasDiffLoggedBy && (
+                              <span className="text-[10px] font-normal text-indigo-600 dark:text-indigo-400">
+                                Log: <strong>{effectiveLogged}</strong>
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        {/* Lưu Phái */}
+                        <td className="py-2 px-2 text-center border-r border-slate-200 dark:border-slate-800">
+                          <span
+                            className="inline-block px-2.5 py-0.5 rounded text-[11px] font-black shadow-2xs"
+                            style={{
+                              backgroundColor: classMeta.bgColor,
+                              color: classMeta.textColor,
+                            }}
+                          >
+                            {member.className}
                           </span>
-                        ) : (
-                          <span className="text-rose-600 dark:text-rose-400 font-bold">
-                            Không Đạt
-                          </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })
+                        </td>
+
+                        {/* Attendance checkboxes for each session */}
+                        {sessions.map((session) => {
+                          const checked = !!member.attendance?.[session.id];
+                          return (
+                            <td
+                              key={session.id}
+                              onClick={() => handleToggleAttendance(member, session.id)}
+                              className="py-2 px-2 text-center border-r border-slate-200 dark:border-slate-800 cursor-pointer select-none hover:bg-indigo-50/50 dark:hover:bg-indigo-950/40"
+                            >
+                              <div className="flex items-center justify-center">
+                                {checked ? (
+                                  <div className="w-4 h-4 rounded bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900 flex items-center justify-center shadow-xs">
+                                    <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                  </div>
+                                ) : (
+                                  <div className="w-4 h-4 rounded border-2 border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800" />
+                                )}
+                              </div>
+                            </td>
+                          );
+                        })}
+
+                        {/* Số Buổi Đi */}
+                        <td className="py-2 px-2 text-center font-black text-slate-900 dark:text-white border-r border-slate-200 dark:border-slate-800">
+                          {attendanceCount}
+                        </td>
+
+                        {/* Trạng Thái (Đạt / Không Đạt) */}
+                        <td className="py-2 px-3 text-center font-black">
+                          {isPassed ? (
+                            <span className="text-emerald-600 dark:text-emerald-400 font-black">
+                              Đạt
+                            </span>
+                          ) : (
+                            <span className="text-rose-600 dark:text-rose-400 font-bold">
+                              Không Đạt
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )
               )}
             </tbody>
+
             {/* Table Footer with Summary and Date */}
             <tfoot>
               <tr className="bg-slate-100 dark:bg-slate-800/90 border-t-2 border-slate-300 dark:border-slate-700 font-black text-slate-800 dark:text-slate-200">
@@ -564,9 +928,10 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
                   Tổng lượt tham gia:
                 </td>
                 {sessions.map((session) => {
-                  const countForSession = members.filter(
-                    (m) => !!m.attendance?.[session.id]
-                  ).length;
+                  const countForSession =
+                    attendanceMode === 'loggedBy'
+                      ? loggedByGroups.filter((g) => !!g.attendance[session.id]).length
+                      : members.filter((m) => !!m.attendance?.[session.id]).length;
                   return (
                     <td
                       key={session.id}
@@ -577,10 +942,9 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
                   );
                 })}
                 <td className="py-2.5 px-2 text-center border-r border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white">
-                  {members.reduce(
-                    (acc, m) => acc + getMemberAttendanceCount(m),
-                    0
-                  )}
+                  {attendanceMode === 'loggedBy'
+                    ? loggedByGroups.reduce((acc, g) => acc + g.attendanceCount, 0)
+                    : members.reduce((acc, m) => acc + getMemberAttendanceCount(m), 0)}
                 </td>
                 <td className="py-2.5 px-3 text-center text-red-600 dark:text-red-400 font-black">
                   {reportDate}

@@ -23,11 +23,15 @@ import {
   AlertTriangle,
   ArrowUpDown,
   MessageSquare,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { PixelNoteBubble } from '../PixelNoteBubble';
 import {
   findGuildWarDuplicates,
   GuildWarDuplicateGroup,
+  findGuildWarLoggedByConflicts,
+  GuildWarLoggedByConflict,
 } from '../../utils/duplicates';
 import { PersonnelMember } from '../../types';
 
@@ -348,6 +352,39 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     return map;
   }, [duplicateGroups]);
 
+  // LoggedBy conflict detection: when 1 physical person is assigned to >1 battle slot simultaneously
+  const loggedByConflicts = useMemo(() => findGuildWarLoggedByConflicts(members), [members]);
+
+  const loggedByConflictMemberIdSet = useMemo(() => {
+    const set = new Set<string>();
+    loggedByConflicts.forEach((c) => {
+      c.members.forEach((m) => set.add(m.id));
+    });
+    return set;
+  }, [loggedByConflicts]);
+
+  const loggedByConflictMap = useMemo(() => {
+    const map = new Map<string, GuildWarLoggedByConflict>();
+    loggedByConflicts.forEach((c) => {
+      c.members.forEach((m) => {
+        map.set(m.id, c);
+      });
+    });
+    return map;
+  }, [loggedByConflicts]);
+
+  // Toggle Fix cứng / Khóa vị trí nhân sự
+  const handleToggleLockMember = (member: GuildMember) => {
+    const nextLocked = !member.isLocked;
+    onUpdateMember(member.id, { isLocked: nextLocked });
+    setToastMessage(
+      nextLocked
+        ? `Đã CỐ ĐỊNH (Fix cứng) vị trí cho ${member.ingame}`
+        : `Đã MỞ KHÓA vị trí cho ${member.ingame}`
+    );
+    setTimeout(() => setToastMessage(null), 2500);
+  };
+
   // Drag handlers
   const handleDragStart = (
     e: React.DragEvent,
@@ -356,6 +393,13 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     sourceParty?: number,
     sourceSlot?: number
   ) => {
+    const member = members.find((m) => m.id === memberId);
+    if (member?.isLocked) {
+      e.preventDefault();
+      setToastMessage(`Vị trí của "${member.ingame}" đang được FIX CỨNG. Hãy mở khóa trước khi di chuyển!`);
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
     const payload: DragPayload = { memberId, sourceTeam, sourceParty, sourceSlot };
     e.dataTransfer.setData('text/plain', JSON.stringify(payload));
     setDraggedPayload(payload);
@@ -397,6 +441,13 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
 
     const sourceMember = members.find((m) => m.id === payload?.memberId);
     if (!sourceMember) return;
+
+    if (currentOccupant?.isLocked) {
+      setToastMessage(`Ô đích của "${currentOccupant.ingame}" đang được FIX CỨNG. Không thể đổi chỗ!`);
+      setTimeout(() => setToastMessage(null), 3000);
+      setDraggedPayload(null);
+      return;
+    }
 
     // Same slot, no-op
     if (
@@ -541,6 +592,12 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     party?: number,
     slot?: number
   ) => {
+    const member = members.find((m) => m.id === memberId);
+    if (member?.isLocked) {
+      setToastMessage(`Vị trí của "${member.ingame}" đang được FIX CỨNG. Hãy mở khóa trước khi gỡ khỏi đội hình!`);
+      setTimeout(() => setToastMessage(null), 3000);
+      return;
+    }
     const now = new Date().toISOString();
     if (onUpdateMembers) {
       const updatedMembers = members.map((m) => {
@@ -871,7 +928,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
             {duplicateGroups.map((group) => (
               <div
-                key={group.normalizedIngame}
+                key={group.key}
                 className="bg-white/90 dark:bg-slate-900/90 border border-rose-200 dark:border-rose-800/80 rounded-xl p-2.5 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between gap-1 mb-1">
@@ -887,11 +944,52 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                     <div key={m.id || i} className="flex items-center gap-1">
                       <span className="text-slate-400">•</span>
                       <span>
-                        {m.isBench
-                          ? 'Ghế dự bị'
-                          : `${m.team || 'Chưa xếp'} PT-${m.party || 1} Slot ${m.slot || 1}`}
+                        {m.team || 'Chưa xếp'} PT-{m.party || 1} Slot {m.slot || 1}
                       </span>
-                      <span className="text-slate-400 text-[10px]">({m.className})</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cảnh Báo Xung Đột Người Log (Phân Thân Trận Đánh) */}
+      {loggedByConflicts.length > 0 && (
+        <div className="bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-400 dark:border-amber-700 rounded-2xl p-3 sm:p-4 text-xs shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2 font-black text-amber-900 dark:text-amber-200 text-xs sm:text-sm mb-1.5">
+            <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 animate-bounce shrink-0" />
+            <span>
+              CẢNH BÁO XUNG ĐỘT NGƯỜI LOG (PHÂN THÂN) ({loggedByConflicts.length} người chơi bị xếp đồng thời nhiều slot)
+            </span>
+          </div>
+          <p className="text-[11px] text-amber-900 dark:text-amber-200 mb-2">
+            Một người chơi thực tế không thể điều khiển 2 acc cùng một lúc trong trận bang chiến:
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            {loggedByConflicts.map((conflict) => (
+              <div
+                key={conflict.key}
+                className="bg-white/90 dark:bg-slate-900/90 border border-amber-300 dark:border-amber-800 rounded-xl p-2.5 flex flex-col justify-between"
+              >
+                <div className="flex items-center justify-between gap-1 mb-1">
+                  <span className="font-black text-slate-900 dark:text-white truncate">
+                    Người log: {conflict.loggedByName}
+                  </span>
+                  <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200">
+                    {conflict.count} slot trùng
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-0.5">
+                  {conflict.members.map((m) => (
+                    <div key={m.id} className="flex items-center gap-1">
+                      <span className="text-amber-500">•</span>
+                      <span className="font-bold">{m.ingame}</span>
+                      <span className="text-[10px] text-slate-400">({m.className})</span>
+                      <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold">
+                        [{m.team} PT-{m.party} #{m.slot}]
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -1041,87 +1139,153 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                                   : 'bg-slate-50/40 dark:bg-slate-850/40'
                               }`}
                             >
-                              {member ? (
-                                <div
-                                  draggable
-                                  onDragStart={(e) =>
-                                    handleDragStart(
-                                      e,
-                                      member.id,
-                                      team.id,
-                                      partyNum,
-                                      slotNum
-                                    )
-                                  }
-                                  className="group flex flex-col justify-center cursor-grab active:cursor-grabbing px-1.5 py-0.5 rounded hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors min-h-[30px]"
-                                  title={`Kéo để di chuyển hoặc đổi chỗ (STT #${member.stt || slotNum})`}
-                                >
-                                  <div className="flex items-center justify-between gap-1 w-full">
-                                    <div className="flex items-center gap-1 min-w-0 flex-1">
-                                      <GripVertical
-                                        data-html2canvas-ignore="true"
-                                        className="w-3 h-3 text-slate-300 group-hover:text-slate-500 shrink-0"
-                                      />
-                                      <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
-                                        {member.ingame}
-                                      </span>
-                                      {isDuplicate && (
-                                        <span
+                              {member ? (() => {
+                                const isConflict = loggedByConflictMemberIdSet.has(member.id);
+                                const conflictGroup = loggedByConflictMap.get(member.id);
+
+                                return (
+                                  <div
+                                    draggable
+                                    onDragStart={(e) =>
+                                      handleDragStart(
+                                        e,
+                                        member.id,
+                                        team.id,
+                                        partyNum,
+                                        slotNum
+                                      )
+                                    }
+                                    className={`group flex flex-col justify-center cursor-grab active:cursor-grabbing px-1.5 py-0.5 rounded transition-colors min-h-[30px] ${
+                                      member.isLocked
+                                        ? 'bg-amber-50/70 dark:bg-amber-950/40 border border-amber-300 dark:border-amber-700/80 shadow-2xs'
+                                        : isConflict
+                                        ? 'bg-rose-50/70 dark:bg-rose-950/40 border border-rose-300 dark:border-rose-700/80 shadow-2xs'
+                                        : 'hover:bg-slate-100 dark:hover:bg-slate-800'
+                                    }`}
+                                    title={`${
+                                      member.isLocked ? '[FIX CỨNG] ' : ''
+                                    }Kéo để di chuyển hoặc đổi chỗ (STT #${member.stt || slotNum})`}
+                                  >
+                                    <div className="flex items-center justify-between gap-1 w-full">
+                                      <div className="flex items-center gap-1 min-w-0 flex-1">
+                                        <GripVertical
                                           data-html2canvas-ignore="true"
-                                          title={`TRÙNG NHÂN SỰ: "${member.ingame}" xuất hiện ${dupGroup?.count} lần trong danh sách Bang Chiến!`}
-                                          className="text-rose-500 hover:text-rose-600 animate-pulse shrink-0 cursor-help"
-                                        >
-                                          <AlertTriangle className="w-3.5 h-3.5" />
+                                          className="w-3 h-3 text-slate-300 group-hover:text-slate-500 shrink-0"
+                                        />
+                                        {member.isLocked && (
+                                          <span
+                                            data-html2canvas-ignore="true"
+                                            title="Vị trí đã FIX CỨNG (Cố định)"
+                                            className="text-amber-500 shrink-0"
+                                          >
+                                            <Lock className="w-3 h-3" />
+                                          </span>
+                                        )}
+                                        <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                                          {member.ingame}
                                         </span>
-                                      )}
+                                        {isDuplicate && (
+                                          <span
+                                            data-html2canvas-ignore="true"
+                                            title={`TRÙNG NHÂN SỰ: "${member.ingame}" xuất hiện ${dupGroup?.count} lần trong danh sách Bang Chiến!`}
+                                            className="text-rose-500 hover:text-rose-600 animate-pulse shrink-0 cursor-help"
+                                          >
+                                            <AlertTriangle className="w-3.5 h-3.5" />
+                                          </span>
+                                        )}
+                                        {isConflict && (
+                                          <span
+                                            data-html2canvas-ignore="true"
+                                            title={`XUNG ĐỘT NGƯỜI LOG: "${member.loggedBy || member.ingame}" đang được xếp vào ${conflictGroup?.count} slot cùng lúc!`}
+                                            className="text-amber-600 hover:text-amber-700 animate-bounce shrink-0 cursor-help"
+                                          >
+                                            <AlertCircle className="w-3.5 h-3.5" />
+                                          </span>
+                                        )}
+                                      </div>
+
+                                      <div className="flex items-center gap-0.5 shrink-0" data-html2canvas-ignore="true">
+                                        {/* Lock / Fix cứng button */}
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleToggleLockMember(member);
+                                          }}
+                                          title={
+                                            member.isLocked
+                                              ? 'Vị trí này đã FIX CỨNG (Click để mở khóa)'
+                                              : 'Cố định (Fix cứng) vị trí cho nhân sự này'
+                                          }
+                                          className={`p-0.5 transition-all rounded hover:bg-amber-100 dark:hover:bg-amber-950/60 ${
+                                            member.isLocked
+                                              ? 'text-amber-500 opacity-100'
+                                              : 'text-slate-400 hover:text-amber-500 opacity-0 group-hover:opacity-100'
+                                          }`}
+                                        >
+                                          {member.isLocked ? (
+                                            <Lock className="w-3 h-3" />
+                                          ) : (
+                                            <Unlock className="w-3 h-3" />
+                                          )}
+                                        </button>
+
+                                        {/* Note button */}
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleToggleMemberNote(member, e.currentTarget.getBoundingClientRect());
+                                          }}
+                                          title={member.note ? `Sửa ghi chú (${member.note})` : 'Thêm ghi chú cho nhân sự này'}
+                                          className={`p-0.5 transition-all rounded hover:bg-amber-100 dark:hover:bg-amber-950/60 ${
+                                            member.note
+                                              ? 'text-amber-500 hover:text-amber-600 opacity-100'
+                                              : 'text-slate-400 hover:text-amber-500 opacity-0 group-hover:opacity-100'
+                                          }`}
+                                        >
+                                          <MessageSquare className="w-3 h-3" />
+                                        </button>
+
+                                        {/* Unassign from slot */}
+                                        <button
+                                          type="button"
+                                          onClick={() => handleUnassignMember(member.id, team.id, partyNum, slotNum)}
+                                          title="Gỡ khỏi slot (về hàng dự bị)"
+                                          className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition-opacity p-0.5"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </button>
+                                      </div>
                                     </div>
 
-                                    <div className="flex items-center gap-0.5 shrink-0" data-html2canvas-ignore="true">
-                                      {/* Note button */}
-                                      <button
-                                        type="button"
+                                    {/* Subtitle Logged by nếu người log khác ingame */}
+                                    {member.loggedBy && member.loggedBy.trim() !== member.ingame.trim() && (
+                                      <div className="flex items-center gap-1 text-[9px] text-slate-500 dark:text-slate-400 leading-none pl-4">
+                                        <span>Log:</span>
+                                        <strong className="text-indigo-600 dark:text-indigo-400 truncate">
+                                          {member.loggedBy}
+                                        </strong>
+                                      </div>
+                                    )}
+
+                                    {/* Note sticker badge if member has note */}
+                                    {member.note && (
+                                      <div
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleToggleMemberNote(member, e.currentTarget.getBoundingClientRect());
                                         }}
-                                        title={member.note ? `Sửa ghi chú (${member.note})` : 'Thêm ghi chú cho nhân sự này'}
-                                        className={`p-0.5 transition-all rounded hover:bg-amber-100 dark:hover:bg-amber-950/60 ${
-                                          member.note
-                                            ? 'text-amber-500 hover:text-amber-600 opacity-100'
-                                            : 'text-slate-400 hover:text-amber-500 opacity-0 group-hover:opacity-100'
-                                        }`}
+                                        className="mt-1 inline-flex items-start gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/80 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900 transition-colors max-w-full text-left"
+                                        title={`Ghi chú:\n${member.note}\n(Click để xem & sửa)`}
                                       >
-                                        <MessageSquare className="w-3 h-3" />
-                                      </button>
-
-                                      {/* Unassign from slot */}
-                                      <button
-                                        type="button"
-                                        onClick={() => handleUnassignMember(member.id, team.id, partyNum, slotNum)}
-                                        title="Gỡ khỏi slot (về hàng dự bị)"
-                                        className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-rose-600 transition-opacity p-0.5"
-                                      >
-                                        <X className="w-3 h-3" />
-                                      </button>
-                                    </div>
+                                        <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-400 mt-0.5" />
+                                        <span className="whitespace-pre-line break-words text-left leading-tight">{member.note}</span>
+                                      </div>
+                                    )}
                                   </div>
-
-                                  {/* Note sticker badge if member has note */}
-                                  {member.note && (
-                                    <div
-                                      onClick={(e) => {
-                                        e.stopPropagation();
-                                        handleToggleMemberNote(member, e.currentTarget.getBoundingClientRect());
-                                      }}
-                                      className="mt-1 inline-flex items-start gap-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-amber-100/90 dark:bg-amber-950/70 text-amber-900 dark:text-amber-200 border border-amber-300/80 dark:border-amber-700/80 cursor-pointer hover:bg-amber-200 dark:hover:bg-amber-900 transition-colors max-w-full text-left"
-                                      title={`Ghi chú:\n${member.note}\n(Click để xem & sửa)`}
-                                    >
-                                      <MessageSquare className="w-2.5 h-2.5 shrink-0 text-amber-700 dark:text-amber-400 mt-0.5" />
-                                      <span className="whitespace-pre-line break-words text-left leading-tight">{member.note}</span>
-                                    </div>
-                                  )}
-                                </div>
-                              ) : (() => {
+                                );
+                              })() : (() => {
                                 const slotKey = `slot-${team.id}-${partyNum}-${slotNum}`;
                                 const slotNote = partyNotes?.[slotKey]?.trim();
                                 return (
