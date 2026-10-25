@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import html2canvas from 'html2canvas-pro';
 import { CustomClassColors, RaidMember, RaidBoard } from '../types';
 import { getEffectiveClassMeta } from '../constants/classes';
 import { PrivacyMode, maskSensitiveText, filterMembersForExport } from '../utils/security';
@@ -146,6 +145,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
       const originalTable = tableRef.current;
       const textColor = isDark ? '#ffffff' : '#000000';
       const bgColor = isDark ? '#0f172a' : '#ffffff';
+      const html2canvas = (await import('html2canvas-pro')).default;
 
       const canvas = await html2canvas(originalTable, {
         scale: 2,

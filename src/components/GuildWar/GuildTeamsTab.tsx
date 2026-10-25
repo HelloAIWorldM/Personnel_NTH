@@ -1,6 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import html2canvas from 'html2canvas-pro';
 import {
   GuildMember,
   GuildTeam,
@@ -689,6 +688,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     try {
       const originalTable = tableRef.current;
       const bgColor = isDark ? '#0b1329' : '#ffffff';
+      const html2canvas = (await import('html2canvas-pro')).default;
 
       const canvas = await html2canvas(originalTable, {
         scale: 2,

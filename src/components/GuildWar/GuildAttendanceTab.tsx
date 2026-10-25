@@ -23,7 +23,6 @@ import {
   Users,
   Layers,
 } from 'lucide-react';
-import html2canvas from 'html2canvas-pro';
 import {
   findGuildWarDuplicates,
   GuildWarDuplicateGroup,
@@ -195,6 +194,7 @@ export const GuildAttendanceTab: React.FC<GuildAttendanceTabProps> = ({
     if (!tableRef.current) return;
     try {
       setIsExporting(true);
+      const html2canvas = (await import('html2canvas-pro')).default;
       const isDark = document.documentElement.classList.contains('dark');
       const canvas = await html2canvas(tableRef.current, {
         scale: 2,

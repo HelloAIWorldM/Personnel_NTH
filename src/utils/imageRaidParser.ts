@@ -1,4 +1,3 @@
-import { createWorker } from 'tesseract.js';
 import { RaidMember, RaidClass, CustomClassColors, RaidParty } from '../types';
 import { RAID_CLASSES, CLASS_LIST, getEffectiveClassMeta } from '../constants/classes';
 
@@ -170,14 +169,16 @@ export async function parseRaidImage(
     loggedBy: { left: 0.71, right: 1.0 },
   };
 
-  // 3. Initialize Tesseract Worker
+  // 3. Initialize Tesseract Worker (dynamically imported to optimize bundle)
   notify('Khởi động mô hình nhận diện ký tự quang học (OCR)...', 0.25);
   let worker: any = null;
   try {
+    const { createWorker } = await import('tesseract.js');
     worker = await createWorker('vie+eng');
   } catch (err) {
     console.warn('Cannot load vie+eng OCR, falling back to eng:', err);
     try {
+      const { createWorker } = await import('tesseract.js');
       worker = await createWorker('eng');
     } catch (e) {
       console.error('Failed to init Tesseract worker:', e);
