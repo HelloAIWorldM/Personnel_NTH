@@ -321,6 +321,13 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
     return loadInitialGuildWarBoards().activeBoardId;
   });
 
+  const activeBoardIdRef = useRef(activeBoardId);
+  activeBoardIdRef.current = activeBoardId;
+  const activeGuildWarBoardIdRef = useRef(activeGuildWarBoardId);
+  activeGuildWarBoardIdRef.current = activeGuildWarBoardId;
+  const activeUpdateBoardIdRef = useRef(activeUpdateBoardId);
+  activeUpdateBoardIdRef.current = activeUpdateBoardId;
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => {
@@ -582,10 +589,11 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
         setBoards(cd.boards);
         safeLocalStorageSet(STORAGE_KEY_BOARDS, JSON.stringify(cd.boards));
         saveToIndexedDB('boards', cd.boards);
-        if (cd.activeBoardId) {
-          setActiveBoardId(cd.activeBoardId);
-          safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD, cd.activeBoardId);
-        }
+        // Bảo toàn vị trí bảng người dùng đang xem cục bộ, không bao giờ ép đè từ Firestore
+        setActiveBoardId((currentId) => {
+          if (cd.boards.some((b) => b.id === currentId)) return currentId;
+          return cd.boards[0]?.id || currentId;
+        });
       }
       if (cd.personnelPool) {
         setPersonnelPool(cd.personnelPool);
@@ -601,10 +609,11 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
         setGuildWarBoards(cd.guildWarBoards);
         safeLocalStorageSet(STORAGE_KEY_GUILDWAR_BOARDS, JSON.stringify(cd.guildWarBoards));
         saveToIndexedDB('guildWarBoards', cd.guildWarBoards);
-        if (cd.activeGuildWarBoardId) {
-          setActiveGuildWarBoardId(cd.activeGuildWarBoardId);
-          safeLocalStorageSet(STORAGE_KEY_ACTIVE_GUILDWAR, cd.activeGuildWarBoardId);
-        }
+        // Bảo toàn bảng Bang Chiến người dùng đang xem
+        setActiveGuildWarBoardId((currentId) => {
+          if (cd.guildWarBoards.some((b) => b.id === currentId)) return currentId;
+          return cd.guildWarBoards[0]?.id || currentId;
+        });
       }
       if (cd.guildWarPersonnelPool) {
         setGuildWarPersonnelPool(cd.guildWarPersonnelPool);
@@ -615,11 +624,11 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
         setUpdateBoards(cd.updateBoards);
         safeLocalStorageSet(STORAGE_KEY_BOARDS_UPDATE, JSON.stringify(cd.updateBoards));
         saveToIndexedDB('updateBoards', cd.updateBoards);
-        if (cd.activeUpdateBoardId) {
-          setActiveUpdateBoardId(cd.activeUpdateBoardId);
-          safeLocalStorageSet(STORAGE_KEY_ACTIVE_BOARD_UPDATE, cd.activeUpdateBoardId);
-          saveToIndexedDB('activeUpdateBoardId', cd.activeUpdateBoardId);
-        }
+        // Bảo toàn bảng Raid Update người dùng đang xem
+        setActiveUpdateBoardId((currentId) => {
+          if (cd.updateBoards && cd.updateBoards.some((b) => b.id === currentId)) return currentId;
+          return cd.updateBoards?.[0]?.id || currentId;
+        });
       }
       if (cd.updatePersonnelPool) {
         setUpdatePersonnelPool(cd.updatePersonnelPool);
@@ -871,8 +880,8 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
       // Bỏ qua nếu snapshot này xuất phát từ chính lần ghi cục bộ đang pending của máy này
       if (isLocalWrite) return;
 
-      // Bỏ qua nếu người dùng vừa mới gõ/thao tác trong vòng 1.5 giây gần nhất để tránh giật lag con trỏ
-      if (Date.now() - lastLocalEditTimeRef.current < 1500) {
+      // Bỏ qua nếu người dùng vừa mới gõ/chuyển bảng/thao tác trong vòng 2.5 giây gần nhất để tránh giật lag con trỏ và xung đột giao diện
+      if (Date.now() - lastLocalEditTimeRef.current < 2500) {
         return;
       }
 
@@ -1291,12 +1300,12 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
           boards,
           personnelPool,
           guildWarBoards,
-          activeBoardId,
-          activeGuildWarBoardId,
+          activeBoardId: activeBoardIdRef.current,
+          activeGuildWarBoardId: activeGuildWarBoardIdRef.current,
           customColors,
           updateBoards,
           updatePersonnelPool,
-          activeUpdateBoardId,
+          activeUpdateBoardId: activeUpdateBoardIdRef.current,
           diBuiPersonnelPool,
           masterPersonnelPool,
           guildWarPersonnelPool,
@@ -1316,12 +1325,9 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
     boards,
     personnelPool,
     guildWarBoards,
-    activeBoardId,
-    activeGuildWarBoardId,
     customColors,
     updateBoards,
     updatePersonnelPool,
-    activeUpdateBoardId,
     diBuiPersonnelPool,
     masterPersonnelPool,
     guildWarPersonnelPool,
@@ -1936,6 +1942,7 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
 
   // Board Mutators - Pure State Updater giúp giao diện phản hồi tức thì
   const updateActiveBoard = (updates: Partial<RaidBoard>) => {
+    lastLocalEditTimeRef.current = Date.now();
     if (isRaidUpdate) {
       setUpdateBoards((prev) => prev.map((b) => (b.id === activeBoard.id ? { ...b, ...updates } : b)));
     } else {
@@ -3256,6 +3263,7 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
                       boards={currentBoards}
                       activeBoardId={activeBoard.id}
                       onSelectBoard={(id) => {
+                        lastLocalEditTimeRef.current = Date.now();
                         if (isRaidUpdate) {
                           setActiveUpdateBoardId(id);
                         } else {
@@ -3295,6 +3303,7 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
                       currentBoard={activeBoard}
                       allBoards={currentBoards}
                       onSwitchBoard={(id) => {
+                        lastLocalEditTimeRef.current = Date.now();
                         if (isRaidUpdate) {
                           setActiveUpdateBoardId(id);
                         } else {
