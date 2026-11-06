@@ -160,9 +160,18 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
 
   const handleSaveMemberNote = (memberId: string, noteText: string) => {
     const trimmed = noteText.trim();
-    onUpdateMember(memberId, { note: trimmed || undefined });
+    onUpdateMember(memberId, { note: trimmed ? trimmed : undefined });
     if (activeMemberNoteTarget && activeMemberNoteTarget.id === memberId) {
-      setActiveMemberNoteTarget((prev) => (prev ? { ...prev, note: trimmed || undefined } : null));
+      setActiveMemberNoteTarget((prev) => {
+        if (!prev) return null;
+        const updated = { ...prev };
+        if (trimmed) {
+          updated.note = trimmed;
+        } else {
+          delete updated.note;
+        }
+        return updated;
+      });
     }
   };
 

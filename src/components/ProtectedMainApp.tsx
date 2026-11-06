@@ -1464,13 +1464,18 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
             const poolItem = poolMap.get(normalizeName(m.ingame));
             if (!poolItem) return m;
             const updatedLoggedBy = (poolItem.loggedBy && poolItem.loggedBy.trim()) || m.loggedBy || m.discord || m.ingame;
-            return {
+            const updatedMember: GuildMember = {
               ...m,
               className: poolItem.className || m.className,
               loggedBy: updatedLoggedBy,
               discord: updatedLoggedBy,
-              note: poolItem.note !== undefined && poolItem.note !== '' ? poolItem.note : m.note,
             };
+            if (poolItem.note && poolItem.note.trim()) {
+              updatedMember.note = poolItem.note.trim();
+            } else {
+              delete updatedMember.note;
+            }
+            return updatedMember;
           });
 
           const reindexed = updatedMembers.map((m, idx) => ({ ...m, stt: idx + 1 }));

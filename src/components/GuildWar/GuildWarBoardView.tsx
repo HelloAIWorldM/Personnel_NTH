@@ -93,6 +93,7 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
       if (updates.slot === undefined && 'slot' in updates) delete updated.slot;
       if (updates.discord === undefined && 'discord' in updates) delete updated.discord;
       if (updates.loggedBy === undefined && 'loggedBy' in updates) delete updated.loggedBy;
+      if (('note' in updates) && (!updates.note || !updates.note.trim())) delete updated.note;
       return updated;
     });
     onUpdateBoard({ ...board, members: updatedMembers });
@@ -119,13 +120,21 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
         const updatedPool = personnelPool.map((p) => {
           if (normalizeName(p.ingame) === oldNorm) {
             matched = true;
-            return {
+            const updatedP: PersonnelMember = {
               ...p,
               ...(updates.ingame ? { ingame: updates.ingame.trim() } : {}),
               ...(updates.className ? { className: updates.className } : {}),
               ...(effectiveLoggedBy !== undefined ? { loggedBy: effectiveLoggedBy } : {}),
-              ...(updates.note !== undefined ? { note: updates.note.trim() } : {}),
             };
+            if ('note' in updates) {
+              const cleanNote = updates.note ? updates.note.trim() : '';
+              if (cleanNote) {
+                updatedP.note = cleanNote;
+              } else {
+                delete updatedP.note;
+              }
+            }
+            return updatedP;
           }
           return p;
         });
@@ -138,9 +147,15 @@ export const GuildWarBoardView: React.FC<GuildWarBoardViewProps> = ({
             ingame: targetIngame,
             className: updates.className || currentMember.className || 'Cửu Linh',
             loggedBy: effectiveLoggedBy || currentMember.loggedBy || currentMember.discord || targetIngame,
-            note: updates.note !== undefined ? updates.note.trim() : (currentMember.note || ''),
             createdAt: now,
           };
+          if ('note' in updates) {
+            if (updates.note && updates.note.trim()) {
+              newPoolMember.note = updates.note.trim();
+            }
+          } else if (currentMember.note) {
+            newPoolMember.note = currentMember.note;
+          }
           onUpdatePersonnelPool([newPoolMember, ...personnelPool]);
         } else {
           onUpdatePersonnelPool(updatedPool);

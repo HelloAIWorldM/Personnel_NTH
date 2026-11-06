@@ -120,9 +120,18 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
   const handleSaveMemberNote = (memberId: string, noteText: string) => {
     const trimmed = noteText.trim();
-    handleUpdateMember(memberId, { note: trimmed || undefined });
+    handleUpdateMember(memberId, { note: trimmed ? trimmed : undefined });
     if (activeNoteMember && activeNoteMember.id === memberId) {
-      setActiveNoteMember((prev) => (prev ? { ...prev, note: trimmed || undefined } : null));
+      setActiveNoteMember((prev) => {
+        if (!prev) return null;
+        const updated = { ...prev };
+        if (trimmed) {
+          updated.note = trimmed;
+        } else {
+          delete updated.note;
+        }
+        return updated;
+      });
     }
   };
 
@@ -213,7 +222,14 @@ export const RaidTable: React.FC<RaidTableProps> = ({
   };
 
   const handleUpdateMember = (id: string, updates: Partial<RaidMember>) => {
-    const updated = members.map((m) => (m.id === id ? { ...m, ...updates } : m));
+    const updated = members.map((m) => {
+      if (m.id !== id) return m;
+      const res = { ...m, ...updates };
+      if (('note' in updates) && (!updates.note || !updates.note.trim())) {
+        delete res.note;
+      }
+      return res;
+    });
     onUpdateMembers(updated);
   };
 

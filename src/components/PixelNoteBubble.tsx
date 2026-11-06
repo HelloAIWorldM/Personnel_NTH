@@ -41,6 +41,7 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
   const effectiveOriginalNote = initialNote !== undefined ? initialNote : (person?.note || '');
   const [noteText, setNoteText] = useState<string>(effectiveOriginalNote);
   const [savedStatus, setSavedStatus] = useState<boolean>(false);
+  const [statusMessage, setStatusMessage] = useState<string>('Đã lưu!');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const bubbleRef = useRef<HTMLDivElement>(null);
 
@@ -76,18 +77,26 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
 
   // Save handler
   const handleSave = () => {
-    onSaveNote(effectiveId, noteText);
+    const trimmed = noteText.trim();
+    onSaveNote(effectiveId, trimmed);
+    setStatusMessage(trimmed ? 'Đã lưu!' : 'Đã xoá ghi chú!');
     setSavedStatus(true);
     setTimeout(() => {
       setSavedStatus(false);
-    }, 1800);
+      onClose();
+    }, 350);
   };
 
   // Delete note handler
   const handleDeleteNote = () => {
     setNoteText('');
     onSaveNote(effectiveId, '');
+    setStatusMessage('Đã xoá ghi chú!');
     setSavedStatus(true);
+    setTimeout(() => {
+      setSavedStatus(false);
+      onClose();
+    }, 300);
   };
 
   const classMeta = person?.className ? getEffectiveClassMeta(person.className, customColors) : null;
@@ -199,7 +208,7 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
                 : 'Ghi chú chiến thuật cho PT này...\n[Enter để xuống dòng • Ctrl+Enter hoặc bấm Lưu]')
             }
             rows={3}
-            className="w-full p-2 text-xs font-bold text-black bg-slate-50 border-2 border-black rounded-xl focus:bg-white focus:outline-none resize-none shadow-[inset_1px_1px_0px_rgba(0,0,0,0.15)] placeholder:text-slate-400 placeholder:font-normal placeholder:text-[11px] whitespace-pre-wrap break-words leading-relaxed"
+            className="w-full p-2 text-xs font-bold text-black bg-slate-50 border-2 border-black rounded-xl focus:bg-white focus:outline-none resize-none shadow-[inset_1px_1px_0px_rgba(0,0,0,0.15)] placeholder:text-slate-400 placeholder:font-normal placeholder:text-[11px] whitespace-pre-wrap break-words leading-relaxed select-text"
           />
 
           {/* Action Footer */}
@@ -208,7 +217,7 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
               {savedStatus ? (
                 <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700 animate-in fade-in">
                   <Check className="w-3.5 h-3.5 stroke-[3]" />
-                  <span>Đã lưu!</span>
+                  <span>{statusMessage}</span>
                 </span>
               ) : noteText !== effectiveOriginalNote ? (
                 <span className="text-[10px] font-bold text-amber-700" title="Nhấn Ctrl+Enter hoặc bấm Lưu">
@@ -222,7 +231,7 @@ export const PixelNoteBubble: React.FC<PixelNoteBubbleProps> = ({
             </div>
 
             <div className="flex items-center gap-1.5">
-              {(person?.note || effectiveOriginalNote) && (
+              {(person?.note || effectiveOriginalNote || noteText) && (
                 <button
                   type="button"
                   onClick={handleDeleteNote}

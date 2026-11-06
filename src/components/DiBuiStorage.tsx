@@ -99,12 +99,28 @@ export const DiBuiStorage: React.FC<DiBuiStorageProps> = ({
 
   const handleSavePersonNote = (personId: string, noteText: string) => {
     const trimmed = noteText.trim();
-    const updated = diBuiPool.map((p) =>
-      p.id === personId ? { ...p, note: trimmed ? trimmed : undefined } : p
-    );
+    const updated = diBuiPool.map((p) => {
+      if (p.id !== personId) return p;
+      const res = { ...p };
+      if (trimmed) {
+        res.note = trimmed;
+      } else {
+        delete res.note;
+      }
+      return res;
+    });
     onUpdateDiBuiPool(updated);
     if (activeNotePerson && activeNotePerson.id === personId) {
-      setActiveNotePerson((prev) => (prev ? { ...prev, note: trimmed ? trimmed : undefined } : null));
+      setActiveNotePerson((prev) => {
+        if (!prev) return null;
+        const res = { ...prev };
+        if (trimmed) {
+          res.note = trimmed;
+        } else {
+          delete res.note;
+        }
+        return res;
+      });
     }
   };
 
