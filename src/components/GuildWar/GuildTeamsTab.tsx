@@ -1022,12 +1022,21 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
         className="bg-white dark:bg-slate-900 border-2 border-slate-800 dark:border-slate-500 rounded-xl overflow-x-auto shadow-md"
       >
         {/* Top Header: BANG CHIẾN */}
-        <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-black text-sm sm:text-base tracking-widest text-center py-2 uppercase border-b-2 border-slate-800 dark:border-slate-500 select-none">
+        <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-black text-sm sm:text-base tracking-widest text-center py-2 uppercase border-b-2 border-slate-800 dark:border-slate-500 select-none min-w-[1690px]">
           BANG CHIẾN
         </div>
 
         {/* Table layout matching the user's Excel screenshot */}
-        <table className="w-full border-collapse text-xs select-none">
+        <table className="w-full min-w-[1690px] table-fixed border-collapse text-xs select-none">
+          <colgroup>
+            <col className="w-[140px]" />
+            {[1, 2, 3, 4, 5].map((p) => (
+              <React.Fragment key={p}>
+                <col className="w-[160px]" />
+                <col className="w-[150px]" />
+              </React.Fragment>
+            ))}
+          </colgroup>
           <tbody>
             {EXCEL_TEAMS.map((team, teamIdx) => {
               const grid = getTeamSlots(team.id);
@@ -1040,7 +1049,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                   {/* PT Header Row for this Team */}
                   <tr className="bg-slate-100/80 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-bold border-b border-slate-400 dark:border-slate-600">
                     {/* Empty cell above Team name column */}
-                    <th className="w-[120px] sm:w-[140px] border-r-2 border-slate-800 dark:border-slate-500 p-1.5"></th>
+                    <th className="w-[140px] min-w-[140px] border-r-2 border-slate-800 dark:border-slate-500 p-1.5"></th>
 
                     {[1, 2, 3, 4, 5].map((partyNum) => {
                       const noteKey = `${team.id}-${partyNum}`;
@@ -1055,7 +1064,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                             e.stopPropagation();
                             handleTogglePartyNote(team, partyNum, e.currentTarget.getBoundingClientRect());
                           }}
-                          className={`text-center py-1.5 px-2 font-black tracking-wider text-xs cursor-pointer select-none transition-all group relative hover:bg-amber-100/80 dark:hover:bg-amber-950/50 active:scale-[0.99] ${
+                          className={`w-[310px] min-w-[310px] text-center py-1.5 px-2 font-black tracking-wider text-xs cursor-pointer select-none transition-all group relative hover:bg-amber-100/80 dark:hover:bg-amber-950/50 active:scale-[0.99] ${
                             partyNum < 5
                               ? 'border-r border-slate-400 dark:border-slate-600'
                               : ''
@@ -1114,7 +1123,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                       {slotIdx === 0 && (
                         <td
                           rowSpan={6}
-                          className="border-r-2 border-slate-800 dark:border-slate-500 bg-white dark:bg-slate-900 text-center p-2 align-middle font-black text-xs sm:text-sm text-slate-900 dark:text-white uppercase tracking-wider"
+                          className="w-[140px] min-w-[140px] border-r-2 border-slate-800 dark:border-slate-500 bg-white dark:bg-slate-900 text-center p-2 align-middle font-black text-xs sm:text-sm text-slate-900 dark:text-white uppercase tracking-wider"
                         >
                           <div className="flex flex-col items-center justify-center gap-1">
                             <span>{team.displayTitle}</span>
@@ -1145,7 +1154,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                               onDrop={(e) =>
                                 handleDropToSlot(e, team.id, partyNum, slotNum, member)
                               }
-                              className={`w-[130px] sm:w-[160px] p-1.5 border-r border-slate-300 dark:border-slate-700 transition-all ${
+                              className={`w-[160px] min-w-[160px] p-1.5 border-r border-slate-300 dark:border-slate-700 transition-all ${
                                 isHovered
                                   ? 'bg-indigo-100/70 dark:bg-indigo-950/70 ring-2 ring-indigo-500 z-10'
                                   : isDuplicate
@@ -1346,7 +1355,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
 
                             {/* Subcolumn 2: Class Pill Dropdown Cell */}
                             <td
-                              className={`w-[130px] sm:w-[150px] p-1.5 text-center ${
+                              className={`w-[150px] min-w-[150px] p-1.5 text-center ${
                                 partyNum < 5
                                   ? 'border-r-2 border-slate-400 dark:border-slate-600'
                                   : ''
