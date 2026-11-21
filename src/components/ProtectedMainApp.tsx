@@ -2754,7 +2754,7 @@ export default function ProtectedMainApp({ user, onLogout }: ProtectedMainAppPro
       </header>
 
       {/* Main Container */}
-      <main className="max-w-[1600px] mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-5 relative z-10">
+      <main className={`mx-auto px-3 sm:px-6 lg:px-8 pt-3 sm:pt-5 relative z-10 ${appMode === 'GUILD_WAR' ? 'w-full max-w-none' : 'max-w-[1600px]'}`}>
         {/* Board Selector Bar (Raid & Bang Chiến) */}
         <section className="mb-4 bg-[#F0FDFA] dark:bg-[#0D2838] border-2 border-[#7DD3FC] dark:border-[#163E56] rounded-2xl p-2.5 sm:p-3 shadow-2xs transition-colors">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">

@@ -948,7 +948,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                 className="bg-white/90 dark:bg-slate-900/90 border border-rose-200 dark:border-rose-800/80 rounded-xl p-2.5 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between gap-1 mb-1">
-                  <span className="font-black text-slate-900 dark:text-white truncate">
+                  <span className="font-black text-slate-900 dark:text-white break-words">
                     {group.originalName}
                   </span>
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-rose-100 dark:bg-rose-900/60 text-rose-700 dark:text-rose-300">
@@ -990,7 +990,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                 className="bg-white/90 dark:bg-slate-900/90 border border-amber-300 dark:border-amber-800 rounded-xl p-2.5 flex flex-col justify-between"
               >
                 <div className="flex items-center justify-between gap-1 mb-1">
-                  <span className="font-black text-slate-900 dark:text-white truncate">
+                  <span className="font-black text-slate-900 dark:text-white break-words">
                     Người log: {conflict.loggedByName}
                   </span>
                   <span className="px-1.5 py-0.5 rounded text-[10px] font-black bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200">
@@ -1022,18 +1022,18 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
         className="bg-white dark:bg-slate-900 border-2 border-slate-800 dark:border-slate-500 rounded-xl overflow-x-auto shadow-md"
       >
         {/* Top Header: BANG CHIẾN */}
-        <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-black text-sm sm:text-base tracking-widest text-center py-2 uppercase border-b-2 border-slate-800 dark:border-slate-500 select-none min-w-[1220px]">
+        <div className="bg-white dark:bg-slate-900 text-slate-900 dark:text-white font-black text-sm sm:text-base tracking-widest text-center py-2 uppercase border-b-2 border-slate-800 dark:border-slate-500 select-none min-w-[1580px]">
           BANG CHIẾN
         </div>
 
         {/* Table layout matching the user's Excel screenshot */}
-        <table className="w-full min-w-[1220px] table-fixed border-collapse text-xs select-none">
+        <table className="w-full min-w-[1580px] table-fixed border-collapse text-xs select-none">
           <colgroup>
-            <col style={{ width: '8.5%', minWidth: '95px' }} />
+            <col style={{ width: '7%', minWidth: '100px' }} />
             {[1, 2, 3, 4, 5].map((p) => (
               <React.Fragment key={p}>
-                <col style={{ width: '10.3%', minWidth: '125px' }} />
-                <col style={{ width: '8%', minWidth: '100px' }} />
+                <col style={{ width: '12%', minWidth: '180px' }} />
+                <col style={{ width: '6.6%', minWidth: '115px' }} />
               </React.Fragment>
             ))}
           </colgroup>
@@ -1206,7 +1206,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                                             <Lock className="w-3 h-3" />
                                           </span>
                                         )}
-                                        <span className="font-bold text-xs text-slate-900 dark:text-white truncate">
+                                        <span className="font-bold text-xs text-slate-900 dark:text-white break-words leading-snug">
                                           {member.ingame}
                                         </span>
                                         {isDuplicate && (
@@ -1288,7 +1288,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                                     {member.loggedBy && member.loggedBy.trim() !== member.ingame.trim() && (
                                       <div className="flex items-center gap-1 text-[9px] text-slate-500 dark:text-slate-400 leading-none pl-4">
                                         <span>Log:</span>
-                                        <strong className="text-indigo-600 dark:text-indigo-400 truncate">
+                                        <strong className="text-indigo-600 dark:text-indigo-400 break-words">
                                           {member.loggedBy}
                                         </strong>
                                       </div>
@@ -1362,7 +1362,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                               }`}
                             >
                               {member && classMeta ? (
-                                <div className="relative inline-flex items-center justify-center w-full max-w-[104px]">
+                                <div className="relative inline-flex items-center justify-center w-full">
                                   <select
                                     value={member.className}
                                     onChange={(e) =>
@@ -1371,7 +1371,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                                       })
                                     }
                                     title="Nhấp để đổi môn phái"
-                                    className="w-full appearance-none cursor-pointer text-[10.5px] sm:text-xs font-semibold py-0.5 sm:py-1 pl-2 sm:pl-2.5 pr-4 sm:pr-5 rounded-full border shadow-2xs transition-transform active:scale-95 focus:outline-none focus:ring-1 focus:ring-black/20 text-center truncate"
+                                    className="w-full appearance-none cursor-pointer text-[10.5px] sm:text-xs font-semibold py-0.5 sm:py-1 pl-2 sm:pl-2.5 pr-4 sm:pr-5 rounded-full border shadow-2xs transition-transform active:scale-95 focus:outline-none focus:ring-1 focus:ring-black/20 text-center"
                                     style={{
                                       backgroundColor: classMeta.bgColor,
                                       color: classMeta.textColor,
