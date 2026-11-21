@@ -390,7 +390,7 @@ export interface GuildWarDuplicateGroup {
     team: GuildTeam;
     party?: number;
     slot?: number;
-    stt: number;
+    stt?: number;
   }>;
 }
 

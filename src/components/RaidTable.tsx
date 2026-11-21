@@ -153,6 +153,7 @@ export const RaidTable: React.FC<RaidTableProps> = ({
     }
     return {
       id: 'current-board',
+      createdAt: Date.now(),
       title: `${titlePrefix} - ${scheduleTime} ${bossName}`,
       titlePrefix,
       scheduleTime,
@@ -730,12 +731,10 @@ export const RaidTable: React.FC<RaidTableProps> = ({
 
                 // Cross-board schedule conflicts for this member row
                 const hasIngameScheduleConflict = Boolean(
-                  scheduleConflictLookup?.conflictingIngameStts?.has(member.stt) ||
-                  scheduleConflictLookup?.ingameConflictStts?.has(member.stt)
+                  scheduleConflictLookup?.conflictingIngameStts?.has(member.stt)
                 );
                 const hasLoggedByScheduleConflict = Boolean(
-                  scheduleConflictLookup?.conflictingLoggedByStts?.has(member.stt) ||
-                  scheduleConflictLookup?.loggedByConflictStts?.has(member.stt)
+                  scheduleConflictLookup?.conflictingLoggedByStts?.has(member.stt)
                 );
                 const rowScheduleConflicts = scheduleConflictLookup?.conflictsByStt?.get(member.stt) || [];
                 const ingameScheduleConflicts = rowScheduleConflicts.filter((c) => c.type === 'ingame');

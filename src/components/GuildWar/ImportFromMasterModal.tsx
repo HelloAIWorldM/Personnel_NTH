@@ -384,7 +384,7 @@ export const ImportFromMasterModal: React.FC<ImportFromMasterModalProps> = ({
                             style={{
                               backgroundColor: classMeta.bgColor,
                               color: classMeta.textColor,
-                              borderColor: classMeta.borderColor,
+                              borderColor: 'rgba(0,0,0,0.18)',
                             }}
                             className="inline-flex items-center px-1.5 py-0.2 text-[10px] font-bold rounded border shrink-0"
                           >

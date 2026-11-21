@@ -98,7 +98,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
   const [benchSortByClass, setBenchSortByClass] = useState(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
-  // Pixel Note Bubble click-to-toggle state cho các PT (PT-1 .. PT-4)
+  // Pixel Note Bubble click-to-toggle state cho các PT (PT-1 .. PT-5)
   const [activePartyNoteTarget, setActivePartyNoteTarget] = useState<{
     team: TeamConfig;
     partyNum: number;
@@ -247,7 +247,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     }, 2800);
   };
 
-  // Helper to map members of teams into 4 Parties x 6 Slots grids
+  // Helper to map members of teams into 5 Parties x 6 Slots grids
   const teamGrids = useMemo(() => {
     const result: Record<GuildTeam, Record<number, Record<number, GuildMember | null>>> = {
       'Cơ động': {
@@ -255,36 +255,42 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
         2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        5: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
       },
       'Mid': {
         1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        5: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
       },
       'Đẩy trụ': {
         1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        5: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
       },
       'Chưa xếp': {
         1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        5: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
       },
       'Top': {
         1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        5: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
       },
       'Bot': {
         1: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        5: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
       },
     };
 
@@ -294,7 +300,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
         m.party &&
         m.slot &&
         m.party >= 1 &&
-        m.party <= 4 &&
+        m.party <= 5 &&
         m.slot >= 1 &&
         m.slot <= 6 &&
         result[m.team][m.party][m.slot] === null
@@ -313,6 +319,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
         2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
         4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+        5: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
       }
     );
   };
@@ -323,7 +330,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     EXCEL_TEAMS.forEach((team) => {
       const grid = teamGrids[team.id];
       if (grid) {
-        for (let p = 1; p <= 4; p++) {
+        for (let p = 1; p <= 5; p++) {
           for (let s = 1; s <= 6; s++) {
             const mem = grid[p][s];
             if (mem) ids.add(mem.id);
@@ -641,15 +648,15 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
     EXCEL_TEAMS.forEach((team) => {
       const grid = getTeamSlots(team.id);
       let placedCount = 0;
-      for (let p = 1; p <= 4; p++) {
+      for (let p = 1; p <= 5; p++) {
         for (let s = 1; s <= 6; s++) {
           if (grid[p][s]) placedCount++;
         }
       }
       text += `━━━━━━━━━━━━━━━━━━━━━\n`;
-      text += `**${team.displayTitle} (${placedCount}/24 người)**\n`;
+      text += `**${team.displayTitle} (${placedCount}/30 người)**\n`;
 
-      for (let p = 1; p <= 4; p++) {
+      for (let p = 1; p <= 5; p++) {
         const ptMems: string[] = [];
         for (let s = 1; s <= 6; s++) {
           const m = grid[p][s];
@@ -708,8 +715,8 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
           const table = clonedDoc.getElementById('guild-teams-table-capture');
           if (!table) return;
 
-          // Expand to full width to ensure no columns are clipped
-          table.style.width = '1380px';
+          // Expand to full width to ensure no columns are clipped (5 PTs x 310px + 140px = 1690px)
+          table.style.width = '1690px';
           table.style.maxWidth = 'none';
           table.style.overflow = 'visible';
 
@@ -1024,7 +1031,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
           <tbody>
             {EXCEL_TEAMS.map((team, teamIdx) => {
               const grid = getTeamSlots(team.id);
-              const placedCount = [1, 2, 3, 4].reduce((acc, p) => {
+              const placedCount = [1, 2, 3, 4, 5].reduce((acc, p) => {
                 return acc + [1, 2, 3, 4, 5, 6].filter((s) => grid[p][s] !== null).length;
               }, 0);
 
@@ -1035,7 +1042,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                     {/* Empty cell above Team name column */}
                     <th className="w-[120px] sm:w-[140px] border-r-2 border-slate-800 dark:border-slate-500 p-1.5"></th>
 
-                    {[1, 2, 3, 4].map((partyNum) => {
+                    {[1, 2, 3, 4, 5].map((partyNum) => {
                       const noteKey = `${team.id}-${partyNum}`;
                       const pNote = partyNotes?.[noteKey]?.trim();
                       const hasNote = Boolean(pNote);
@@ -1049,7 +1056,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                             handleTogglePartyNote(team, partyNum, e.currentTarget.getBoundingClientRect());
                           }}
                           className={`text-center py-1.5 px-2 font-black tracking-wider text-xs cursor-pointer select-none transition-all group relative hover:bg-amber-100/80 dark:hover:bg-amber-950/50 active:scale-[0.99] ${
-                            partyNum < 4
+                            partyNum < 5
                               ? 'border-r border-slate-400 dark:border-slate-600'
                               : ''
                           } ${
@@ -1112,14 +1119,14 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                           <div className="flex flex-col items-center justify-center gap-1">
                             <span>{team.displayTitle}</span>
                             <span className="text-[10px] font-bold text-slate-400 dark:text-slate-400">
-                              ({placedCount}/24)
+                              ({placedCount}/30)
                             </span>
                           </div>
                         </td>
                       )}
 
-                      {/* 4 Parties (PT-1, PT-2, PT-3, PT-4) */}
-                      {[1, 2, 3, 4].map((partyNum) => {
+                      {/* 5 Parties (PT-1, PT-2, PT-3, PT-4, PT-5) */}
+                      {[1, 2, 3, 4, 5].map((partyNum) => {
                         const member = grid[partyNum][slotNum];
                         const slotKey = `${team.id}-${partyNum}-${slotNum}`;
                         const isHovered = hoveredSlot === slotKey;
@@ -1340,7 +1347,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                             {/* Subcolumn 2: Class Pill Dropdown Cell */}
                             <td
                               className={`w-[130px] sm:w-[150px] p-1.5 text-center ${
-                                partyNum < 4
+                                partyNum < 5
                                   ? 'border-r-2 border-slate-400 dark:border-slate-600'
                                   : ''
                               }`}
@@ -1390,7 +1397,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
                   {/* Spacer row between teams matching the Excel blank row */}
                   {teamIdx < EXCEL_TEAMS.length - 1 && (
                     <tr className="h-3 bg-slate-200/70 dark:bg-slate-800/80 border-t-2 border-b-2 border-slate-800 dark:border-slate-500">
-                      <td colSpan={7}></td>
+                      <td colSpan={11}></td>
                     </tr>
                   )}
                 </React.Fragment>
@@ -1629,7 +1636,7 @@ export const GuildTeamsTab: React.FC<GuildTeamsTabProps> = ({
           document.body
         )}
 
-      {/* Floating Pixel Note Bubble Modal / Tooltip cho PT (PT-1 .. PT-4) */}
+      {/* Floating Pixel Note Bubble Modal / Tooltip cho PT (PT-1 .. PT-5) */}
       {activePartyNoteTarget && partyNoteAnchorRect && (() => {
         const partyKey = `${activePartyNoteTarget.team.id}-${activePartyNoteTarget.partyNum}`;
         const currentPartyNote = partyNotes[partyKey] || '';

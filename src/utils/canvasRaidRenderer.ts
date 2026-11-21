@@ -346,13 +346,14 @@ export function drawGuildTeamsToCanvas({
       2: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
       3: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
       4: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
+      5: { 1: null, 2: null, 3: null, 4: null, 5: null, 6: null },
     };
     teamMems.forEach((m) => {
       if (
         m.party &&
         m.slot &&
         m.party >= 1 &&
-        m.party <= 4 &&
+        m.party <= 5 &&
         m.slot >= 1 &&
         m.slot <= 6 &&
         grid[m.party][m.slot] === null
@@ -368,7 +369,7 @@ export function drawGuildTeamsToCanvas({
   const nameColWidth = 160;
   const classColWidth = 150;
   const ptWidth = nameColWidth + classColWidth; // 310
-  const width = teamColWidth + ptWidth * 4; // 1380
+  const width = teamColWidth + ptWidth * 5; // 140 + 310 * 5 = 1690
   const bannerHeight = 44;
   const headerHeight = 36;
   const rowHeight = 40;
@@ -424,7 +425,7 @@ export function drawGuildTeamsToCanvas({
   TEAMS.forEach((team, teamIdx) => {
     const grid = getGrid(team.id);
     let placedCount = 0;
-    for (let p = 1; p <= 4; p++) {
+    for (let p = 1; p <= 5; p++) {
       for (let s = 1; s <= 6; s++) {
         if (grid[p][s]) placedCount++;
       }
@@ -442,8 +443,8 @@ export function drawGuildTeamsToCanvas({
     ctx.lineTo(teamColWidth, curY + headerHeight);
     ctx.stroke();
 
-    // 4 PT Headers
-    for (let p = 1; p <= 4; p++) {
+    // 5 PT Headers
+    for (let p = 1; p <= 5; p++) {
       const ptStartX = teamColWidth + (p - 1) * ptWidth;
       ctx.font = "bold 13px 'Lexend', system-ui, sans-serif";
       ctx.fillStyle = textColor;
@@ -451,7 +452,7 @@ export function drawGuildTeamsToCanvas({
       ctx.textBaseline = 'middle';
       ctx.fillText(`PT-${p}`, ptStartX + ptWidth / 2, curY + headerHeight / 2);
 
-      if (p < 4) {
+      if (p < 5) {
         ctx.strokeStyle = borderColor;
         ctx.lineWidth = 1;
         ctx.beginPath();
@@ -487,7 +488,7 @@ export function drawGuildTeamsToCanvas({
 
     ctx.font = "bold 11px 'Lexend', system-ui, sans-serif";
     ctx.fillStyle = subTextColor;
-    ctx.fillText(`(${placedCount}/24)`, teamColWidth / 2, slotsStartY + teamBoxHeight / 2 + 12);
+    ctx.fillText(`(${placedCount}/30)`, teamColWidth / 2, slotsStartY + teamBoxHeight / 2 + 12);
 
     // Left team box right vertical border (2px)
     ctx.strokeStyle = darkBorder;
@@ -502,7 +503,7 @@ export function drawGuildTeamsToCanvas({
       const rowY = curY;
       const midY = rowY + rowHeight / 2;
 
-      for (let p = 1; p <= 4; p++) {
+      for (let p = 1; p <= 5; p++) {
         const mem = grid[p][s];
         const ptStartX = teamColWidth + (p - 1) * ptWidth;
         const nameStartX = ptStartX;
@@ -558,7 +559,7 @@ export function drawGuildTeamsToCanvas({
         }
 
         // PT right divider (2px between parties, except the very right edge)
-        if (p < 4) {
+        if (p < 5) {
           ctx.strokeStyle = borderColor;
           ctx.lineWidth = 2;
           ctx.beginPath();
